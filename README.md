@@ -1,12 +1,12 @@
 # The Dudley Layout Language
 
-Dudley (maybe not its final name) is a data description language which
-has roughly the same scope as HDF5 or PDB metadata, plus some features
-of XDR.  A Dudley file is a text file (using any newline convention)
-that describes the layout of data in a file, which may also contain
-parameter values describing multidimensional array shapes.  A complete
-"program" in the Dudley language is called a "layout".  A Dudley
-layout file has the preferred name extension ".dud".
+Dudley is a data description language which has roughly the same scope
+as HDF5 or PDB metadata, plus some features of XDR.  A Dudley file is
+a text file (using any newline convention) that describes the layout
+of data in a file, which may also contain parameter values describing
+multidimensional array shapes.  A complete "program" in the Dudley
+language is called a "layout".  A Dudley layout file has the preferred
+name extension ".dud".
 
 While a Dudley layout can precisely describe the data layout of a
 particular binary file, like HDF5 or PDB metadata, Dudley can describe
@@ -427,7 +427,7 @@ a list may have unrelated addresses.
 
 The
 
-  !TEMPLATE
+    !TEMPLATE
 
 directive indicates that this file is intended to be a layout
 template.  The parser can check that all data addresses are computable
