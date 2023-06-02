@@ -450,7 +450,7 @@ good idea.
 1. Terminal tokens in the grammar are:
    -  [A-Za-z_][A-Za-z_0-9]*   (symbols)
    -  (0x)?[0-9]+   (integers)
-   -  # #: < | > = := ( , + - ) @ % { } [ ] / .. ! " '  (punctuation)
+   -  < | > = := ( , + - ) @ % { } [ ] / .. ! # #: " '  (punctuation)
    -  [\x0d\x0a]  (newlines, either LF, CRLF or CR)
    -  whitespace  (space, tab, vertical tab, form feed)
    - (" ' reserved for use declaring variable names with illegal characters)
