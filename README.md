@@ -1,12 +1,12 @@
 # The Dudley Layout Language
 
 Dudley is a data description language which has roughly the same scope
-as HDF5 or PDB metadata, plus some features of XDR.  A Dudley file is
-a text file (using any newline convention) that describes the layout
-of data in a file, which may also contain parameter values describing
-multidimensional array shapes.  A complete "program" in the Dudley
-language is called a "layout".  A Dudley layout file has the preferred
-name extension ".dud".
+as HDF5 or PDB metadata, plus some features of XDR.  Dudley code is a
+text file or stream (using any newline convention) that describes the
+layout of data in a file, which may also contain parameter values
+describing multidimensional array shapes.  A complete "program" in the
+Dudley language is called a "layout".  A Dudley layout file has the
+preferred name extension ".dud".
 
 While a Dudley layout can precisely describe the data layout of a
 particular binary file, like HDF5 or PDB metadata, Dudley can describe
@@ -81,18 +81,18 @@ interface U always means UCS-4, or U4 here.  To convert S1 to Unicode,
 best practice is probably to assume cp1252, falling back to latin1 if
 any of the missing code points in cp1252 actually occurs in the text.
 (This is more or less the W3 recommendation for how to handle html
-documents when the character set is not explicitly specified).
+documents when the character set is not explicitly specified.)
 
 These primitive types map to the following C primitive types on all
 modern machines and compilers:
 
-  i1 -> char, i2 -> short, i4 -> int, i8 -> long long
-  u1, u2, u4, u8 -> unsigned versions of i1, i2, i4, i8
-  f4 -> float, f8 -> double (f2 not supported in ANSI C)
-  c4, c8, c16 -> (real, imaginary) pair of f2, f4, f8
-  S1, U1 -> same data treatment as u1
-  U2, U4 -> same data treatment u2, u4
-  p4, p8 -> same data treatment as u4, u8, meaning similar to void*
+    i1 -> char, i2 -> short, i4 -> int, i8 -> long long
+    u1, u2, u4, u8 -> unsigned versions of i1, i2, i4, i8
+    f4 -> float, f8 -> double (f2 not supported in ANSI C)
+    c4, c8, c16 -> (real, imaginary) pair of f2, f4, f8
+    S1, U1 -> same data treatment as u1
+    U2, U4 -> same data treatment u2, u4
+    p4, p8 -> same data treatment as u4, u8, meaning similar to void*
 
 Note that the long data type is i8 on all UNIX platforms (and MacOS),
 but long is i4 on all Windows platforms.  Only the C type long long is
@@ -120,9 +120,9 @@ prefixed predefined primitive data type.
 ## Parameters
 
 Parameters are integer values which can be used to declare array
-shapes.  They can either be defined in the Dudley file description
-(like netCDF metadata) or read from the file itself.  The Dudley
-syntax for these two cases are, respectively:
+shapes.  They can either be defined in the Dudley layout (like netCDF
+metadata) or read from the file itself.  The Dudley syntax for these
+two cases are, respectively:
 
     param := integer
     param := type @ address
@@ -135,8 +135,8 @@ the address is assumed to be the next address in the file after the
 previous read.
 
 Generally, you should imagine that the data file is being read in the
-order of the parameter and variable declarations in the Dudley
-description.  You can also place an
+order of the parameter and variable declarations in the Dudley layout.
+You can also place an
 
     !@ address
 
@@ -151,10 +151,10 @@ A variable can be a data array, or a list of anonymous variables, or a
 group (python dict) of named variables.  You declare a data variable
 with:
 
-    var = type[shape] @ address
+    var = type(shape) @ address
 
 Data variables can have any type (predefined primitive or compound),
-and optionally include a [shape] - a list of array dimensions if
+and optionally include a (shape) - a list of array dimensions if
 present.  As for a parameter declaration, the @ address clause is
 optional, with the default again being the next address after the
 previous read or free-standing @ address directive.
@@ -162,11 +162,11 @@ previous read or free-standing @ address directive.
 You declare a list variable with:
 
     var = [
-      = type[shape] @ address  # first item of list is data variable
-      = type[shape] @ address  # second item of list is data variable
+      = type(shape) @ address  # first item of list is data variable
+      = type(shape) @ address  # second item of list is data variable
       = [  # third item of list is a sublist
-        = type[shape] @ address
-        = type[shape] @ address
+        = type(shape) @ address
+        = type(shape) @ address
       ]
       ----- and so on -----
     ]
@@ -174,22 +174,22 @@ You declare a list variable with:
 containing zero or more anonymous variable declarations in its body.
 Unlike a data variable, you can "reopen" a list variable by repeating
 the list declaration sequence with the same var name at any later
-point in the Dudley description to append more items (variable
+point in the Dudley layout to append more items (variable
 declarations) to the list.  You can also add anonymous group
-declarations as elements of a list variable, but first we show
-how to define a named group variable (essentially a python dict):
+declarations as elements of a list variable, but first we show how to
+define a named group variable (essentially a python dict):
 
     var /
-      param := type[shape] @ address  # parameter(s) here and in children
-      param := type[shape] @ address
-      var = type[shape] @ address  # declare a member variable
-      var = type[shape] @ address
+      param := type(shape) @ address  # parameter(s) here and in children
+      param := type(shape) @ address
+      var = type(shape) @ address  # declare a member variable
+      var = type(shape) @ address
       var /  # declare a subgroup (child group)
-        param := type[shape] @ address
-        var = type[shape] @ address
+        param := type(shape) @ address
+        var = type(shape) @ address
       ..  # double dot pops back to parent group
       var = [  # declare a list
-        = type[shape] @ address
+        = type(shape) @ address
       ]
       ----- and so on -----
     /  # optionally return all the way to root level
@@ -201,7 +201,7 @@ variables to it whever you like.  In particular, notice that
 
 and
 
-    /var/var/var = type[shape] @ address  # declare variable with full path
+    /var/var/var = type(shape) @ address  # declare variable with full path
 
 (The latter also leaves the parent group of the data variable as the
 current group.)
@@ -212,28 +212,25 @@ variable.  It is impossible to append more items to an anonymous group
 after its initial declaration:
 
     var = [
-      = type[shape] @ address
-      = type[shape] @ address
+      = type(shape) @ address
+      = type(shape) @ address
       /  # third item of list is a group of named parameters and variables
-        param := type[shape] @ address
-        var = type[shape] @ address
+        param := type(shape) @ address
+        var = type(shape) @ address
         ----- and so on -----
         ..  # or / to pop all the way out of a nested group declaration
-    ]
+    )
 
 
 ## Dimension lists
 
-- Should dimension lists use parentheses (shape), reserving square
-  brackets for list declarations?
+The format of a (shape) list in a data variable declaration is
 
-The format of a [shape] list in a data variable declaration is
-
-    [dim1, dim2, ...]
+    (dim1, dim2, ...)
 
 The dimensions are always listed from slowest to fastest varying, so
-that [3, 2] means three pairs, not two triples.  This is "C order" or
-"row major order".  You would build a shape [3, 2] like this: [[a, b],
+that (3, 2) means three pairs, not two triples.  This is "C order" or
+"row major order".  You would build a shape (3, 2) like this: [[a, b],
 [c, d], [e, f]], and the elements in this notation appear in the same
 order they are stored in memory.
 
@@ -263,7 +260,7 @@ The Dudley syntax is:
 
     type := {
       param := type @ offset  # param := integer also legal
-      var = type[shape] @ offset
+      var = type(shape) @ offset
       ----- and so on -----
     }
 
@@ -291,7 +288,7 @@ the length of the array is written at the address of the instance:
 
     string := {
       count := u4
-      = S1[count]  # single anonymous member
+      = S1(count)  # single anonymous member
     }
     text = string
 
@@ -299,24 +296,25 @@ creates a variable "text" created from an array of ASCII characters,
 written to the file as a 4 byte integer count followed by that many
 characters.  Reading it back produces a result indistinguishable from
 
-    text = S1[count]
+    text = S1(count)
 
 if count were defined as some fixed value.  This is a popular
 construct in many existing file and stream formats (present in both
 XDR and HDF5 for example).  However, it should be avoided because the
 length of the data cannot be computed without reading the file at the
 address of the data itself, making it necessary to provide explicit
-addresses in the Dudley description for everything beyond the first
-declared instance of such a parametrized type.
+addresses in the Dudley layout for everything beyond the first
+declared instance of such a parametrized type (assuming you are not
+using Dudley as just a stream decoder like XDR).
 
 
 ## Pointer data
 
 Pointers automatically require listing explicit addresses in the
-Dudley description, making the description specific to a single file.
-Each pointee must be declared like this:
+Dudley layout, making the description specific to a single file.  Each
+pointee must be declared like this:
 
-    integer = type[shape] @ address
+    integer = type(shape) @ address
 
 That is, a pointee is a variable whose name is a 4 or eight byte
 unsigned integer value, depending on whether it was declared as a p4
@@ -338,7 +336,7 @@ the file, unless it is describing a file in a non-native format like
 PDB or HDF (in which case all of the declarations would have explicit
 < or > prefixes).  A special parameter-like declaration handles this
 
-    !DUDLEY := S1[8] @ address  # signature and byte order mark
+    !DUDLEY := S1(8) @ address  # signature and byte order mark
 
 The Dudley file has one of two eight byte hex signatures: [89, 44, 75,
 44, 0d, 0a, 1a, 0a] or [89, 64, 95, 64, 0d, 0a, 1a, 0a].  Note that
@@ -353,8 +351,7 @@ detects common file transfer mishandling errors.
 
 ## Parameter blocks
 
-A complete Dudley program can be called a "layout".  There are at least
-three distinct use cases:
+There are at least three distinct use cases for Dudley:
 
 1. The layout explicitly defines the addresses of every item in a
    single specific file.  This is what PDB and HDF5 metadata is
@@ -392,7 +389,7 @@ inhomogeneous array of structs.
       param := type @ offset
       param := type @ offset
       param := integer  # also legal, but not present in file
-    }[shape] @ address  # permit shape and address only if no variables!
+    }(shape) @ address  # permit shape and address only if no variables!
 
 Note that parameter_block lives in type namespace, not parameter
 namespace - in other words, it is global, which is correct.  In
@@ -401,11 +398,11 @@ heterogeneous arrays of struct instances using this special syntax:
 
     var = parameter_block{
       # combined struct declaration and instances
-      var = type[shape] @ offset
-      var = type[shape] @ offset
+      var = type(shape) @ offset
+      var = type(shape) @ offset
     } @ address
 
-The var inherits the [shape] of the parameter block (if any).
+The var inherits the (shape) of the parameter block (if any).
 
 This facility for heterogeneous arrays provides a relatively simple
 way for block structured codes like Hydra to describe their natural
@@ -446,3 +443,19 @@ in the index stream, or they appear only in the index stream and are
 absent from individual files.  The latter has the effect of bricking
 the individual file without the index file, which is probably never a
 good idea.
+
+
+## Notes on Dudley grammar
+
+1. Terminal tokens in the grammar are:
+   -  [A-Za-z_][A-Za-z_0-9]*   (symbols)
+   -  (0x)?[0-9]+   (integers)
+   -  # #: < | > = := ( , + - ) @ % { } [ ] / .. ! " '  (punctuation)
+   -  [\x0d\x0a]  (newlines, either LF, CRLF or CR)
+   -  whitespace  (space, tab, vertical tab, form feed)
+   - (" ' reserved for use declaring variable names with illegal characters)
+   - (% reserved for use in alignment declarations)
+
+2. Newlines are distinguished from other whitespace only to determine
+   the end of a comment introduced by # or #:.  Any whitespace, including
+   newlines, is otherwise optional unless needed to delimit other tokens.
