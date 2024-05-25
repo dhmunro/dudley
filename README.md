@@ -425,8 +425,8 @@ dimensional array.  The single dimension corresponds to the number of
 
     nblocks := u4  # or u8 or any integer data type
     ionode ?= {
-      = u4  # first member is ionode index (any integer type)
-      @= u8  # optional special second member is block address
+      = u4  # anonymous member is block ionode index (any integer type)
+      @= u8  # optional special member is block root address
       param := type  # additional members are block parameters
       param := type
     }(nblocks)  # optional "@ address" in index file
