@@ -290,7 +290,7 @@ while a struct is intended to be mapped to a numpy structured dtype
     type == {
       param := type @ offset  # param := integer also legal
       var = type(shape) @ offset
-      ...
+      ----- and so on -----
     }
 
 That is, a struct type consists of parameter and variable
@@ -454,7 +454,7 @@ parameters describing the shape of the array data for each block in
 the individual files.  Writing these parameters to the index file (and
 the optional "@=" root address) allows the address of any variable in
 the entire family to be computed from the data in the index file,
-without needin to read anything from any of the files owned by any
+without needing to read anything from any of the files owned by any
 individual ionode.
 
 More than one "?=" variable may be declared, and they need not share a
@@ -469,7 +469,7 @@ special "?/" notion to declare the root group associated with one block
     ionode ?/
       var = type(shape)
       var = type(shape)
-      ...
+      ----- and so on -----
 
 The array shapes may use the parameters declared in the corresponding
 "?=" variable declaration.  These may optionally be repeated as
