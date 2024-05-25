@@ -372,38 +372,8 @@ Pointee declarations always have global scope; they will never be
 members of any group other than the root of the whole file.
 
 
-## Additional constructs
-
-Dudley needs a way to write or read the default byte order as part of
-the file, unless it is describing a file in a non-native format like
-PDB or HDF (in which case all of the declarations would have explicit
-< or > prefixes).  A special parameter-like declaration handles this
-
-    !DUDLEY := S1(8) @ address  # signature and byte order mark
-
-The Dudley file has one of two eight byte hex signatures: [89, 44, 75,
-44, 0d, 0a, 1a, 0a] or [89, 64, 95, 64, 0d, 0a, 1a, 0a].  Note that
-[44, 75, 44] is "DUD" if the default byte order is big endian >, while
-[64, 95, 64] is "dud" means the default byte order is little endian <.
-This sequence is stolen from HDF5, which stole it from PNG.  It
-detects common file transfer mishandling errors.
-
 - Use %alignment for alignments in contexts similar to @address?
 - Should !DUDLEY := 0 or 1 specify default little or big endian?
-
-
-## Separate parameter streams
-
-The
-
-    !TEMPLATE
-
-directive indicates that this file is intended to be a layout
-template.  The parser can check that all data addresses are computable
-from the parameters, and that furthermore all parameters are grouped
-at the beginning of the file.  Note that the !DUDLEY file signature is
-an important parameter if you want to support families with members of
-both endianness.
 
 
 ## Parallel processing support
@@ -492,6 +462,38 @@ Similarly, each standard post processing file family could be
 described by its single Dudley layout.  Furthermore, by editing such a
 standard file it would be easy to derive new layouts containing custom
 data.
+
+
+## Additional constructs
+
+Dudley needs a way to write or read the default byte order as part of
+the file, unless all of the declarations have explicit < or >
+prefixes.  A special parameter-like declaration handles this:
+
+    !BOM := |U2 @ address  # "@ address" optional as usual
+
+The BOM value is U+FEFF, so if the two bytes are [0xFE, 0xFF], the
+native byte order is big endian, while if the bytes are [0xFF, 0xFE],
+the native byte order is little endian.  Any other values at that
+address means the data stream has been corrupted and throws an
+exception.  Since placing a byte order mark at the beginning of a
+stream may indicate the whole stream is unicode, it is unwise to put
+this !BOM at address 0.
+
+Dudley also supports an arbitrary file signature or "magic number",
+which usually would be placed at address 0 in a file.  To do this,
+Dudley recognizes a second special parameter-like declaration:
+
+    !SIGNATURE := S1(8) @ address  #! b"\x89DUD\x0d\x0a\x1a\x0a"
+
+Dudley parses the special comment beginning with #! as a python byte
+string indicating the expected signature value; the number of bytes in
+this expected value must match the S1 shape.  If there is no #!
+comment, then the default signature is the value shown in this
+example, which is the signature for a native Dudley data file (see the
+PNG format standard for the rationale).  Failure to match the expected
+signature indicates the data stream has been corrupted and throws an
+exception.
 
 
 ## Notes on Dudley grammar
