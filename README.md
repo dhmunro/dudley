@@ -487,10 +487,11 @@ option of the application).  This opens the possibility of a single
 Dudley layout description covering all restart dumps, serial or
 parallel, for a complex radhydro code.  With document comments, such a
 layout file would serve as a very concise description of of the
-meaning of everything the code uses to run.  Similarly, each standard
-post processing file family could be described by its single Dudley
-layout.  Furthermore, by editing such a standard file it would be easy
-to derive new layouts containing custom data.
+meaning of everything required to specify the state of the code.
+Similarly, each standard post processing file family could be
+described by its single Dudley layout.  Furthermore, by editing such a
+standard file it would be easy to derive new layouts containing custom
+data.
 
 
 ## Notes on Dudley grammar
