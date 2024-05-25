@@ -9,12 +9,38 @@ Dudley language is called a "layout".  A Dudley layout file has the
 preferred name extension ".dud".
 
 While a Dudley layout can precisely describe the data layout of a
-particular binary file, like HDF5 or PDB metadata, Dudley can describe
-a parametrized layout which can apply to a wide range of individual
-binary files having the same variables but different array shapes.
-This extended capability is similar to XDR.  However, unlike XDR, a
-Dudley layout can specify the precise address of data in a file
-without streaming through the entire file.
+particular binary file, like HDF5 or PDB metadata, Dudley can also
+describe a parametrized layout which can apply to a wide range of
+individual binary files having the same variables but different array
+shapes.  This extended capability is similar to XDR.  However, unlike
+XDR, Dudley is designed to be able to specify the precise address of
+data in a file without streaming through the entire file.
+
+There are at least three distinct use cases for Dudley:
+
+1. The layout explicitly defines the addresses of every item in a
+   single specific file.  This is what PDB and HDF5 metadata is
+   designed to do.  The description may contain parameters defined as
+   fixed values in the layout, but these are a form of documentation
+   like named dimension lengths in netCDF.
+
+2. The layout is intended to describe many different data streams, but
+   the consumer will always read the entire data stream in serial
+   order.  The data stream may contain parameters describing dimension
+   lengths of objects later in the stream, so one layout may describe
+   streams with different sized arrays.  This is what XDR is designed
+   to do, which is similar to the Python pickle protocol.  Potentially
+   it is useful for files as well, when the consumer will always read
+   the entire file sequentially.
+
+3. The layout is intended to describe many different files, and the
+   consumer is expected to read only random parts of the file.  This
+   can be made reasonably efficient if the parameters are all
+   collected at the beginning of the file, so the reader can compute
+   the actual addresses of everything in the file from the information
+   in a small block at its beginning.  In this case, the Dudley layout
+   is a template for many files, a capability which none of our
+   existing tools has.
 
 
 ## Namespaces
@@ -41,23 +67,23 @@ Dudley is defined entirely by punctuation characters.
 ## Comments
 
 The # character marks the beginning of a comment, which extends to the
-end of the line.  A comment beginning with #! is a document comment
+end of the line.  A comment beginning with #: is a document comment
 which describes the meaning of the type, parameter, or variable
-defined on this line, or on the previous line if the #! is the first
+defined on this line, or on the previous line if the #: is the first
 non whitespace token on the line.  If the previous line already had a
 document comment, this line is a continuation of that document string.
 
 The intent is for document comments to replace data attributes in HDF5
 and other formats.  If you need compact attributes that can be reduced
-to just a number, you can extend the Dudley syntax to support that,
-but such extensions are beyond the scope of this basic language
-definition, since they have no effect on how or where your data is
-stored, and any consumer of your data will need to understand its
-meaning anyway.  You should not store information necessary to
-disambiguate variable meaning as attributes (let alone required as
-actual variable data for processing); this omission is intended to
-force you to store any such information as actual named variables in
-your files.
+to just a number, you can extend the Dudley syntax to support that (by
+parsing document comments), but such extensions are beyond the scope
+of this basic language definition, since they have no effect on how or
+where your data is stored, and any consumer of your data will need to
+understand their meaning anyway.  You should not store information
+necessary to disambiguate variable meaning as attributes (let alone
+required as actual variable data for processing); this omission is
+intended to encourage you to store any such information as actual
+named variables in your files.
 
 
 ## Primitive data types
@@ -99,22 +125,20 @@ but long is i4 on all Windows platforms.  Only the C type long long is
 i8 on all platforms.  Also unstated here is the assumption that all
 integers are stored in twos-complement format.
 
-All of these primitive data types may be prefixed by < to specify little
+Any of these primitive data types may be prefixed by < to specify little
 endian byte order or > to specify big endian byte order.  They may also
 be prefixed by |, which here is the same as no prefix, indicating the
 file-wide byte order, which must be specified elsewhere if any variables
-or parameters are declared without an explicit < or > prefix.
+or parameters are declared without an explicit < or > prefix.  You cannot
+use the <, >, or | prefix with any type name except these primitives.
 
 You can redefine these type names in the file, provided the new type
 definition precedes the first use of that primitive type name, and in
-all future references you explicitly include prefix the predefined
-primitive with |.  The unprefixed primitive type name is implicitly
-defined only upon its first use in a declaration if you haven't
-defined it previously.  The actual primitive name has the | prefix and
-is therefore not a legal Dudley symbol in any other context.
-
-In other words, "type" may be either a legal symbol name, or any
-prefixed predefined primitive data type.
+all future references you explicitly prefix the predefined primitive
+with |.  The unprefixed primitive type name is implicitly defined only
+upon its first use in a declaration if you haven't defined it
+previously.  The actual primitive name has the | prefix and is
+therefore not a legal Dudley symbol in any other context.
 
 
 ## Parameters
@@ -142,7 +166,8 @@ You can also place an
 
 directive on a separate line to set the address of the following
 parameter or variable if you want to omit individual address
-specifications for a sequence of subsequent declarations.
+specifications for a sequence of subsequent declarations.  There
+is an implied "!@ 0" at the beginning of every Dudley layout.
 
 
 ## Variables
@@ -157,7 +182,7 @@ Data variables can have any type (predefined primitive or compound),
 and optionally include a (shape) - a list of array dimensions if
 present.  As for a parameter declaration, the @ address clause is
 optional, with the default again being the next address after the
-previous read or free-standing @ address directive.
+previous read or free-standing !@ address directive.
 
 You declare a list variable with:
 
@@ -174,7 +199,7 @@ You declare a list variable with:
 containing zero or more anonymous variable declarations in its body.
 Unlike a data variable, you can "reopen" a list variable by repeating
 the list declaration sequence with the same var name at any later
-point in the Dudley layout to append more items (variable
+point in the Dudley layout to append more items (anonymous variable
 declarations) to the list.  You can also add anonymous group
 declarations as elements of a list variable, but first we show how to
 define a named group variable (essentially a python dict):
@@ -219,7 +244,11 @@ after its initial declaration:
         var = type(shape) @ address
         ----- and so on -----
         ..  # or / to pop all the way out of a nested group declaration
-    )
+    ]
+
+Note the difference between a list and an array: a single address
+determines the location of all elements of an array, but the items of
+a list may have unrelated addresses.
 
 
 ## Dimension lists
@@ -230,9 +259,9 @@ The format of a (shape) list in a data variable declaration is
 
 The dimensions are always listed from slowest to fastest varying, so
 that (3, 2) means three pairs, not two triples.  This is "C order" or
-"row major order".  You would build a shape (3, 2) like this: [[a, b],
-[c, d], [e, f]], and the elements in this notation appear in the same
-order they are stored in memory.
+"row major order".  You would build a shape (3, 2) array like this:
+[[a, b], [c, d], [e, f]], and the elements in this notation appear in
+the same order they are stored in memory.
 
 Each dimension length may be either an integer value or a parameter
 name.  The parameter name must have been previously declared in either
@@ -249,19 +278,19 @@ list, reducing the number of dimensions of the array.  This happens
 before any + or - increment or decrement suffix is computed.
 
 
-## Compound data types
+## Data types and typedefs
 
 You can define named compound data types similar to C structs.  There
 is not a huge distinction between groups and struct types; a struct is
 more or less a template for a group.  However, for modest member
 counts at least, a group is intended to be mapped to a Python dict,
-while a struct is intended to be mapped to a numpy structured dtype.
-The Dudley syntax is:
+while a struct is intended to be mapped to a numpy structured dtype
+(or C struct).  The Dudley syntax is:
 
-    type := {
+    type == {
       param := type @ offset  # param := integer also legal
       var = type(shape) @ offset
-      ----- and so on -----
+      ...
     }
 
 That is, a struct type consists of parameter and variable
@@ -276,23 +305,37 @@ groups.  Any parameters should appear in the shapes of some of the
 data members (variables), since their scope is limited to a single
 struct instance.
 
+One distinction between a struct type and a group is that the optional
+@ delimits an offset - that is, an address relative to the beginning
+of the struct instance - whereas the @ address in a group represents
+an absolute disk address in the file.
+
+You can also use the == operator to create an alias for another data
+type, possibly dimensioned, analogous to a C typedef:
+
+    type == type(shape)
+
+Struct data types need not be explicitly named.  Anywhere "type"
+appears in the Dudley grammar, it can be either a (possibly prefixed)
+primitive data type, a symbol which has been previously defined
+as a data type in an == statement, or a struct declaration in { }
+brackets.
+
 As a special case, if there is only a single member (variable
 declaration) in the struct, you may omit the variable name, like the
 anonymous variable declarations in a list.  In this case, an instance
 of the type should be presented as if it were an instance of the
-anonymous member.  In other words, this syntax is a way to get the
-effect of a typedef in C.
+anonymous member.  This syntax is a way to get the effect of counted
+arrays, in which the length of the array is written at the address of
+the instance:
 
-Parameters in a type can be used to implement counted arrays, in which
-the length of the array is written at the address of the instance:
-
-    string := {
+    string == {
       count := u4
       = S1(count)  # single anonymous member
     }
     text = string
 
-creates a variable "text" created from an array of ASCII characters,
+declares a variable "text" created from an array of ASCII characters,
 written to the file as a 4 byte integer count followed by that many
 characters.  Reading it back produces a result indistinguishable from
 
@@ -303,9 +346,9 @@ construct in many existing file and stream formats (present in both
 XDR and HDF5 for example).  However, it should be avoided because the
 length of the data cannot be computed without reading the file at the
 address of the data itself, making it necessary to provide explicit
-addresses in the Dudley layout for everything beyond the first
-declared instance of such a parametrized type (assuming you are not
-using Dudley as just a stream decoder like XDR).
+addresses in the Dudley layout after every instance of such a
+parametrized type (unless you are using Dudley as just a stream
+decoder like XDR).
 
 
 ## Pointer data
@@ -349,77 +392,6 @@ detects common file transfer mishandling errors.
 - Should !DUDLEY := 0 or 1 specify default little or big endian?
 
 
-## Parameter blocks
-
-There are at least three distinct use cases for Dudley:
-
-1. The layout explicitly defines the addresses of every item in a
-   single specific file.  This is what PDB and HDF5 metadata is
-   designed to do.  The description may contain parameters defined as
-   fixed values in the layout, but these are a form of documentation
-   like named dimension lengths in netCDF.
-
-2. The layout is intended to describe many different data streams, but
-   the consumer will always read the entire data stream in serial
-   order.  The data stream may contain parameters describing dimension
-   lengths of objects later in the stream, so one layout may describe
-   streams with different size arrays.  This is what XDR is designed
-   to do, which is similar to the Python pickle protocol.  Potentially
-   it is useful for files as well, when the consumer will always read
-   the entire file in order.
-
-3. The layout is intended to describe many different files, and the
-   consumer is expected to read only random parts of the file.  This
-   can be made reasonably efficient if the parameters are all
-   collected at the beginning of the file, so the reader can compute
-   the actual addresses of everything in the file from the information
-   in a small block at its beginning.  In this case, the Dudley layout
-   is a template for many files, a capability which none of our
-   existing tools has.
-
-To be able to put all parameters first, the Dudley grammar needs to be
-extended.  The idea is to define arrays of parameters that can then be
-used within compound declarations.
-
-More or less what we want is an array of parametrized structs with the
-parameters for all the array items specified up front - amounting to an
-inhomogeneous array of structs.
-
-    parameter_block := {
-      param := type @ offset
-      param := type @ offset
-      param := integer  # also legal, but not present in file
-    }(shape) @ address  # permit shape and address only if no variables!
-
-Note that parameter_block lives in type namespace, not parameter
-namespace - in other words, it is global, which is correct.  In
-addition, a parameter_block type can only be used to declare
-heterogeneous arrays of struct instances using this special syntax:
-
-    var = parameter_block{
-      # combined struct declaration and instances
-      var = type(shape) @ offset
-      var = type(shape) @ offset
-    } @ address
-
-The var inherits the (shape) of the parameter block (if any).
-
-This facility for heterogeneous arrays provides a relatively simple
-way for block structured codes like Hydra to describe their natural
-data layout.  However, less structured codes will need to work much
-harder to reduce the number of parameters required to describe their
-data, probably involving flattening data that is scattered in memory,
-and creating explicit index arrays into those flattened structures
-which are not present in the memory representation.  Serialization
-methods like XDR or pickle with metadata sprinkled throughout the
-entire data stream will always be easier paths, at the cost of making
-random access extremely costly.
-
-Note the difference between an array and a list: a single address
-determines the location of all elements of an array, but the items of
-a list may have unrelated addresses.
-
-
 ## Separate parameter streams
 
 The
@@ -433,16 +405,81 @@ at the beginning of the file.  Note that the !DUDLEY file signature is
 an important parameter if you want to support families with members of
 both endianness.
 
-There should be a capability to read template parameters (including
-parameter_blocks) from a separate data stream.  This allows a single
-index file to hold all parameter values for very large file families,
-so that a browser does not need to read metadata from any individual
-file in order to completely understand the layout of every file in the
-family.  There are two scenarios: either the parameters are duplicated
-in the index stream, or they appear only in the index stream and are
-absent from individual files.  The latter has the effect of bricking
-the individual file without the index file, which is probably never a
-good idea.
+
+## Parallel processing support
+
+Dudley has a mechanism to support a family of files each written by
+one "ionode" which owns only a subset of "blocks" comprising some
+global data set.  The number of such blocks may vary from one ionode
+to the next (presumably as a side effect of balancing the load among
+processors).  A single "index file" holds all of the parameters for
+all of the blocks, in order to enable the full data set to be read by
+a different number of processors with a different partitioning of the
+blocks among them.
+
+The Dudley layout for the whole family describes
+the index file layout in the usual manner, but contains one or more
+"ionode" types declared with a special "?=" statement to be a one
+dimensional array.  The single dimension corresponds to the number of
+"blocks" in the global data set:
+
+    nblocks := u4  # or u8 or any integer data type
+    ionode ?= {
+      = u4  # first member is ionode index (any integer type)
+      @= u8  # optional special second member is block address
+      param := type  # additional members are block parameters
+      param := type
+    }(nblocks)  # optional "@ address" in index file
+
+This special ionode variable definition may appear only at the top
+level of the Dudley layout; it lives in the (top level) variable
+namespace for the index file.
+
+The anonymous "=" member of this special ionode variable is
+required; its value is the index of the ionode owning this block.
+(The association between an ionode index and the corresponding
+processor or file is left to the application - note that the index
+file layout is free to include other variables needed to work out the
+association, such as a corresponding list of filenames.)  Within the
+nblocks instances of this struct, any given ionode index may appear
+multiple times (meaning it owns multiple blocks) or not at all
+(meaning it owns no blocks).
+
+The anonymous "@=" member of this special ionode variable is optional;
+its value is the root address of this particular block in the file
+associated with this ionode.
+
+Parameter declarations within the special ionode variable are the
+parameters describing the shape of the array data for each block in
+the individual files.  Writing these parameters to the index file (and
+the optional "@=" root address) allows the address of any variable in
+the entire family to be computed from the data in the index file,
+without needin to read anything from any of the files owned by any
+individual ionode.
+
+More than one "?=" variable may be declared, and they need not share a
+common dimension length - that is, the application may contain several
+different kinds of blocks.  However, any ionode index value in all the
+"?=" declarations should refer to the same ionode processor and file.
+
+Once a "?=" variable has bee defined, the Dudley layout can use the
+special "?/" notion to declare the root group associated with one block
+(of this ionode type if there are multiple kinds of blocks) like this:
+
+    ionode ?/
+      var = type(shape)
+      var = type(shape)
+      ...
+
+The array shapes may use the parameters declared in the corresponding
+"?=" variable declaration.  These may optionally be repeated as
+parameters in the "?/" group; the application is responsible for
+ensuring that any repeated parameter values written to the individual
+ionode files match the corresponding values written to the index file.
+
+Any "@ address" specifications within such an ionode group are
+relative to the root address for that block, not absolute addresses in
+the file (as for ordinary groups).
 
 
 ## Notes on Dudley grammar
@@ -450,7 +487,7 @@ good idea.
 1. Terminal tokens in the grammar are:
    -  [A-Za-z_][A-Za-z_0-9]*   (symbols)
    -  (0x)?[0-9]+   (integers)
-   -  < | > = := ( , + - ) @ % { } [ ] / .. ! # #: " '  (punctuation)
+   -  < | > = := == ( , + - ) @ % { } [ ] / .. ! # #: " '  (punctuation)
    -  [\x0d\x0a]  (newlines, either LF, CRLF or CR)
    -  whitespace  (space, tab, vertical tab, form feed)
    - (" ' reserved for use declaring variable names with illegal characters)
