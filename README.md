@@ -478,7 +478,11 @@ the native byte order is little endian.  Any other values at that
 address means the data stream has been corrupted and throws an
 exception.  Since placing a byte order mark at the beginning of a
 stream may indicate the whole stream is unicode, it is unwise to put
-this !BOM at address 0.
+this !BOM at address 0.  You can also define the default byte order
+in the layout file itself with one of:
+
+    !BOM := 0  # for big-endian (most significant byte first)
+    !BOM := 1  # for little-endian (least significant byte first)
 
 Dudley also supports an arbitrary file signature or "magic number",
 which usually would be placed at address 0 in a file.  To do this,
@@ -494,6 +498,35 @@ example, which is the signature for a native Dudley data file (see the
 PNG format standard for the rationale).  Failure to match the expected
 signature indicates the data stream has been corrupted and throws an
 exception.
+
+A Dudley layout may be appended to the data file it describes to
+create a single self-describing file.  Such a file should begin with
+the native Dudley signature, but this is not required.  After
+appending the text of the layout file, append the additional text:
+
+    #!DUDLEY@address!<bom>
+
+Here <bom> indicates the digit 0 if the machine writing the binary
+data part of the file is big-endian, or the digit 1 if it is
+little-endian.  This will be overridden by the value of the special
+!BOM parameter written elsewhere in the file - it is intended as a
+default for data layouts which do not include that parameter.  The
+address is the first byte of the layout text, and the layout text ends
+just before this # character - in other words, this comment string
+should be removed from the tail of the layout.  Ideally, these are the
+last bytes of the file, but as long as the leading # character is
+within the final 4096 bytes of the file, the Dudley layout text will
+be discovered.
+
+The preferred file extension for a file with the Dudley layout
+appended is .dud, the same as a bare layout file.
+
+Keeping the layout stream separate from the binary data stream is
+encouraged, particularly in cases in which binary data will be added
+over several sessions.  In that case, the layout text file should get
+the .dud extension, while the binary data file can have any other
+extension (say .dat).  This is also convenient when the binary data is
+contained in a file of a different format, like HDF5 or netCDF or PDB.
 
 
 ## Notes on Dudley grammar
