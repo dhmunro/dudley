@@ -181,10 +181,10 @@ previous read or free-standing !@ address directive.
 
 You declare a list variable with:
 
-    var = [
+    var =[     # no space between = and [
       = type(shape) @ address  # first item of list is data variable
       = type(shape) @ address  # second item of list is data variable
-      = [  # third item of list is a sublist
+      =[  # third item of list is a sublist
         = type(shape) @ address
          ----- and so on -----
       ]
@@ -207,7 +207,7 @@ define a named group variable (essentially a python dict):
         var = type(shape) @ address
         ----- and so on -----
       ..  # double dot pops back to parent group
-      var = [  # declare a list
+      var =[  # declare a list
         = type(shape) @ address
       ]
       ----- and so on -----
@@ -225,18 +225,20 @@ and
 (The latter also leaves the parent group of the data variable as the
 current group.)
 
-Defining an anoymous group as a list item follows a similar pattern,
+Defining an anonymous group as a list item follows a similar pattern,
 except that the "root level" of any such group is its containing list
 variable.  It is impossible to append more items to an anonymous group
 after its initial declaration:
 
-    var = [
+    var =[
       = type(shape) @ address
-      /  # third item of list is a group of named parameters and variables
+      /[  # third item of list is a group of named parameters and variables
         param := type(shape) @ address
         var = type(shape) @ address
+        var = [ ... ]
+        var/ ...
         ----- and so on -----
-        ..  # or / to pop all the way out of a nested group declaration
+      ]
       ----- and so on -----
     ]
 

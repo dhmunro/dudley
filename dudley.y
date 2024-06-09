@@ -2,62 +2,53 @@
 
 %start layout
 
-%token SYMBOL INTEGER EOF
-%token CEQ EEQ BAT DOTDOT QEQ ATEQ QSLASH PLUSSES MINUSES
-/*     :=  ==  !@  ..     ?=  @=   ?/     +       -      */
+%token SYMBOL INTEGER SPECIAL
+%token CEQ EEQ EQB SLASHB BAT DOTDOT QBRACE ATEQ QSLASH PLUSSES MINUSES
+/*     :=  ==  =[  /[     !@  ..     ?{     @=   ?/     +       -      */
 
 %%
 
-parameter:
-  SYMBOL CEQ value
+layout:
+  layout statement
+|
 ;
 
-type:
-  SYMBOL EEQ typeref shape alignment
-;
-
-variable:
-  SYMBOL declaration
-;
-
-pointee:
-  INTEGER declaration
-;
-
-declaration:
-  '=' typeref shape location
+statement:
+  SYMBOL '=' type shape location
+| SYMBOL EQB list_items ']'
+| SYMBOL CEQ value
+| SYMBOL EEQ type shape alignment
+| SYMBOL '/'
+| SYMBOL QBRACE root_params '}' shape location
+| SYMBOL QSLASH
+| '/'
+| DOTDOT
+| INTEGER '=' type shape location
+| BAT INTEGER
+| SPECIAL
+| error
 ;
 
 value:
   INTEGER
-| pfx_symbol location
+| basetype location
 ;
 
-pfx_symbol:
-  '<' SYMBOL
+basetype:
+  SYMBOL
 | '>' SYMBOL
+| '<' SYMBOL
 | '|' SYMBOL
-| SYMBOL
 ;
 
-location:
-  '@' INTEGER
-| alignment
-;
-
-alignment:
-  '%' INTEGER
-|
+type:
+  basetype
+| '{' members '}'
 ;
 
 shape:
   '(' dimensions ')'
 |
-;
-
-dimensions:
-  dimensions ',' dimension
-| dimension
 ;
 
 dimension:
@@ -67,18 +58,53 @@ dimension:
 | SYMBOL MINUSES
 ;
 
-typeref:
-  pfx_symbol
-| struct
+dimensions:
+  dimensions ',' dimension
+| dimension
 ;
 
-struct:
-  '{' membership '}'
+location:
+  '@' INTEGER
+| '%' INTEGER
+|
+; 
+
+alignment:
+  '%' INTEGER
+|
+; 
+
+list_item:
+  '=' type shape location
+| EQB list_items ']'
+| SLASHB group_items ']'
+| error
 ;
 
-membership:
-  parameters declaration
-| members
+list_items:
+  list_items list_item
+|
+;
+
+group_item:
+  SYMBOL '=' type shape location
+| SYMBOL EQB list_items ']'
+| SYMBOL '/'
+| DOTDOT
+| '/'
+| error
+;
+
+group_items:
+  group_items group_item
+|
+;
+
+member:
+  SYMBOL '=' type shape location
+| SYMBOL CEQ value
+| '=' type shape location
+| error
 ;
 
 members:
@@ -86,75 +112,14 @@ members:
 | member
 ;
 
-member:
-  variable
-| parameters variable
+root_params:
+  root_params root_param
+| root_param
 ;
 
-parameters:
-  parameters parameter
-| parameter
-;
-
-listvar:
-  SYMBOL list_declaration
-;
-
-list_declaration:
-  '=' '[' items ']'
-;
-
-items:
-  items declaration
-  items list_declaration
-  items '/' listgroup
-|
-;
-
-group:
-  SYMBOL '/'
-| group_change
-;
-
-group_change:
-  '/'
-| DOTDOT
-;
-
-listgroup:
-  variable
-| listvar
-| group
-;
-
-rootdef:
-  SYMBOL QEQ '{' rootparams '}' shape location
-;
-
-rootparams:
-  rootparams parameter
-| rootparams '=' pfx_symbol location
-| rootparams ATEQ pfx_symbol location
-|
-;
-
-statement:
-  parameter
-| type
-| variable
-| listvar
-| group
-| pointee
-| BAT INTEGER
-| rootdef
-| SYMBOL QSLASH
-;
-
-statements:
-  statements statement
-|
-;
-
-layout:
-  statements EOF
+root_param:
+  '=' basetype location
+| ATEQ basetype location
+| SYMBOL CEQ value
+| error
 ;
