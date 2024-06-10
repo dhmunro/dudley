@@ -14,22 +14,29 @@ layout:
 ;
 
 statement:
-  SYMBOL '=' type shape location
-| SYMBOL EQB list_items ']'
-| SYMBOL CEQ value
+  group_item
+| SYMBOL CEQ parameter
 | SYMBOL EEQ type shape alignment
-| SYMBOL '/'
-| SYMBOL QBRACE root_params '}' shape location
+| rootdef root_params '}' shape location
 | SYMBOL QSLASH
-| '/'
-| DOTDOT
-| INTEGER '=' type shape location
+| INTEGER '=' array
 | BAT INTEGER
 | SPECIAL
+;
+
+group_item:
+  SYMBOL '=' array
+| SYMBOL '/'
+| namedlist list_items ']'
+| DOTDOT
+| '/'
 | error
 ;
 
-value:
+array: type shape location
+;
+
+parameter:
   INTEGER
 | basetype location
 ;
@@ -43,7 +50,10 @@ basetype:
 
 type:
   basetype
-| '{' members '}'
+| begintype members '}'
+;
+
+begintype: '{'
 ;
 
 shape:
@@ -72,11 +82,17 @@ location:
 alignment:
   '%' INTEGER
 |
-; 
+;
+
+namedlist: SYMBOL EQB
+;
+
+anonlist: EQB
+;
 
 list_item:
-  '=' type shape location
-| EQB list_items ']'
+  '=' array
+| anonlist list_items ']'
 | SLASHB group_items ']'
 | error
 ;
@@ -86,30 +102,24 @@ list_items:
 |
 ;
 
-group_item:
-  SYMBOL '=' type shape location
-| SYMBOL EQB list_items ']'
-| SYMBOL '/'
-| DOTDOT
-| '/'
-| error
-;
-
 group_items:
   group_items group_item
 |
 ;
 
 member:
-  SYMBOL '=' type shape location
-| SYMBOL CEQ value
-| '=' type shape location
+  SYMBOL '=' array
+| SYMBOL CEQ parameter
+| '=' array
 | error
 ;
 
 members:
   members member
 | member
+;
+
+rootdef: SYMBOL QBRACE
 ;
 
 root_params:
@@ -120,6 +130,6 @@ root_params:
 root_param:
   '=' basetype location
 | ATEQ basetype location
-| SYMBOL CEQ value
+| SYMBOL CEQ parameter
 | error
 ;
