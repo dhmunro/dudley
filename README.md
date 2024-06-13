@@ -32,23 +32,13 @@ owned by subset of the processors.
 
 ## Namespaces
 
-Dudley has three types of named objects: data types, parameters, and
-variables.  The grammar completely determines the context of all
-symbolic names.  There is only one global data type namespace for the
+Dudley has three kinds of named objects: data types, parameters, and
+variables.  There is only one global data type namespace for the
 entire file, but every struct (compound data type) and group (dict)
-has its own parameter and variable namespaces.
-
-In the following description, a type name will be called simply
-"type", a parameter name simply "param", and a variable name simply
-"var".  (Struct member names and variable names are treated in exactly
-the same way, so "var" may also represent a struct member.)  In the
-case of groups, the parameter namespaces of the parent groups will be
-searched in reverse order, so the parameter namespace is hierarchical
-in this sense.
-
-There are no reserved words in Dudley; you are free to use whatever
-names you please.  The grammar of Dudley is defined entirely by
-punctuation characters.
+has its own parameter and variable namespaces.  The grammar completely
+determines the context of all symbolic names.  There are no reserved
+words in Dudley; you are free to use whatever names you please.
+Punctuation characters completely determine the context of all names.
 
 Symbolic names in the Dudley language must be legal variable names in
 C or Python, that is begin with A-Za-z_ and continue with either those
@@ -57,6 +47,14 @@ characters, so a Dudley name may also be an arbitrary text string
 enclosed in quotes (either ' or ").  You can escape quote or backslash
 characters with a backslash (\).  Such quoted names must be confined
 to a single input line.
+
+In the following description, a type name will be called simply
+"type", a parameter name simply "param", and a variable name simply
+"var".  (Struct member names and variable names are treated in exactly
+the same way, so "var" may also represent a struct member.)  In the
+case of groups or structs, the parameter namespaces of the parent
+groups or structs will be searched in reverse order, so the parameter
+namespace is hierarchical in this sense.
 
 
 ## Comments
@@ -74,13 +72,11 @@ to just a number, you can extend the Dudley syntax to support that (by
 parsing document comments), but such extensions are beyond the scope
 of this basic language definition, since they have no effect on how or
 where your data is stored, and any consumer of your data will need to
-understand their meaning anyway.  You should not store information
-necessary to disambiguate variable meaning as attributes (let alone
-require attribute values for processing); this omission is intended to
-encourage you to store any such information as actual named variables
-in your files.  (Also, for concepts like point versus zone centered
-arrays, the Dudley + and - dimension suffixes can play the role of a
-centering attribute.)
+understand their meaning anyway.  The omission of data attributes is
+intended to encourage you to store any such information as actual
+named variables in your files.  (Also, for concepts like point versus
+zone centered arrays, the Dudley + and - dimension suffixes can play
+the role of a centering attribute.)
 
 
 ## Primitive data types
@@ -184,6 +180,7 @@ You declare a list variable with:
     var =[     # no space between = and [
       = type(shape) @ address  # first item of list is data variable
       = type(shape) @ address  # second item of list is data variable
+      @ address @ address ...  # multiple copies of previous type(shape)
       =[  # third item of list is a sublist
         = type(shape) @ address
          ----- and so on -----
@@ -207,11 +204,11 @@ define a named group variable (essentially a python dict):
         var = type(shape) @ address
         ----- and so on -----
       ..  # double dot pops back to parent group
+      /  # slash pops back to root group
       var =[  # declare a list
         = type(shape) @ address
       ]
       ----- and so on -----
-    /  # optionally return all the way to root level
 
 Like a list, you can return to a group and continue to append more named
 variables to it whever you like.  In particular, notice that
@@ -220,15 +217,15 @@ variables to it whever you like.  In particular, notice that
 
 and
 
-    /var/var/var = type(shape) @ address  # declare variable with full path
+    /var/var/var = type(shape) @ address  # declares variable with full path
 
 (The latter also leaves the parent group of the data variable as the
 current group.)
 
 Defining an anonymous group as a list item follows a similar pattern,
-except that the "root level" of any such group is its containing list
-variable.  It is impossible to append more items to an anonymous group
-after its initial declaration:
+except that the "root group" of any such group is the top level inside
+that list item.  It is impossible to append more items to an anonymous
+group after its initial declaration:
 
     var =[
       = type(shape) @ address
@@ -267,11 +264,49 @@ one larger or one smaller than the parameter value.  Multiple + or
 - suffixes can be used to indicate two or more length differences.
 
 If any dimension length is zero, the variable has no data, takes no
-space, and does not advance the current address.
+space, and does not advance the current address.  This
+happens before any + or - increment or decrement suffix is computed.
 
-If any dimension length is negative, it is removed from the dimension
-list, reducing the number of dimensions of the array.  This happens
-before any + or - increment or decrement suffix is computed.
+If any dimension length is negative, by default it is removed from the
+dimension list, reducing the number of dimensions of the array.
+Again, this happens before any + or - increment or decrement suffix is
+computed.
+
+An alternative behavior for a negative dimension length is to treat
+it as equivalent to zero dimension length - namely, the variable will
+have no data and not advance the current address.  You trigger this
+alternative treatment with a ? suffix after the parameter name (before
+any + or - suffixes).
+
+For example:
+
+    x = f8(JMAX, IMAX)
+    y = f8(JMAX?, IMAX)
+    rho = f8(JMAX-, IMAX-)
+    unu = f8(NGROUP, JMAX-, IMAX-)
+
+declares x and y to be 2D arrays (IMAX consecutive f8 values repeated
+JMAX times). rho to be a 2D array with one fewer item in each row and
+column, and unu to be a 3D array consisting of NGROUP repeats of 2D
+arrays shaped like rho.  This kind of pattern would be useful in a
+simulation where x and y were 2D mesh coordinates, and rho and unu
+were scalar and NGROUP array values, respectively, associated with
+each zone in that mesh.  IMAX, JMAX, and NGROUP could be parameters
+stored in each file describe by this layout.  Now the code may have a
+mode in which it does not use the unu variable at all.  Setting NGROUP
+to be 0 has the effect of removing the unu variable from the file
+entirely - so you don't need a second Dudley layout to describe this
+mode of operation.  Furthermore, the code may have a 1D mode in which
+there is no y coordinate at all, and the JMAX dimension is missing
+from all the other variables:
+
+    x = f8(IMAX)
+    rho = f8(IMAX-)
+    unu = f8(NGROUP, IMAX-)
+
+Setting JMAX to -1 will make the original layout description identical
+to this 1D description, so once again, a single Dudley layout can
+describe both the 2D and 1D modes of code operation.
 
 
 ## Data types and typedefs
@@ -309,7 +344,7 @@ an absolute disk address in the file.
 You can also use the == operator to create an alias for another data
 type, possibly dimensioned, analogous to a C typedef:
 
-    type == type(shape)
+    type == type(shape) % alignment  # alignment optional
 
 Struct data types need not be explicitly named.  Anywhere "type"
 appears in the Dudley grammar, it can be either a (possibly prefixed)
@@ -583,3 +618,45 @@ contained in a file of a different format, like HDF5 or netCDF or PDB.
 2. Newlines are distinguished from other whitespace only to determine
    the end of a comment introduced by # or #:.  Any whitespace, including
    newlines, is otherwise optional unless needed to delimit other tokens.
+
+
+## Examples
+
+State template for a very simple 1D or 2D radhydro simulation:
+
+    IMAX := i8    # make dimensions signed to use in expressions
+    JMAX := i8    # negative to remove from dimension lists
+    NGROUP := i8  # zero to make arrays take no space
+    time = f8
+    r = f8(JMAX?, IMAX)  # r not present if JMAX negative
+    z = f8(JMAX, IMAX)  # coordinates and velocities node-centered
+    u = f8(JMAX?, IMAX)
+    v = f8(JMAX, IMAX)
+    rho = f8(JMAX-, IMAX-)  # densities and temperatures zone-centered
+    te = f8(JMAX-, IMAX-)
+    unu = f8(NGROUP, JMAX-, IMAX-)  # not present if NGROUP zero
+    gb = f8(NGROUP+)  # group boundaries also not present if NGROUP zero
+
+A set of time history records for this same simulation can be structured
+in many different ways:
+
+netCDF-like, with gb a non-record variable and the rest rescord
+variables:
+
+    NREC := i8    # number of records in this file
+    IMAX := i8
+    JMAX := i8
+    NGROUP := i8
+    gb = f8(NGROUP+)  # group boundaries do not change
+    Record == {
+      time = f8
+      r = f8(JMAX?, IMAX)
+      z = f8(JMAX, IMAX)
+      u = f8(JMAX?, IMAX)
+      v = f8(JMAX, IMAX)
+      rho = f8(JMAX-, IMAX-)
+      te = f8(JMAX-, IMAX-)
+      unu = f8(NGROUP, JMAX-, IMAX-)
+    }
+    records = Record(NREC)
+

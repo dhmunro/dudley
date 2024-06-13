@@ -2,9 +2,10 @@
 
 %start layout
 
-%token SYMBOL INTEGER SPECIAL
+%token SYMBOL INTEGER
 %token CEQ EEQ EQB SLASHB BAT DOTDOT QBRACE ATEQ QSLASH PLUSSES MINUSES
 /*     :=  ==  =[  /[     !@  ..     ?{     @=   ?/     +       -      */
+%token SPECIAL
 
 %%
 
