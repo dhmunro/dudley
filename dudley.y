@@ -101,7 +101,9 @@ uaddress:
 |
 ;
 
-address_list: address_list address
+address_list:
+  address
+| address_list address
 ;
 
 namedlist: SYMBOL EQB
