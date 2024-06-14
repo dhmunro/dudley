@@ -164,8 +164,11 @@ is an implied "!@ 0" at the beginning of every Dudley layout.
 ## Variables
 
 A variable can be a data array, or a list of anonymous variables, or a
-group (python dict) of named variables.  You declare an array variable
-with:
+group (python dict) of named variables.
+
+### Arrays
+
+You declare an array variable with:
 
     var = type(shape) @ address
 
@@ -175,17 +178,21 @@ present.  As for a parameter declaration, the @ address clause is
 optional, with the default again being the next address after the
 previous read or free-standing !@ address directive.
 
-You declare a list variable with:
+### Lists
+
+Dudley supports two kinds of list variables - heterogeneous and
+homogeneous.
+
+You declare a heterogeneous list variable with:
 
     var =[     # no space between = and [
       = type(shape) @ address  # first item of list is data variable
       = type(shape) @ address  # second item of list is data variable
-      @ address @ address ...  # multiple copies of previous type(shape)
       =[  # third item of list is a sublist
         = type(shape) @ address
-         ----- and so on -----
+        ...etc...
       ]
-      ----- and so on -----
+      ...etc...
     ]
 
 containing zero or more anonymous variable declarations in its body.
@@ -193,8 +200,34 @@ Unlike a data variable, you can "reopen" a list variable by repeating
 the list declaration sequence with the same var name at any later
 point in the Dudley layout to append more items (anonymous variable
 declarations) to the list.  You can also add anonymous group
-declarations as elements of a list variable, but first we show how to
-define a named group variable (essentially a python dict):
+declarations as elements of a heterogeneous list variable, as
+described below.
+
+You declare a homogeneous list variable with:
+
+    var = type(*, shape) @ addresses
+
+Every element of this list will be a type(shape) array.  Without the
+explicit "@ addresses" this homogeneous list is initially empty.  The
+"addresses" may be either a single address or a "@"-delimited list of
+addresses to declare subsequent list items.  Each address may be
+either an integer or simply ".", with "." meaning the next address in
+the file or stream (equivalent to declaring a variable without
+specifying any address).  You may later append list items with:
+
+    var @ address @ address ...
+
+A homogeneous list resembles an array, but its slowest varying index
+is of indeterminate length and need not be stored contiguously in the
+file.  This feature provides a simple means to describe variables
+which change as a simulation evolves; it emulates the most common use
+case for the UNLIMITED dimension of netCDF or HDF5 files, or a PDB
+block variable.  Note that a homogeneous list may not be a struct
+member nor a heterogeneous list member.
+
+### Groups
+
+You define a named group variable (essentially a python dict):
 
     var /
       param := type(shape) @ address  # parameter(s) here and in children

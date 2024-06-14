@@ -18,6 +18,8 @@ statement:
   group_item
 | SYMBOL CEQ parameter
 | SYMBOL EEQ type shape alignment
+| SYMBOL '=' type ushape uaddress
+| SYMBOL address_list
 | rootdef root_params '}' shape location
 | SYMBOL QSLASH
 | INTEGER '=' array
@@ -75,14 +77,31 @@ dimensions:
 ;
 
 location:
-  '@' INTEGER
-| '%' INTEGER
-|
+  address
+| alignment
 ; 
+
+address:
+  '@' INTEGER
+| '@' '.'
+;
 
 alignment:
   '%' INTEGER
 |
+;
+
+ushape:
+  '(' '*' ')'
+| '(' '*' ',' dimensions ')'
+;
+
+uaddress:
+  address_list
+|
+;
+
+address_list: address_list address
 ;
 
 namedlist: SYMBOL EQB
