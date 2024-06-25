@@ -612,7 +612,7 @@ create a single self-describing file.  Such a file should begin with
 the native Dudley signature, but this is not required.  After
 appending the text of the layout file, append the additional text:
 
-    #!DUDLEY@address!<bom>
+    !DUDLEY@address!<bom>
 
 Here <bom> indicates the digit 0 if the machine writing the binary
 data part of the file is big-endian, or the digit 1 if it is
@@ -620,11 +620,11 @@ little-endian.  This will be overridden by the value of the special
 !BOM parameter written elsewhere in the file - it is intended as a
 default for data layouts which do not include that parameter.  The
 address is the first byte of the layout text, and the layout text ends
-just before this # character - in other words, this comment string
-should be removed from the tail of the layout.  Ideally, these are the
-last bytes of the file, but as long as the leading # character is
-within the final 4096 bytes of the file, the Dudley layout text will
-be discovered.
+just before this ! character - in other words, "!DUDLEY" is treated as
+end of file by the Dudley layout parser.  Ideally, these are the last
+bytes of the file, but as long as the leading ! character is within
+the final 4096 bytes of the file, the appended Dudley layout will be
+discovered.
 
 The preferred file extension for a file with the Dudley layout
 appended is .dud, the same as a bare layout file.

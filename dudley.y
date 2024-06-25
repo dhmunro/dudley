@@ -1,11 +1,24 @@
 /* Dudley grammar */
 
+%union{
+  char *str;
+  long long num;
+}
+
 %start layout
 
-%token SYMBOL INTEGER
-%token CEQ EEQ EQB SLASHB BAT DOTDOT QBRACE ATEQ QSLASH PLUSSES MINUSES
-/*     :=  ==  =[  /[     !@  ..     ?{     @=   ?/     +       -      */
-%token SPECIAL
+%token<str> SYMBOL
+%token<num> INTEGER
+%token CEQ EEQ EQB SEQ SLASHB BAT DOTDOT QCURLY ATEQ QSLASH
+/*     :=  ==  =[  *=  /[     !@  ..     ?{     @=   ?/    */
+%token<num> PLUSSES MINUSES
+/*           +       -      */
+%token EQ LPAREN RPAREN COMMA SLASH STAR DOT AT PCNT RBRACK
+/*     =  (      )      ,     /     *    .   @  %    ]     */
+%token LCURLY RCURLY
+/*     {      }     */
+%token<str> PRIMTYPE
+%token<str> SPECIAL
 
 %%
 
@@ -16,27 +29,45 @@ layout:
 
 statement:
   group_item
-| SYMBOL CEQ parameter
-| SYMBOL EEQ type shape alignment
-| SYMBOL '=' type ushape uaddress
+| paramdef parameter
+| typedef type shape alignment
+| uarraydef type ushape uaddress
 | SYMBOL address_list
-| rootdef root_params '}' shape location
 | SYMBOL QSLASH
-| INTEGER '=' array
+| rootdef root_params RCURLY shape location
+| pointee type shape location
 | BAT INTEGER
 | SPECIAL
 ;
 
 group_item:
-  SYMBOL '=' array
-| SYMBOL '/'
-| namedlist list_items ']'
+  arraydef type shape location
+| SYMBOL SLASH
+| listdef list_items RBRACK
 | DOTDOT
-| '/'
+| SLASH
 | error
 ;
 
-array: type shape location
+paramdef: SYMBOL CEQ
+;
+
+arraydef: SYMBOL EQ
+;
+
+typedef: SYMBOL EEQ
+;
+
+listdef: SYMBOL EQB
+;
+
+uarraydef: SYMBOL SEQ
+;
+
+rootdef: SYMBOL QCURLY
+;
+
+pointee: INTEGER EQ
 ;
 
 parameter:
@@ -46,22 +77,23 @@ parameter:
 
 basetype:
   SYMBOL
-| '>' SYMBOL
-| '<' SYMBOL
-| '|' SYMBOL
+| PRIMTYPE
 ;
 
 type:
   basetype
-| begintype members '}'
+| struct members RCURLY
 ;
 
-begintype: '{'
+struct: LCURLY
 ;
 
 shape:
-  '(' dimensions ')'
+  shapedef dimensions RPAREN
 |
+;
+
+shapedef: LPAREN
 ;
 
 dimension:
@@ -72,7 +104,7 @@ dimension:
 ;
 
 dimensions:
-  dimensions ',' dimension
+  dimensions COMMA dimension
 | dimension
 ;
 
@@ -82,18 +114,18 @@ location:
 ; 
 
 address:
-  '@' INTEGER
-| '@' '.'
+  AT INTEGER
+| AT DOT
 ;
 
 alignment:
-  '%' INTEGER
+  PCNT INTEGER
 |
 ;
 
 ushape:
-  '(' '*' ')'
-| '(' '*' ',' dimensions ')'
+  shapedef STAR RPAREN
+| shapedef STAR COMMA dimensions RPAREN
 ;
 
 uaddress:
@@ -106,16 +138,10 @@ address_list:
 | address_list address
 ;
 
-namedlist: SYMBOL EQB
-;
-
-anonlist: EQB
-;
-
 list_item:
-  '=' array
-| anonlist list_items ']'
-| SLASHB group_items ']'
+  anonarray type shape location
+| anonlist list_items RBRACK
+| anongroup group_items RBRACK
 | error
 ;
 
@@ -124,15 +150,24 @@ list_items:
 |
 ;
 
+anonarray: EQ
+;
+
+anonlist: EQB
+;
+
+anongroup: SLASHB
+;
+
 group_items:
   group_items group_item
 |
 ;
 
 member:
-  SYMBOL '=' array
-| SYMBOL CEQ parameter
-| '=' array
+  arraydef type shape location
+| paramdef parameter
+| anonarray type shape location
 | error
 ;
 
@@ -141,17 +176,17 @@ members:
 | member
 ;
 
-rootdef: SYMBOL QBRACE
-;
-
 root_params:
   root_params root_param
 | root_param
 ;
 
 root_param:
-  '=' basetype location
-| ATEQ basetype location
-| SYMBOL CEQ parameter
+  anonarray basetype location
+| anonloc basetype location
+| paramdef parameter
 | error
+;
+
+anonloc: ATEQ
 ;
