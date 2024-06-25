@@ -27,7 +27,7 @@ Dudley layouts unique to each run.
 
 In this template mode, Dudley also supports parallel processing dumps
 to multiple files, each containing only the blocks of the simulation
-owned by subset of the processors.
+owned by a subset of the processors.
 
 
 ## Namespaces
@@ -649,7 +649,8 @@ contained in a file of a different format, like HDF5 or netCDF or PDB.
    - (% reserved for use in alignment declarations)
 
 2. Newlines are distinguished from other whitespace only to determine
-   the end of a comment introduced by # or #:.  Any whitespace, including
+   the end of a comment introduced by # or #:, or the end of a special
+   additional construct like !DUDLEY.  Any whitespace, including
    newlines, is otherwise optional unless needed to delimit other tokens.
 
 
