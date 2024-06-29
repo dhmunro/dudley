@@ -1,529 +1,507 @@
+# The tables and rules skeletons are generated automatically by bisonx.py
+# from the .y grammar file and bison-produced .tab.c file.  The rules
+# skeletons are modified here to generate the internal representation
+# of the Dudley layout.
+
 tables = dict(
     pact = [
-        -41,  28, -41, -41,  98,  -8,  32, -41, -41, -41,
-        -41, -41,  23,  15,  15, -41,  15,  82,  15, -41,
-        -41, -41, -41, -41, -41, -41, -41,  64, -41,  21,
-        -41, -41, -41, -41, -41, -41, -11, -41, -41,  41,
-        108,  41,  71,  41, -41, 103, -41, -41,  23,  31,
-          7, -41,  31,  41, -41, -41, -41,  65, -41, -41,
-        -41, -41, -11,  12, -41,  46,  23,  15,  15, -41,
-         20,  93, -41, -41, -41, -41, -41,  15, -41, -41,
-         99,  21, -41, -11,  41, -41, -11, -11, -41, -41,
-         75, -41, -41,  74, -41,  41,  41, -41, -41, -41,
-         41,  72,  81,  94, -41,  21, -41, -11, -41, -41,
-        -41, -41, -41,  12, -11, -11, -11, -41,  79, -41,
-        -41, -41,  12, -41, -41, -41, -41, -41,  97, -41,
+        -46, 102, -46, -46, 109,  -5,  14, -46, -46, -46,
+        -46,   6,  47,  47, -46,  47, 107,  47, -46, -46,
+        -46, -46, -46, -46, -46, -46,   7, -46,   5, -46,
+        -46, -46, -46, -46, -46,  -3, -46, -46,   2,  25,
+          2,  72,   2, -46,  28, -46, -46,   6,  17,  16,
+        -46,  17,   2, -46, -46, -46,  50, -46, -46, -46,
+        -46,  -3,  57, -46,  39,   6,  47,  47, -46,  24,
+         38, -46, -46, -46, -46, -46,  47, -46, -46,  45,
+          5, -46,  -3,   2, -46,  -3,  -3, -46, -46,  36,
+        -46, -46,  70,  68, -46,   2,   2, -46, -46, -46,
+          2,  73,  82,  74, -46,   5, -46,  -3, -46, -46,
+        -46, -46, -46, -46,  57,  -3,  -3,  -3, -46,  89,
+        -46, -46, -46,  57, -46, -46, -46, -46, -46,  77,
+        -46,
     ],
     defact = [
-         3,  0,  1, 19,  0,  0,  0, 17, 18, 13,
-         2,  4,  0,  0,  0, 60,  0,  0,  0, 20,
-        22, 23, 24, 25,  9, 21, 15,  0, 53,  8,
-        26, 12, 29, 27, 30,  5, 48, 33, 31, 35,
-         0, 35,  0,  0, 77,  0, 78, 61,  0,  0,
-         0, 73,  0, 35, 45, 46, 54,  0, 28, 43,
-        44, 36, 48,  0, 69,  0,  0,  0,  0, 71,
-         0, 48, 58, 62, 63, 16, 59,  0, 60, 65,
-         0, 52, 76, 48, 35, 72, 48, 48, 47, 14,
-        38, 37, 42,  0, 67, 35, 35, 32, 70,  6,
-        35,  0,  0,  0,  7, 51, 74, 48, 75, 11,
-        39, 40, 34,  0, 48, 48, 48, 56,  0, 57,
-        64, 49,  0, 10, 41, 66, 68, 55,  0, 50,
+         3,  0,  1, 18,  0,  0,  0, 16, 17,  2,
+         4,  0,  0,  0, 61,  0,  0,  0, 19, 21,
+        22, 23, 24,  9, 20, 14,  0, 54,  8, 25,
+        12, 28, 26, 29,  5, 49, 32, 30, 34,  0,
+        34,  0,  0, 78,  0, 79, 62,  0,  0,  0,
+        74,  0, 34, 46, 47, 55,  0, 27, 44, 45,
+        35, 49,  0, 70,  0,  0,  0,  0, 72,  0,
+        49, 59, 63, 64, 15, 60,  0, 61, 66,  0,
+        53, 77, 49, 34, 73, 49, 49, 48, 13, 40,
+        36, 43, 37,  0, 68, 34, 34, 31, 71,  6,
+        34,  0,  0,  0,  7, 52, 75, 49, 76, 11,
+        41, 38, 39, 33,  0, 49, 49, 49, 57,  0,
+        58, 65, 50,  0, 10, 42, 67, 69, 56,  0,
+        51,
     ],
     pgoto = [
-        -41, -41, -41,  18,   0, -29, -41, -41, -41, -41,
-        -41, -36,   5, -12, -41, -34,  80,  11,   4, -40,
-         -4,  56, -41, -41,  47, -41,  51, -37, -41, -41,
-        -41,  60, -41, -41,  83, -41,
+        -46, -46, -46, -24,   0, -31, -46, -46, -46, -46,
+        -46, -33,   1, -11, -46, -37,  42, -22, -46,  -1,
+        -45,  -4,  48, -46, -46,  46, -46,  51, -34, -46,
+        -46, -46,  60, -46, -46,  81, -46,
     ],
     defgoto = [
-          0,  1, 10,  11, 48, 13, 14, 15, 16, 17,
-         18, 35, 38,  39, 40, 62, 63, 92, 93, 58,
-         59, 60, 81, 104, 29, 76, 42, 49, 78, 79,
-        102, 69, 70,  50, 51, 52,
+         0,   1,  9, 10,  47, 12, 13, 14, 15, 16,
+        17,  34, 37, 38,  39, 61, 62, 91, 92, 93,
+        57,  58, 59, 80, 104, 28, 75, 41, 48, 77,
+        78, 102, 68, 69,  49, 50, 51,
     ],
     table = [
-         28,  12,  41,  68,  43,  77,  53,  71,  44,  30,
-         45,  67,  82,  27,  57,  90,  91,  36,  32,  87,
-         46,  64,  89,  65,  47,  56,  32,  33,   2,   3,
-         94,   4,   5,  68,  32,  84,  31,  47,   6,   7,
-         66,  67,  37, 106,  34,  27, 108, 109,  97,   8,
-        107,  19,  34,  36,  83,  95,  96,  86,   9,  61,
-         34, 114, 115,  25,  77, 100, 116, 123,  54,  88,
-         66,  36,  72,  72, 125, 126, 127,  28,  73,  73,
-         74,  74,   3,  44, 118,  45,  21,  55,  47,  47,
-        110, 111,   7, 112, 113,  46,  25,  75, 117,  47,
-         26,  56,   8,  19,  20,  21,  22, 119,  19,  64,
-         23,  65,  24, 121, 122,  25, 129, 113,  57,  26,
-        120, 103,  27,  80, 124,  47, 128,  99, 105, 101,
-         98,   0,   0,  85,
+         27,  11,  40,  70,  42,  67,  52,  76,  66,  31,
+         32,  53,  35,  29,  81,  86,  88,  43,  30,  44,
+         31,  60,  26,  56,  55,  63,  63,  64,  64,  45,
+         26,  54,  94,  18,  46,  67,  33, 106,  66,  65,
+        108, 109,  46,  46,  18,  83, 107,  33,  35,  82,
+         31, 110,  85,  97,  87,  95,  96,  24, 115, 116,
+         89,  90, 124, 117,  56, 100,  35,  76, 103,  65,
+        126, 127, 128,  71,  71,  36,  27,  33, 121,  72,
+         72,  73,  73,   3,  79, 119, 111, 112, 113, 114,
+         46,  46, 125,   7, 122, 123,  20, 130, 114,  74,
+        118,  55,   2,   3,   8,   4,   5,  24,  43, 120,
+         44,  25,   6,   7,  18,  19,  20,  21,  99,   0,
+         45,  22, 129,  23,   8,  46, 105,  24, 101,  98,
+         84,  25,   0,   0,  26,
     ],
     check = [
-          4,   1, 14, 40,  16,  42,  18,  41,  1, 17,
-          3,  40, 48, 24,  25,   3,   4,  12,  3, 53,
-         13,   1, 62,  3,  17,  29,   3,   4,  0,  1,
-         66,   3,  4, 70,   3,  28,   4,  17, 10, 11,
-         40,  70, 27, 83,  29,  24,  86,  87, 28, 21,
-         84,   5, 29, 48,  49,  67,  68,  52, 30, 18,
-         29,  95, 96, 17, 101,  77, 100, 107,  4,  4,
-         70,  66,  1,  1, 114, 115, 116,  81,  7,  7,
-          9,   9,  1,  1,   3,   3,   7,  23, 17, 17,
-         15,  16, 11, 19,  20,  13,  17,  26, 26, 17,
-         21, 105, 21,  5,   6,   7,   8,  26,  5,  1,
-         12,   3, 14, 19,  20,  17,  19,  20, 25, 21,
-        102,  22, 24, 43, 113,  17, 122,  71, 81, 78,
-         70,  -1, -1, 50,
+          4,   1,  13,  40, 15, 39, 17,  41,  39,  3,
+          4,   4,  11,  18, 47, 52, 61,   1,   4,  3,
+          3,  19,  25,  26, 28,  1,  1,   3,   3, 13,
+         25,  24,  65,   5, 18, 69, 30,  82,  69, 39,
+         85,  86,  18,  18,  5, 29, 83,  30,  47, 48,
+          3,  15,  51,  29,  4, 66, 67,  18,  95, 96,
+          3,   4, 107, 100, 26, 76, 65, 101,  23, 69,
+        115, 116, 117,   1,  1, 28, 80,  30, 102,  7,
+          7,   9,   9,   1, 42,  3, 16,  17,  20, 21,
+         18,  18, 114,  11, 20, 21,  7,  20,  21, 27,
+         27, 105,   0,   1, 22,  3,  4,  18,   1, 27,
+          3,  22,  10,  11,  5,  6,  7,   8,  70, -1,
+         13,  12, 123,  14, 22, 18, 80,  18,  77, 69,
+         49,  22,  -1,  -1, 25,
     ],
     r1 = [
          0, 31, 32, 32, 33, 33, 33, 33, 33, 33,
-        33, 33, 33, 33, 34, 34, 34, 34, 34, 34,
-        35, 36, 37, 38, 39, 40, 41, 42, 42, 43,
-        43, 44, 44, 45, 46, 46, 47, 48, 48, 48,
-        48, 49, 49, 50, 50, 51, 51, 52, 52, 53,
-        53, 54, 54, 55, 55, 56, 56, 56, 56, 57,
-        57, 58, 59, 60, 61, 61, 62, 62, 62, 62,
-        63, 63, 64, 64, 65, 65, 65, 65, 66,
+        33, 33, 33, 34, 34, 34, 34, 34, 34, 35,
+        36, 37, 38, 39, 40, 41, 42, 42, 43, 43,
+        44, 44, 45, 46, 46, 47, 48, 48, 48, 48,
+        49, 49, 50, 50, 51, 51, 52, 52, 53, 53,
+        54, 54, 55, 55, 56, 56, 57, 57, 57, 57,
+        58, 58, 59, 60, 61, 62, 62, 63, 63, 63,
+        63, 64, 64, 65, 65, 66, 66, 66, 66, 67,
     ],
     r2 = [
         0, 2, 2, 0, 1, 2, 4, 4, 2, 2,
-        5, 4, 2, 1, 4, 2, 3, 1, 1, 1,
-        2, 2, 2, 2, 2, 2, 2, 1, 2, 1,
-        1, 1, 3, 1, 3, 0, 1, 1, 1, 2,
-        2, 3, 1, 1, 1, 2, 2, 2, 0, 3,
-        5, 1, 0, 1, 2, 4, 3, 3, 1, 2,
-        0, 1, 1, 1, 2, 0, 4, 2, 4, 1,
-        2, 1, 2, 1, 3, 3, 2, 1, 1,
+        5, 4, 2, 4, 2, 3, 1, 1, 1, 2,
+        2, 2, 2, 2, 2, 2, 1, 2, 1, 1,
+        1, 3, 1, 3, 0, 1, 1, 1, 2, 2,
+        1, 2, 3, 1, 1, 1, 2, 2, 2, 0,
+        3, 5, 1, 0, 1, 2, 4, 3, 3, 1,
+        2, 0, 1, 1, 1, 2, 0, 4, 2, 4,
+        1, 2, 1, 2, 1, 3, 3, 2, 1, 1,
     ],
     stos = [
-         0, 32,  0,  1,  3,  4, 10, 11, 21, 30,
-        33, 34, 35, 36, 37, 38, 39, 40, 41,  5,
-         6,  7,  8, 12, 14, 17, 21, 24, 51, 55,
-        17,  4,  3,  4, 29, 42, 43, 27, 43, 44,
-        45, 44, 57, 44,  1,  3, 13, 17, 35, 58,
-        64, 65, 66, 44,  4, 23, 51, 25, 50, 51,
-        52, 18, 46, 47,  1,  3, 35, 36, 58, 62,
-        63, 46,  1,  7,  9, 26, 56, 58, 59, 60,
-        47, 53, 42, 43, 28, 65, 43, 46,  4, 50,
-         3,  4, 48, 49, 42, 44, 44, 28, 62, 52,
-        44, 57, 61, 22, 54, 55, 50, 46, 50, 50,
-        15, 16, 19, 20, 46, 46, 46, 26,  3, 26,
-        34, 19, 20, 50, 48, 50, 50, 50, 49, 19,
+         0, 32,  0,  1,  3,  4, 10, 11, 22, 33,
+        34, 35, 36, 37, 38, 39, 40, 41,  5,  6,
+         7,  8, 12, 14, 18, 22, 25, 52, 56, 18,
+         4,  3,  4, 30, 42, 43, 28, 43, 44, 45,
+        44, 58, 44,  1,  3, 13, 18, 35, 59, 65,
+        66, 67, 44,  4, 24, 52, 26, 51, 52, 53,
+        19, 46, 47,  1,  3, 35, 36, 59, 63, 64,
+        46,  1,  7,  9, 27, 57, 59, 60, 61, 47,
+        54, 42, 43, 29, 66, 43, 46,  4, 51,  3,
+         4, 48, 49, 50, 42, 44, 44, 29, 63, 53,
+        44, 58, 62, 23, 55, 56, 51, 46, 51, 51,
+        15, 16, 17, 20, 21, 46, 46, 46, 27,  3,
+        27, 34, 20, 21, 51, 48, 51, 51, 51, 50,
+        20,
     ],
     tname = [
         "\"end of file\"", "error", "\"invalid token\"", "SYMBOL", "INTEGER",
         "CEQ", "EEQ", "EQB", "SEQ", "SLASHB", "BAT", "DOTDOT", "QCURLY",
-        "ATEQ", "QSLASH", "PLUSSES", "MINUSES", "EQ", "LPAREN", "RPAREN",
-        "COMMA", "SLASH", "STAR", "DOT", "AT", "PCNT", "RBRACK", "LCURLY",
-        "RCURLY", "PRIMTYPE", "SPECIAL", "$accept", "layout", "statement",
+        "ATEQ", "QSLASH", "QUEST", "PLUSSES", "MINUSES", "EQ", "LPAREN",
+        "RPAREN", "COMMA", "SLASH", "STAR", "DOT", "AT", "PCNT", "RBRACK",
+        "LCURLY", "RCURLY", "PRIMTYPE", "$accept", "layout", "statement",
         "group_item", "paramdef", "arraydef", "typedef", "listdef",
         "uarraydef", "rootdef", "pointee", "parameter", "basetype", "type",
-        "struct", "shape", "shapedef", "dimension", "dimensions", "location",
-        "address", "alignment", "ushape", "uaddress", "address_list",
-        "list_item", "list_items", "anonarray", "anonlist", "anongroup",
-        "group_items", "member", "members", "root_params", "root_param",
-        "anonloc", "",
+        "struct", "shape", "shapedef", "dimension", "symbolq", "dimensions",
+        "location", "address", "alignment", "ushape", "uaddress",
+        "address_list", "list_item", "list_items", "anonarray", "anonlist",
+        "anongroup", "group_items", "member", "members", "root_params",
+        "root_param", "anonloc", "",
     ],
     final = 2)
 
 
 class FunctionList(list):
-    def __call__(self, f)
-        self.append(f)
-        return f
+    def __call__(self, args, method=None):
+
+        def __call__(self, f):
+            f.method = method
+            f.args = args
+            self.append(f)
+            return f
+
+        return rule
+
+    def bind_to(self, builder):
+        for i, rule in enumerate(self):
+            method = rule.method
+            if not method:
+                continue
+            method = builder[method]
+            method.args = args
+            method.rule = rule.__doc__
+            self[i] = method
+
 
 rules = FunctionList()
 
-
-@rules  # 0 $error?
-def _rule(args):
-    pass
-
-
-@rules  # 1 $accept: . $end
-def _rule(args):
-    pass
-
-
-@rules  # 2 layout: layout statement
-def _rule(args):
-    pass
-
-
-@rules  # 3 layout: <empty>
-def _rule(args):
-    pass
-
-
-@rules  # 4 statement: group_item
-def _rule(args):
-    pass
-
-
-@rules  # 5 statement: paramdef parameter
-def _rule(args):
-    layout.def_param(*args)
-
-
-@rules  # 6 statement: typedef type shape alignment
-def _rule(args):
-    layout.def_type(*args)
-
-
-@rules  # 7 statement: uarraydef type ushape uaddress
-def _rule(args):
-    layout.def_uarray(*args)
-
-
-@rules  # 8 statement: SYMBOL address_list
-def _rule(args):
-    layout.uextend(*args)
-
-
-@rules  # 9 statement: SYMBOL QSLASH
-def _rule(args):
-    layout.def_rgroup(args[0])
-
-
-@rules  # 10 statement: rootdef root_params RCURLY shape location
-def _rule(args):
-    rootdef, root_params, _, shape, location = args
-    layout.def_root(rootdef, root_params, shape, location)
-
-
-@rules  # 11 statement: pointee type shape location
-def _rule(args):
-    layout.def_pointee(*args)
-
-
-@rules  # 12 statement: BAT INTEGER
-def _rule(args):
-    layout.set_address(args[1])
-
-
-@rules  # 13 statement: SPECIAL
-def _rule(args):
-    pass
-
-
-@rules  # 14 group_item: arraydef type shape location
-def _rule(args):
-    layout.def_array(*args)
-
-
-@rules  # 15 group_item: SYMBOL SLASH
-def _rule(args):
-    layout.change_group(args[0])
-
-
-@rules  # 16 group_item: listdef list_items RBRACK
-def _rule(args):
-    return layout.pop_list()
-
-
-@rules  # 17 group_item: DOTDOT
-def _rule(args):
-    layout.change_group("..")
-
-
-@rules  # 18 group_item: SLASH
-def _rule(args):
-    layout.change_group("/")
-
-
-@rules  # 19 group_item: error
-def _rule(args):
-    return layout.error(*args)
-
-
-@rules  # 20 paramdef: SYMBOL CEQ
-def _rule(args):
-    return layout.push_param(args[0])
-
-
-@rules  # 21 arraydef: SYMBOL EQ
-def _rule(args):
-    return layout.push_array(args[0])
-
-
-@rules  # 22 typedef: SYMBOL EEQ
-def _rule(args):
-    return layout.push_typedef(args[0])
-
-
-@rules  # 23 listdef: SYMBOL EQB
-def _rule(args):
-    return layout.push_list(args[0])
-
-
-@rules  # 24 uarraydef: SYMBOL SEQ
-def _rule(args):
-    return layout.push_uarray(args[0])
-
-
-@rules  # 25 rootdef: SYMBOL QCURLY
-def _rule(args):
-    return layout.push_root(args[0])
-
-
-@rules  # 26 pointee: INTEGER EQ
-def _rule(args):
-    return layout.push_pointee(args[0])
-
-
-@rules  # 27 parameter: INTEGER
-def _rule(args):
-    return layout.param_value(args[0])
-
-
-@rules  # 28 parameter: basetype location
-def _rule(args):
-    return layout.param_value(*args)
-
-
-@rules  # 29 basetype: SYMBOL
-def _rule(args):
-    return layout.check_basetype(args[0])
-
-
-@rules  # 30 basetype: PRIMTYPE
-def _rule(args):
-    return args[0]
-
-
-@rules  # 31 type: basetype
-def _rule(args):
-    return args[0]
-
-
-@rules  # 32 type: struct members RCURLY
-def _rule(args):
-    return args[0]
-
-
-@rules  # 33 struct: LCURLY
-def _rule(args):
-    return layout.push_struct()
-
-
-@rules  # 34 shape: shapedef dimensions RPAREN
-def _rule(args):
-    return layout.pop_shape()
-
-
-@rules  # 35 shape: <empty>
-def _rule(args):
-    pass
-
-
-@rules  # 36 shapedef: LPAREN
-def _rule(args):
-    return layout.push_shape()
-
-
-@rules  # 37 dimension: INTEGER
-def _rule(args):
-    return layout.append_shape(args[0])
-
-
-@rules  # 38 dimension: SYMBOL
-def _rule(args):
-    return layout.append_shape(args[0], 0)
-
-
-@rules  # 39 dimension: SYMBOL PLUSSES
-def _rule(args):
-    return layout.append_shape(args[0], args[1])
-
-
-@rules  # 40 dimension: SYMBOL MINUSES
-def _rule(args):
-    return layout.append_shape(args[0], -args[1])
-
-
-@rules  # 41 dimensions: dimensions COMMA dimension
-def _rule(args):
-    pass
-
-
-@rules  # 42 dimensions: dimension
-def _rule(args):
-    pass
-
-
-@rules  # 43 location: address
-def _rule(args):
-    return args[0]
-
-
-@rules  # 44 location: alignment
-def _rule(args):
-    return args[0]
-
-
-@rules  # 45 address: AT INTEGER
-def _rule(args):
-    return layout.address(args[1])
-
-
-@rules  # 46 address: AT DOT
-def _rule(args):
-    return layout.address(args[1], 0)
-
-
-@rules  # 47 alignment: PCNT INTEGER
-def _rule(args):
-    return layout.address(args[1], 1)
-
-
-@rules  # 48 alignment: <empty>
-def _rule(args):
-    pass
-
-
-@rules  # 49 ushape: shapedef STAR RPAREN
-def _rule(args):
-    return layout.push_shape(True)
-
-
-@rules  # 50 ushape: shapedef STAR COMMA dimensions RPAREN
-def _rule(args):
-    return layout.pop_shape()
-
-
-@rules  # 51 uaddress: address_list
-def _rule(args):
-    return args[0]
-
-
-@rules  # 52 uaddress: <empty>
-def _rule(args):
-    pass
-
-
-@rules  # 53 address_list: address
-def _rule(args):
-    return [args[0]]
-
-
-@rules  # 54 address_list: address_list address
-def _rule(args):
-    return args[0].append(args[1])
-
-
-@rules  # 55 list_item: anonarray type shape location
-def _rule(args):
-    layout.def_array(*args)
-
-
-@rules  # 56 list_item: anonlist list_items RBRACK
-def _rule(args):
-    return layout.pop_list()
-
-
-@rules  # 57 list_item: anongroup group_items RBRACK
-def _rule(args):
-    return layout.change_group("/")
-
-
-@rules  # 58 list_item: error
-def _rule(args):
-    return layout.error(*args)
-
-
-@rules  # 59 list_items: list_items list_item
-def _rule(args):
-    pass
-
-
-@rules  # 60 list_items: <empty>
-def _rule(args):
-    pass
-
-
-@rules  # 61 anonarray: EQ
-def _rule(args):
-    return layout.push_array(None)
-
-
-@rules  # 62 anonlist: EQB
-def _rule(args):
-    return layout.push_list(None)
-
-
-@rules  # 63 anongroup: SLASHB
-def _rule(args):
-    return layout.change_group(None)
-
-
-@rules  # 64 group_items: group_items group_item
-def _rule(args):
-    pass
-
-
-@rules  # 65 group_items: <empty>
-def _rule(args):
-    pass
-
-
-@rules  # 66 member: arraydef type shape location
-def _rule(args):
-    layout.def_array(*args)
-
-
-@rules  # 67 member: paramdef parameter
-def _rule(args):
-    layout.def_param(*args)
-
-
-@rules  # 68 member: anonarray type shape location
-def _rule(args):
-    layout.def_array(*args)
-
-
-@rules  # 69 member: error
-def _rule(args):
-    return layout.error(*args)
-
-
-@rules  # 70 members: members member
-def _rule(args):
-    pass
-
-
-@rules  # 71 members: member
-def _rule(args):
-    pass
-
-
-@rules  # 72 root_params: root_params root_param
-def _rule(args):
-    pass
-
-
-@rules  # 73 root_params: root_param
-def _rule(args):
-    pass
-
-
-@rules  # 74 root_param: anonarray basetype location
-def _rule(args):
-    layout.def_array(None, args[1], None, args[2])
-
-
-@rules  # 75 root_param: anonloc basetype location
-def _rule(args):
-    layout.def_array(Ellipsis, args[1], None, args[2])
-
-
-@rules  # 76 root_param: paramdef parameter
-def _rule(args):
-    layout.def_param(*args)
-
-
-@rules  # 77 root_param: error
-def _rule(args):
-    return layout.error(*args)
-
-
-@rules  # 78 anonloc: ATEQ
-def _rule(args):
-    return layout.push_array(Ellipsis)
+# Each rule function must return the LHS value (or None).
+# The RHS values on the parser stack are indexed from -N
+# to -1 if there are N symbols on the RHS (-N is first RHS.
+# value and -1 is last RHS value).
+# With @rule([-2, -4, -1]), the parser calls rule like this:
+#   rule(value[-2], value[-4], value[-1])
+# In other words, only the values of the specifically listed
+# elements are passed to the rule.  An empty list passes no
+# arguments to the rule.
+# With @rule(arglist, 'method_name'), you can later invoke
+#   rule.bind_to(builder)
+# to make the parser call builder.method_name with the
+# values for the specified stack elements.  (Leave the rule
+# function body empty in this case - it is discarded.)
+# The bind_to method adds a .args attribute to the method,
+# which is required by the parser, and a .rule attribute
+# recording the docstring of the rule for informational
+# purposes.
+
+
+@rules([])
+def rule():
+    """0 $error?"""
+
+@rules([])
+def rule():
+    """1 $accept: . $end"""
+
+@rules([])
+def rule():
+    """2 layout: layout statement"""
+
+@rules([])
+def rule():
+    """3 layout: <empty>"""
+
+@rules([])
+def rule(group_item):
+    """4 statement: group_item"""
+
+@rules(range(-2, 0), "def_param")
+def rule(name, parameter):
+    """5 statement: paramdef parameter"""
+
+@rules(range(-4, 0), "def_type")
+def rule(name, atype, shape, alignment):
+    """6 statement: typedef type shape alignment"""
+
+@rules(range(-4, 0), "def_array")
+def rule(name, atype, shape, address):
+    """7 statement: uarraydef type ushape uaddress"""
+
+@rules(range(-2, 0), "extend_array")
+def rule(name, address_list):
+    """8 statement: SYMBOL address_list"""
+
+@rules([-2], "cdroot")
+def rule(name):
+    """9 statement: SYMBOL QSLASH"""
+
+@rules(range(-2, 0), "close_rootdef")
+def rule(shape, location):
+    """10 statement: rootdef root_params RCURLY shape location"""
+
+@rules(range(-4, 0), "def_array")
+def rule(address, atype, shape, location):
+    """11 statement: pointee type shape location"""
+
+@rules([-1], "set_address")
+def rule(address):
+    """12 statement: BAT INTEGER"""
+
+@rules(range(-4, 0), "def_array")
+def rule(name, atype, shape, location):
+    """13 group_item: arraydef type shape location"""
+
+@rules([-2], "cd")
+def rule(name):
+    """14 group_item: SYMBOL SLASH"""
+
+@rules([], "close_list")
+def rule():
+    """15 group_item: listdef list_items RBRACK"""
+
+@rules([], "cdup")
+def rule():
+    """16 group_item: DOTDOT"""
+
+@rules([], "cdtop")
+def rule():
+    """17 group_item: SLASH"""
+
+@rules([-1], "error18")
+def rule(error):
+    """18 group_item: error"""
+
+@rules([-2])
+def rule(name):
+    """19 paramdef: SYMBOL CEQ"""
+    return name
+
+@rules([-2])
+def rule(name):
+    """20 arraydef: SYMBOL EQ"""
+    return name
+
+@rules([-2])
+def rule(name):
+    """21 typedef: SYMBOL EEQ"""
+    return name
+
+@rules([-2])
+def rule(name):
+    """22 listdef: SYMBOL EQB"""
+    return name
+
+@rules([-2])
+def rule(name):
+    """23 uarraydef: SYMBOL SEQ"""
+    return name
+
+@rules([-2])
+def rule(name):
+    """24 rootdef: SYMBOL QCURLY"""
+    return name
+
+@rules([-2])
+def rule(address):
+    """25 pointee: INTEGER EQ"""
+    return address
+
+@rules([-1], "make_param")
+def rule(value):
+    """26 parameter: INTEGER"""
+
+@rules(range(-2, 0), "make_param")
+def rule(atype, location):
+    """27 parameter: basetype location"""
+
+@rules([-1], "make_atype")
+def rule():
+    """28 basetype: SYMBOL"""
+
+@rules([-1], "make_atype")
+def rule():
+    """29 basetype: PRIMTYPE"""
+
+@rules([-1])
+def rule(basetype):
+    """30 type: basetype"""
+    return basetype
+
+@rules([], "close_struct")
+def rule():
+    """31 type: struct members RCURLY"""
+
+@rules([], "open_struct")
+def rule():
+    """32 struct: LCURLY"""
+
+@rules([], "close_shape")
+def rule():
+    """33 shape: shapedef dimensions RPAREN"""
+
+@rules([])
+def rule():
+    """34 shape: <empty>"""
+
+@rules([], "open_shape")
+def rule():
+    """35 shapedef: LPAREN"""
+
+@rules([-1], "set_dim")
+def rule(value):
+    """36 dimension: INTEGER"""
+
+@rules([-1])
+def rule():
+    """37 dimension: symbolq"""
+
+@rules([])
+def rule():
+    """38 dimension: symbolq PLUSSES"""
+
+@rules([])
+def rule():
+    """39 dimension: symbolq MINUSES"""
+
+@rules([])
+def rule():
+    """40 symbolq: SYMBOL"""
+
+@rules([])
+def rule():
+    """41 symbolq: SYMBOL QUEST"""
+
+@rules([])
+def rule():
+    """42 dimensions: dimensions COMMA dimension"""
+
+@rules([])
+def rule():
+    """43 dimensions: dimension"""
+
+@rules([])
+def rule():
+    """44 location: address"""
+
+@rules([])
+def rule():
+    """45 location: alignment"""
+
+@rules([])
+def rule():
+    """46 address: AT INTEGER"""
+
+@rules([])
+def rule():
+    """47 address: AT DOT"""
+
+@rules([])
+def rule():
+    """48 alignment: PCNT INTEGER"""
+
+@rules([])
+def rule():
+    """49 alignment: <empty>"""
+
+@rules([])
+def rule():
+    """50 ushape: shapedef STAR RPAREN"""
+
+@rules([])
+def rule():
+    """51 ushape: shapedef STAR COMMA dimensions RPAREN"""
+
+@rules([])
+def rule():
+    """52 uaddress: address_list"""
+
+@rules([])
+def rule():
+    """53 uaddress: <empty>"""
+
+@rules([])
+def rule():
+    """54 address_list: address"""
+
+@rules([])
+def rule():
+    """55 address_list: address_list address"""
+
+@rules([])
+def rule():
+    """56 list_item: anonarray type shape location"""
+
+@rules([])
+def rule():
+    """57 list_item: anonlist list_items RBRACK"""
+
+@rules([])
+def rule():
+    """58 list_item: anongroup group_items RBRACK"""
+
+@rules([])
+def rule():
+    """59 list_item: error"""
+
+@rules([])
+def rule():
+    """60 list_items: list_items list_item"""
+
+@rules([])
+def rule():
+    """61 list_items: <empty>"""
+
+@rules([])
+def rule():
+    """62 anonarray: EQ"""
+
+@rules([])
+def rule():
+    """63 anonlist: EQB"""
+
+@rules([])
+def rule():
+    """64 anongroup: SLASHB"""
+
+@rules([])
+def rule():
+    """65 group_items: group_items group_item"""
+
+@rules([])
+def rule():
+    """66 group_items: <empty>"""
+
+@rules([])
+def rule():
+    """67 member: arraydef type shape location"""
+
+@rules([])
+def rule():
+    """68 member: paramdef parameter"""
+
+@rules([])
+def rule():
+    """69 member: anonarray type shape location"""
+
+@rules([])
+def rule():
+    """70 member: error"""
+
+@rules([])
+def rule():
+    """71 members: members member"""
+
+@rules([])
+def rule():
+    """72 members: member"""
+
+@rules([])
+def rule():
+    """73 root_params: root_params root_param"""
+
+@rules([])
+def rule():
+    """74 root_params: root_param"""
+
+@rules([])
+def rule():
+    """75 root_param: anonarray basetype location"""
+
+@rules([])
+def rule():
+    """76 root_param: anonloc basetype location"""
+
+@rules([])
+def rule():
+    """77 root_param: paramdef parameter"""
+
+@rules([])
+def rule():
+    """78 root_param: error"""
+
+@rules([])
+def rule():
+    """79 anonloc: ATEQ"""
+del rule

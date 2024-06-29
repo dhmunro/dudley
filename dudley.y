@@ -9,8 +9,8 @@
 
 %token<str> SYMBOL
 %token<num> INTEGER
-%token CEQ EEQ EQB SEQ SLASHB BAT DOTDOT QCURLY ATEQ QSLASH
-/*     :=  ==  =[  *=  /[     !@  ..     ?{     @=   ?/    */
+%token CEQ EEQ EQB SEQ SLASHB BAT DOTDOT QCURLY ATEQ QSLASH QUEST
+/*     :=  ==  =[  *=  /[     !@  ..     ?{     @=   ?/     ?    */
 %token<num> PLUSSES MINUSES
 /*           +       -      */
 %token EQ LPAREN RPAREN COMMA SLASH STAR DOT AT PCNT RBRACK
@@ -18,7 +18,6 @@
 %token LCURLY RCURLY
 /*     {      }     */
 %token<str> PRIMTYPE
-%token<str> SPECIAL
 
 %%
 
@@ -37,7 +36,6 @@ statement:
 | rootdef root_params RCURLY shape location
 | pointee type shape location
 | BAT INTEGER
-| SPECIAL
 ;
 
 group_item:
@@ -98,9 +96,14 @@ shapedef: LPAREN
 
 dimension:
   INTEGER
-| SYMBOL
-| SYMBOL PLUSSES
-| SYMBOL MINUSES
+| symbolq
+| symbolq PLUSSES
+| symbolq MINUSES
+;
+
+symbolq:
+  SYMBOL
+| SYMBOL QUEST
 ;
 
 dimensions:

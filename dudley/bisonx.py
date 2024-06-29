@@ -2,7 +2,7 @@
 """
 The bisonx utility extracts parser tables from a .tab.c file produced by Bison.
 
-If the correspondinng .y grammar file is available, bisonx additionally
+If the corresponding .y grammar file is available, bisonx additionally
 builds a skeleton for defining the reduction rules for this grammar.
 """
 from __future__ import print_function
@@ -202,14 +202,52 @@ def dump_cols(xlist, f=sys.stdout, indent=0, width=80):
 
 
 def dump_rules(rules, f=sys.stdout):
+    # Want rules to invoke building methods on a result object:
+    # rules[i](stack) --> obj.method_i(stack[-3], stack[-1], ...)
+    # @rr(-4, -3, -1, ...)
+    # def method_i(arg0, arg1, arg2, ...):
+    #   pass
     f.write("\n\nclass FunctionList(list):\n")
-    f.write("    def __call__(self, f)\n")
-    f.write("        self.append(f)\n")
-    f.write("        return f\n")
+    f.write("    def __call__(self, args, method=None):\n\n")
+    f.write("        def __call__(self, f):\n")
+    f.write("            f.method = method\n")
+    f.write("            f.args = args\n")
+    f.write("            self.append(f)\n")
+    f.write("            return f\n\n")
+    f.write("        return rule\n\n")
+    f.write("    def bind_to(self, builder):\n")
+    f.write("        for i, rule in enumerate(self):\n")
+    f.write("            method = rule.method\n")
+    f.write("            if not method:\n")
+    f.write("                continue\n")
+    f.write("            method = builder[method]\n")
+    f.write("            method.args = args\n")
+    f.write("            method.rule = rule.__doc__\n")
+    f.write("            self[i] = method\n\n")
     f.write("\nrules = FunctionList()\n")
+    f.write("\n# Each rule function must return the LHS value (or None).\n")
+    f.write("# The RHS values on the parser stack are indexed from -N\n")
+    f.write("# to -1 if there are N symbols on the RHS (-N is first RHS.\n")
+    f.write("# value and -1 is last RHS value).\n")
+    f.write("# With @rule([-2, -4, -1]), the parser calls rule like this:\n")
+    f.write("#   rule(value[-2], value[-4], value[-1])\n")
+    f.write("# In other words, only the values of the specifically listed\n")
+    f.write("# elements are passed to the rule.  An empty list passes no\n")
+    f.write("# arguments to the rule.\n")
+    f.write("# With @rule(arglist, 'method_name'), you can later invoke\n")
+    f.write("#   rule.bind_to(builder)\n")
+    f.write("# to make the parser call builder.method_name with the\n")
+    f.write("# values for the specified stack elements.  (Leave the rule\n")
+    f.write("# function body empty in this case - it is discarded.)\n")
+    f.write("# The bind_to method adds a .args attribute to the method,\n")
+    f.write("# which is required by the parser, and a .rule attribute\n")
+    f.write("# recording the docstring of the rule for informational\n")
+    f.write("# purposes.\n")
     for i, rule in enumerate(rules):
-        f.write("\n\n@rules  # {} {}\n".format(i, rule))
-        f.write("def _rule(args):\n    pass\n")
+        f.write("\n\n@rules([])\n")
+        f.write("def rule():\n")
+        f.write('    """{} {}"""'.format(i, rule))
+    f.write("\ndel rule\n")
 
 
 if __name__ == "__main__":
