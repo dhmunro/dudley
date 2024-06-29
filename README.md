@@ -16,6 +16,13 @@ parametrized layout which can apply to a wide range of individual
 binary files or streams having the same variables but different array
 shapes.  This extended capability is similar to XDR.
 
+The Dudley data model is designed to be highly compatible with numpy.
+Dudley arrays are modeled on the numpy ndarray, and Dudley also
+supports lists and string-keyed dicts (called groups after HDF5).
+These non-array structures resemble JSON arrays and objects,
+respectively.  However, unlike JSON, Dudley does not allow you to
+interleave data with its description.
+
 Unlike either HDF5 (or PDB) or XDR, a Dudley layout can also serve as
 a template for a whole class of binary data files.  For example, a
 single Dudley layout could describe every restart dump file for a
@@ -50,8 +57,8 @@ to a single input line.
 
 In the following description, a type name will be called simply
 "type", a parameter name simply "param", and a variable name simply
-"var".  (Struct member names and variable names are treated in exactly
-the same way, so "var" may also represent a struct member.)  In the
+"var".  Struct member names and variable names are treated in exactly
+the same way, so "var" may also represent a struct member.  In the
 case of groups or structs, the parameter namespaces of the parent
 groups or structs will be searched in reverse order, so the parameter
 namespace is hierarchical in this sense.
@@ -170,10 +177,10 @@ group (python dict) of named variables.
 
 You declare an array variable with:
 
-    var = type(shape) @ address
+    var = type[shape] @ address
 
 Array variables can have any type (predefined primitive or typedef),
-and optionally include a (shape) - a list of array dimensions if
+and optionally include a [shape] - a list of array dimensions if
 present.  As for a parameter declaration, the @ address clause is
 optional, with the default again being the next address after the
 previous read or free-standing !@ address directive.
@@ -186,10 +193,10 @@ homogeneous.
 You declare a heterogeneous list variable with:
 
     var =[     # no space between = and [
-      = type(shape) @ address  # first item of list is data variable
-      = type(shape) @ address  # second item of list is data variable
+      = type[shape] @ address  # first item of list is data variable
+      = type[shape] @ address  # second item of list is data variable
       =[  # third item of list is a sublist
-        = type(shape) @ address
+        = type[shape] @ address
         ...etc...
       ]
       ...etc...
@@ -207,7 +214,7 @@ You declare a homogeneous list variable with:
 
     var = type(*, shape) @ addresses
 
-Every element of this list will be a type(shape) array.  Without the
+Every element of this list will be a type[shape] array.  Without the
 explicit "@ addresses" this homogeneous list is initially empty.  The
 "addresses" may be either a single address or a "@"-delimited list of
 addresses to declare subsequent list items.  Each address may be
@@ -230,16 +237,16 @@ member nor a heterogeneous list member.
 You define a named group variable (essentially a python dict):
 
     var /
-      param := type(shape) @ address  # parameter(s) here and in children
-      var = type(shape) @ address  # declare an array variable
+      param := type[shape] @ address  # parameter(s) here and in children
+      var = type[shape] @ address  # declare an array variable
       var /  # declare a subgroup (child group)
-        param := type(shape) @ address
-        var = type(shape) @ address
+        param := type[shape] @ address
+        var = type[shape] @ address
         ----- and so on -----
       ..  # double dot pops back to parent group
       /  # slash pops back to root group
       var =[  # declare a list
-        = type(shape) @ address
+        = type[shape] @ address
       ]
       ----- and so on -----
 
@@ -250,7 +257,7 @@ variables to it whever you like.  In particular, notice that
 
 and
 
-    /var/var/var = type(shape) @ address  # declares variable with full path
+    /var/var/var = type[shape] @ address  # declares variable with full path
 
 (The latter also leaves the parent group of the data variable as the
 current group.)
@@ -261,11 +268,11 @@ that list item.  It is impossible to append more items to an anonymous
 group after its initial declaration:
 
     var =[
-      = type(shape) @ address
+      = type[shape] @ address
       /[  # third item of list is a group of named parameters and variables
-        param := type(shape) @ address
-        var = type(shape) @ address
-        var = [ ... ]
+        param := type[shape] @ address
+        var = type[shape] @ address
+        var =[ ... ]
         var/ ...
         ----- and so on -----
       ]
@@ -278,15 +285,21 @@ an array, but the items of a list may have unrelated addresses.
 
 ## Array dimensions
 
-The format of a (shape) list in a data variable declaration is
+The format of a [shape] list in a data variable declaration is
 
-    (dim1, dim2, ...)
+    [dim1, dim2, ...]
 
 The dimensions are always listed from slowest to fastest varying, so
-that (3, 2) means three pairs, not two triples.  This is "C order" or
-"row major order".  You would build a shape (3, 2) array like this:
+that [3, 2] means three pairs, not two triples.  This is "C order" or
+"row major order".  You would build a shape [3, 2] array like this:
 [[a, b], [c, d], [e, f]], and the elements in this notation appear in
-the same order they are stored in memory.
+the same order they are stored in memory.  (Note that FORTRAN array
+indexing uses the opposite "column major" convention.  You need to
+reverse your array dimension lists to use Dudley with FORTRAN or any
+other column major language.  Dudley's lack of support for both
+dimension order conventions is a deliberate design feature.  You need
+to learn to think carefully about exactly how your data is stored to
+use Dudley effectively.)
 
 Each dimension length may be either an integer value or a parameter
 name.  The parameter name must have been previously declared in either
@@ -297,13 +310,13 @@ one larger or one smaller than the parameter value.  Multiple + or
 - suffixes can be used to indicate two or more length differences.
 
 If any dimension length is zero, the variable has no data, takes no
-space, and does not advance the current address.  This
-happens before any + or - increment or decrement suffix is computed.
+space, and does not advance the current address.  This happens before
+computing any + or - increment or decrement suffix.
 
 If any dimension length is negative, by default it is removed from the
 dimension list, reducing the number of dimensions of the array.
-Again, this happens before any + or - increment or decrement suffix is
-computed.
+Again, this happens before computing any + or - increment or decrement
+suffix.
 
 An alternative behavior for a negative dimension length is to treat
 it as equivalent to zero dimension length - namely, the variable will
@@ -313,10 +326,10 @@ any + or - suffixes).
 
 For example:
 
-    x = f8(JMAX, IMAX)
-    y = f8(JMAX?, IMAX)
-    rho = f8(JMAX-, IMAX-)
-    unu = f8(NGROUP, JMAX-, IMAX-)
+    x = f8[JMAX, IMAX]
+    y = f8[JMAX?, IMAX]
+    rho = f8[JMAX-, IMAX-]
+    unu = f8[NGROUP, JMAX-, IMAX-]
 
 declares x and y to be 2D arrays (IMAX consecutive f8 values repeated
 JMAX times). rho to be a 2D array with one fewer item in each row and
@@ -333,9 +346,9 @@ mode of operation.  Furthermore, the code may have a 1D mode in which
 there is no y coordinate at all, and the JMAX dimension is missing
 from all the other variables:
 
-    x = f8(IMAX)
-    rho = f8(IMAX-)
-    unu = f8(NGROUP, IMAX-)
+    x = f8[IMAX]
+    rho = f8[IMAX-]
+    unu = f8[NGROUP, IMAX-]
 
 Setting JMAX to -1 will make the original layout description identical
 to this 1D description, so once again, a single Dudley layout can
@@ -353,7 +366,7 @@ while a struct is intended to be mapped to a numpy structured dtype
 
     type == {
       param := type @ offset  # param := integer also legal
-      var = type(shape) @ offset
+      var = type[shape] @ offset
       ----- and so on -----
     }
 
@@ -377,7 +390,7 @@ an absolute disk address in the file.
 You can also use the == operator to create an alias for another data
 type, possibly dimensioned, analogous to a C typedef:
 
-    type == type(shape) % alignment  # alignment optional
+    type == type[shape] % alignment  # alignment optional
 
 Struct data types need not be explicitly named.  Anywhere "type"
 appears in the Dudley grammar, it can be either a (possibly prefixed)
@@ -388,13 +401,13 @@ brackets.
 Notice that the difference between an anonymous struct instance and a
 group is simply how you want to think about your data.  For example,
 
-    var = { memb1 = type1(shape1)
-            memb2 = type2(shape2) }
+    var = { memb1 = type1[shape1]
+            memb2 = type2[shape2] }
 
 could refer to exactly the same data stream as:
 
-    var / memb1 = type1(shape1)
-          memb2 = type2(shape2) ..
+    var / memb1 = type1[shape1]
+          memb2 = type2[shape2]
 
 However, an API based on Dudley may present this data stream very
 differently.  For example, a python API should present the first as a
@@ -414,7 +427,7 @@ address of the instance:
 
     string == {
       count := u4
-      = S1(count)  # single anonymous member
+      = S1[count]  # single anonymous member
     }
     text = string
 
@@ -422,7 +435,7 @@ declares a variable "text" created from an array of ASCII characters,
 written to the file as a 4 byte integer count followed by that many
 characters.  Reading it back produces a result indistinguishable from
 
-    text = S1(count)
+    text = S1[count]
 
 if count were defined as some fixed value.  This is a popular
 construct in many existing file and stream formats (supported by both
@@ -444,14 +457,14 @@ For example:
 
     NITEMS := i4  # global NITEMS parameter
     SomeType == { memb1 = i8
-                  memb2 = f4(NITEMS) }
-    var1 = SomeType(4)  # var1 SomeType uses global NITEMS
+                  memb2 = f4[NITEMS] }
+    var1 = SomeType[4]  # var1 SomeType uses global NITEMS
     grp1 /
         var2 = SomeType  # var2 SomeType uses global NITEMS
         NITEMS := i8   # grp1 NITEMS shadows global
-        var3 = SomeType(3)  # var3 SomeType uses grp1 NITEMS
+        var3 = SomeType[3]  # var3 SomeType uses grp1 NITEMS
         ..
-    var4 = SomeType(2)  # var4 SomeType uses global NITEMS
+    var4 = SomeType[2]  # var4 SomeType uses global NITEMS
 
 In other words, references to Dudley parameterized data types bind
 each parameter to the closest ancestor group defining that parameter
@@ -470,7 +483,7 @@ other words, pointers are incompatible with using Dudley to create a
 template describing multiple files, or with Dudley's parallel
 processing support.  Each pointee must be declared like this:
 
-    integer = type(shape) @ address
+    integer = type[shape] @ address
 
 That is, a pointee is a variable whose name is a 4 or eight byte
 unsigned integer value, depending on whether it was declared as a p4
@@ -546,8 +559,8 @@ special "?/" notion to declare the root group associated with one block
 (of this ionode type if there are multiple kinds of blocks) like this:
 
     ionode ?/
-      var = type(shape)
-      var = type(shape)
+      var = type[shape]
+      var = type[shape]
       ----- and so on -----
 
 The array shapes may use the parameters declared in the corresponding

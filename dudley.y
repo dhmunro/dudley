@@ -9,12 +9,12 @@
 
 %token<str> SYMBOL
 %token<num> INTEGER
-%token CEQ EEQ EQB SEQ SLASHB BAT DOTDOT QCURLY ATEQ QSLASH QUEST
-/*     :=  ==  =[  *=  /[     !@  ..     ?{     @=   ?/     ?    */
+%token CEQ EEQ EQB SLASHC BAT DOTDOT QCURLY ATEQ QSLASH QUEST
+/*     :=  ==  =[  /{     !@  ..     ?{     @=   ?/     ?    */
 %token<num> PLUSSES MINUSES
 /*           +       -      */
-%token EQ LPAREN RPAREN COMMA SLASH STAR DOT AT PCNT RBRACK
-/*     =  (      )      ,     /     *    .   @  %    ]     */
+%token EQ LBRACK RBRACK COMMA SLASH STAR DOT AT PCNT
+/*     =  [      ]      ,     /     *    .   @  %   */
 %token LCURLY RCURLY
 /*     {      }     */
 %token<str> PRIMTYPE
@@ -28,44 +28,23 @@ layout:
 
 statement:
   group_item
-| paramdef parameter
-| typedef type shape alignment
-| uarraydef type ushape uaddress
+| SYMBOL EEQ type shape alignment
+| SYMBOL EQ type ushape uaddress
 | SYMBOL address_list
 | SYMBOL QSLASH
 | rootdef root_params RCURLY shape location
-| pointee type shape location
+| INTEGER EQ type shape location
 | BAT INTEGER
 ;
 
 group_item:
-  arraydef type shape location
+  SYMBOL EQ type shape location
+| SYMBOL CEQ parameter
 | SYMBOL SLASH
 | listdef list_items RBRACK
 | DOTDOT
 | SLASH
 | error
-;
-
-paramdef: SYMBOL CEQ
-;
-
-arraydef: SYMBOL EQ
-;
-
-typedef: SYMBOL EEQ
-;
-
-listdef: SYMBOL EQB
-;
-
-uarraydef: SYMBOL SEQ
-;
-
-rootdef: SYMBOL QCURLY
-;
-
-pointee: INTEGER EQ
 ;
 
 parameter:
@@ -83,15 +62,21 @@ type:
 | struct members RCURLY
 ;
 
+rootdef: SYMBOL QCURLY
+;
+
+listdef: SYMBOL EQB
+;
+
 struct: LCURLY
 ;
 
-shape:
-  shapedef dimensions RPAREN
-|
+shapedef: LBRACK
 ;
 
-shapedef: LPAREN
+shape:
+  shapedef dimensions RBRACK
+|
 ;
 
 dimension:
@@ -127,8 +112,8 @@ alignment:
 ;
 
 ushape:
-  shapedef STAR RPAREN
-| shapedef STAR COMMA dimensions RPAREN
+  shapedef STAR RBRACK
+| shapedef STAR COMMA dimensions RBRACK
 ;
 
 uaddress:
@@ -142,9 +127,9 @@ address_list:
 ;
 
 list_item:
-  anonarray type shape location
+  EQ type shape location
 | anonlist list_items RBRACK
-| anongroup group_items RBRACK
+| anongroup group_items RCURLY
 | error
 ;
 
@@ -153,13 +138,10 @@ list_items:
 |
 ;
 
-anonarray: EQ
-;
-
 anonlist: EQB
 ;
 
-anongroup: SLASHB
+anongroup: SLASHC
 ;
 
 group_items:
@@ -168,9 +150,9 @@ group_items:
 ;
 
 member:
-  arraydef type shape location
-| paramdef parameter
-| anonarray type shape location
+  SYMBOL EQ type shape location
+| SYMBOL CEQ parameter
+| EQ type shape location
 | error
 ;
 
@@ -185,11 +167,8 @@ root_params:
 ;
 
 root_param:
-  anonarray basetype location
-| anonloc basetype location
-| paramdef parameter
+  EQ basetype location
+| ATEQ basetype location
+| SYMBOL CEQ parameter
 | error
-;
-
-anonloc: ATEQ
 ;
