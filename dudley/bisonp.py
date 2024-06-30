@@ -24,6 +24,7 @@ regexp.finditer() into the token numbers required by the Bison parser
 tables.
 
 """
+__all__ = [BisonParser, SemanticError, AbortParse]
 
 
 class BisonParser(object):
@@ -151,17 +152,26 @@ class BisonParser(object):
                 reducer = parse_rules[rule]
                 nargs = r2[rule]
                 args = reducer.args
-                value = reducer(*[stack[i][1] for i in args])
-                del stack[-nargs:]
-                state, _ = stack[-1]
-                # non-default gotos for this reduction also stored in table
-                lhs = r1[rule] - ntokens  # non-terminal number
-                i = state + pgoto[lhs]
-                if i >= 0 and i <= last and check[i] == state:
-                    state = table[state]
-                else:
-                    state = defgoto[lhs]
-                stack.append((state, value))
+                try:
+                    value = reducer(*[stack[i][1] for i in args])
+                    del stack[-nargs:]
+                    state, _ = stack[-1]
+                    # non-default gotos for this reduction also stored in table
+                    lhs = r1[rule] - ntokens  # non-terminal number
+                    i = state + pgoto[lhs]
+                    if i >= 0 and i <= last and check[i] == state:
+                        state = table[state]
+                    else:
+                        state = defgoto[lhs]
+                    stack.append((state, value))
+                    continue
+                except SemanticError:
+                    del stack[-nargs:]
+                    state = stack[-1][0]
+                    nerrs += 1
+                except AbortParse:
+                    aborted = True
+                    break
             else:
                 # ----------- syntax error -------------
                 if not errstatus:
@@ -170,25 +180,26 @@ class BisonParser(object):
                     if lookahead == eof_token:
                         break  # abort if at EOF
                     lookahead = None  # failed to reuse lookahead token
-                errstatus = 3  # resume parse after shifting 3 tokens
-                j = 0
-                while j <= 0:
-                    i = pact[state]
-                    if i != default_pact:
-                        i += err_token
-                        if i >= 0 and i <= last and check[i] == err_token:
-                            j = table[i]
-                            continue
-                    if not stack:
-                        break
-                    state, _ = stack.pop()  # pop until state handles error
-                else:
-                    # found state that shifts err_token, push it
-                    state = j
-                    stack.append((state, None))  # value None okay??
-                    continue
-                aborted = True
-                break  # no state shifts err_token, abort
+            # ----------- syntax or semantic error -------------
+            errstatus = 3  # resume parse after shifting 3 tokens
+            j = 0
+            while j <= 0:
+                i = pact[state]
+                if i != default_pact:
+                    i += err_token
+                    if i >= 0 and i <= last and check[i] == err_token:
+                        j = table[i]
+                        continue
+                if not stack:
+                    break
+                state, _ = stack.pop()  # pop until state handles error
+            else:
+                # found state that shifts err_token, push it
+                state = j
+                stack.append((state, None))  # value None okay??
+                continue
+            aborted = True
+            break  # no state shifts err_token, abort
 
         if aborted:
             # unhandled error token
@@ -263,3 +274,13 @@ class BisonLexer(object):
 
     def __call__(self):
         return next(self._next_token)
+
+
+class SemanticError(Exception):
+    """Raise in parse rules to signal a semantic error."""
+    pass
+
+
+class AbortParse(Exception):
+    """Raise in parse rules to immediately abort the parse."""
+    pass

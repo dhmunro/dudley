@@ -79,6 +79,14 @@ shape:
 |
 ;
 
+ushapedef: LBRACK STAR
+;
+
+ushape:
+  ushapedef RBRACK
+| ushapedef COMMA dimensions RBRACK
+;
+
 dimension:
   INTEGER
 | symbolq
@@ -109,11 +117,6 @@ address:
 alignment:
   PCNT INTEGER
 |
-;
-
-ushape:
-  shapedef STAR RBRACK
-| shapedef STAR COMMA dimensions RBRACK
 ;
 
 uaddress:

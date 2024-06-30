@@ -82,109 +82,111 @@ def handler(m, mprev):
 
 tables = dict(
     pact = [
-        -43,  79, -43, -43,  80,  -6,  17, -43, -43, -43,
-        -43,  51, -43,  23,  36, -43, -43, -43,  36, -43,
-         21, -43,  -9,  36, -43, -43,  40,  29,  29,  11,
-        -43,  95, -43, -43, -43, -43,  24, -43, -43,  35,
-         64,  35, -43, -43, -43,  35,  23,  24,  24,  35,
-        -43, -43, -43, -43,  36, -43, -43, -43, -43,  52,
-        -43, -43, -43, -43,  70,  33, -43,  13,  36, -43,
-          7,  38,  24,  -9,  24, -43, -43, -43,  24,  35,
-         98,  19, -43,  47, -43, -43, 105,  91, -43,  23,
-         36,  35, -43, -43, 106, -43, -43,  -9, -43, -43,
-         24, -43, 102, -43, -43, -43, -43, -43, -43,  70,
-        -43,  35,  24, -43,  70, -43,  36, -43,  24, -43,
-        108,  35, -43, -43,
+        -43,  59, -43, -43,  78,  -6,  16, -43, -43, -43,
+        -43,  64, -43,   3,  15, -43, -43, -43,  15, -43,
+          6, -43,  -2,  15, -43, -43,  21,   5,   5,  20,
+        -43,  97, -43, -43, -43, -43,  28, -43, -43,  10,
+         71,  12, -43, -43, -43,  10,   3,  28,  28,  10,
+        -43, -43, -43, -43,  15, -43, -43, -43, -43,  45,
+        -43, -43, -43, -43,  54,  30, -43,   7,  15, -43,
+         37,  39,  28,  73,  -2,  28, -43, -43, -43,  28,
+         10, 100,  24, -43,  52, -43, -43,  96, 101, -43,
+          3,  15,  10, -43, -43, -43, -43, -43,  54, -43,
+         -2, -43, -43,  28, -43,  89, -43, -43, -43, -43,
+        -43, -43,  54, -43,  10,  28, 103, -43,  15, -43,
+         28, -43, -43,  10, -43,
     ],
     defact = [
          3,  0,  1, 18,  0,  0,  0, 16, 17,  2,
-         4,  0, 56,  0,  0, 26, 25,  8,  0, 14,
-         0, 49,  7,  0, 11, 72,  0,  0,  0,  0,
-        68,  0, 21, 19, 22, 13, 44, 27, 23, 30,
-         0, 30, 41, 42, 50, 30,  0, 44, 44, 30,
-        67, 54, 57, 58,  0, 15, 55, 56, 60,  0,
-        20, 39, 40, 28,  0, 44, 64,  0,  0, 66,
-         0,  0, 44, 48, 44, 71, 70, 69, 44, 30,
-         0,  0, 43, 35, 31, 38, 32,  0,  5,  0,
-         0, 30, 24, 65,  0, 12,  6, 47, 10,  9,
-        44, 52,  0, 53, 59, 36, 33, 34, 29,  0,
-        62, 30, 44, 45,  0, 51,  0, 37, 44, 63,
-         0, 30, 61, 46,
+         4,  0, 57,  0,  0, 26, 25,  8,  0, 14,
+         0, 50,  7,  0, 11, 73,  0,  0,  0,  0,
+        69,  0, 21, 19, 22, 13, 47, 27, 23, 30,
+         0, 30, 44, 45, 51, 30,  0, 47, 47, 30,
+        68, 55, 58, 59,  0, 15, 56, 57, 61,  0,
+        20, 42, 43, 28,  0, 47, 65,  0,  0, 67,
+         0, 28, 47,  0, 49, 47, 72, 71, 70, 47,
+        30,  0,  0, 46, 38, 34, 41, 35,  0,  5,
+         0,  0, 30, 24, 66, 31, 12, 32,  0,  6,
+        48, 10,  9, 47, 53,  0, 54, 60, 39, 36,
+        37, 29,  0, 63, 30, 47,  0, 52,  0, 40,
+        47, 64, 33, 30, 62,
     ],
     pgoto = [
-        -43, -43, -43, -15, -42, -11, -18, -43, -43, -43,
-         28, -36, -33, -43, -30, -41,  -3,  25, -43, -43,
-         22, -43,  56, -43, -43, -43,  46, -43, -43,  63,
+        -43, -43, -43,  -7, -42, -11, -18, -43, -43, -43,
+        -43, -36, -43, -43, -35, -43, -12, -33,  -3,  25,
+        -43,  29, -43,  56, -43, -43, -43,  48, -43, -43,
+         80,
     ],
     defgoto = [
          0,  1,  9, 10, 35, 38, 39, 11, 12, 40,
-        64, 72, 85, 86, 87, 60, 61, 62, 73, 96,
-        22, 56, 31, 57, 58, 81, 69, 70, 29, 30,
+        64, 72, 73, 74, 86, 87, 88, 60, 61, 62,
+        99, 22, 56, 31, 57, 58, 82, 69, 70, 29,
+        30,
     ],
     table = [
-         41,  21,  36,  65,  75,  45,  76,  77,  66,  74,
-         67,  23,  25,  78,  26,  20,  47,  48,  89,  44,
-          3,  24, 102,  27,  68,  42,  32,  33,  28,   7,
-         90,  95,  32,  98,  92,  36,  79,  99,  49,  32,
-          8,  83,  84, 100,  43,  46, 103, 110,  20,  59,
-         91,  34,  25,  63,  26, 112,  82,  34,  59, 115,
-         94, 105,  37,  27,  34,  66, 104,  67,  28,  71,
-         21, 119, 111,  83,  84, 118, 117, 122,  36,   2,
-          3,  68,   4,   5, 120,  13,  14,  15,   6,   7,
-         88,  16,  50,  17,  44,  97,  51,  18, 121,  51,
-          8,  19,  52,  53,  20,  52,  53,  13,   0,  15,
-        108, 109,  54,  80,  55,  54,  93, 101,   0, 116,
-        106, 107,   0,  19,   0, 113, 114, 123, 109,
+         41,  21,  36,  65,  76,  45,  32,  33,  32,  75,
+         42,  23,  90,  79,  77,  78,  47,  48,  32,  44,
+         24,  25,  20,  26,  91,   3,  46, 105,  63,  43,
+         71,  34,  27,  34,   7,  36,  80,  28,  66,  96,
+         67,  37, 101,  34, 103,   8, 102,  49, 113,  83,
+         92, 106,  20,  59,  68,  59, 115,  84,  85,   2,
+          3,  95,   4,   5,  93,  25, 108,  26,   6,   7,
+        117,  21,  66, 114,  67, 107,  27, 119, 120,  36,
+          8,  28, 121,  13,  14,  15, 116, 124,  68,  16,
+         89,  17,  97,  98,  13,  18,  15,  44,  51,  19,
+        123,  51,  20, 100,  52,  53, 118,  52,  53,  50,
+         19, 109, 110,  81,  54,   0,  55,  54,  94, 104,
+        111, 112, 122, 112,
     ],
     check = [
-        18,   4, 13, 39,  46,  23,  47,  48,   1,  45,
-         3,  17,  1, 49,   3,  24,  27,  28,   5,  22,
-         1,   4,  3, 12,  17,   4,   3,   4,  17,  10,
-        17,  72,  3, 74,  27,  46,  54,  78,  27,   3,
-        21,   3,  4, 79,  23,   5,  27,  89,  24,  25,
-        68,  28,  1, 18,   3,  91,   4,  28,  25, 100,
-        22,  14, 26, 12,  28,   1,  81,   3,  17,  41,
-        73, 112, 90,  3,   4, 111, 109, 118,  89,   0,
-         1,  17,  3,  4, 114,   5,   6,   7,   9,  10,
-        65,  11, 29, 13,  97,  73,   1,  17, 116,   1,
-        21,  21,  7,  8,  24,   7,   8,   5,  -1,   7,
-        19,  20, 17, 57,  19,  17,  70,  19,  -1,  17,
-        15,  16, -1, 21,  -1,  19,  20,  19,  20,
+         18,  4,  13, 39, 46, 23,  3,   4,   3, 45,
+          4, 17,   5, 49, 47, 48, 27,  28,   3, 22,
+          4,  1,  24,  3, 17,  1,  5,   3,  18, 23,
+         18, 28,  12, 28, 10, 46, 54,  17,   1, 72,
+          3, 26,  75, 28, 80, 21, 79,  27,  90,  4,
+         68, 27,  24, 25, 17, 25, 92,   3,   4,  0,
+          1, 22,   3,  4, 27,  1, 14,   3,   9, 10,
+        103, 74,   1, 91,  3, 82, 12, 112, 114, 90,
+         21, 17, 115,  5,  6,  7, 98, 120,  17, 11,
+         65, 13,  19, 20,  5, 17,  7, 100,   1, 21,
+        118,  1,  24, 74,  7,  8, 17,   7,   8, 29,
+         21, 15,  16, 57, 17, -1, 19,  17,  70, 19,
+         19, 20,  19, 20,
     ],
     r1 = [
          0, 29, 30, 30, 31, 31, 31, 31, 31, 31,
         31, 31, 32, 32, 32, 32, 32, 32, 32, 33,
         33, 34, 34, 35, 35, 36, 37, 38, 39, 40,
-        40, 41, 41, 41, 41, 42, 42, 43, 43, 44,
-        44, 45, 45, 46, 46, 47, 47, 48, 48, 49,
-        49, 50, 50, 50, 50, 51, 51, 52, 53, 54,
-        54, 55, 55, 55, 55, 56, 56, 57, 57, 58,
-        58, 58, 58,
+        40, 41, 42, 42, 43, 43, 43, 43, 44, 44,
+        45, 45, 46, 46, 47, 47, 48, 48, 49, 49,
+        50, 50, 51, 51, 51, 51, 52, 52, 53, 54,
+        55, 55, 56, 56, 56, 56, 57, 57, 58, 58,
+        59, 59, 59, 59,
     ],
     r2 = [
         0, 2, 2, 0, 1, 5, 5, 2, 2, 5,
         5, 2, 5, 3, 2, 3, 1, 1, 1, 1,
         2, 1, 1, 1, 3, 2, 2, 1, 1, 3,
-        0, 1, 1, 2, 2, 1, 2, 3, 1, 1,
-        1, 2, 2, 2, 0, 3, 5, 1, 0, 1,
-        2, 4, 3, 3, 1, 2, 0, 1, 1, 2,
-        0, 5, 3, 4, 1, 2, 1, 2, 1, 3,
-        3, 3, 1,
+        0, 2, 2, 4, 1, 1, 2, 2, 1, 2,
+        3, 1, 1, 1, 2, 2, 2, 0, 1, 0,
+        1, 2, 4, 3, 3, 1, 2, 0, 1, 1,
+        2, 0, 5, 3, 4, 1, 2, 1, 2, 1,
+        3, 3, 3, 1,
     ],
     stos = [
          0, 30,  0,  1,  3,  4,  9, 10, 21, 31,
         32, 36, 37,  5,  6,  7, 11, 13, 17, 21,
-        24, 45, 49, 17,  4,  1,  3, 12, 17, 57,
-        58, 51,  3,  4, 28, 33, 34, 26, 34, 35,
-        38, 35,  4, 23, 45, 35,  5, 34, 34, 27,
-        58,  1,  7,  8, 17, 19, 50, 52, 53, 25,
-        44, 45, 46, 18, 39, 40,  1,  3, 17, 55,
-        56, 39, 40, 47, 40, 33, 44, 44, 40, 35,
-        51, 54,  4,  3,  4, 41, 42, 43, 46,  5,
-        17, 35, 27, 55, 22, 44, 48, 49, 44, 44,
-        40, 19,  3, 27, 32, 14, 15, 16, 19, 20,
-        33, 35, 40, 19, 20, 44, 17, 41, 40, 44,
-        43, 35, 44, 19,
+        24, 47, 50, 17,  4,  1,  3, 12, 17, 58,
+        59, 52,  3,  4, 28, 33, 34, 26, 34, 35,
+        38, 35,  4, 23, 47, 35,  5, 34, 34, 27,
+        59,  1,  7,  8, 17, 19, 51, 53, 54, 25,
+        46, 47, 48, 18, 39, 40,  1,  3, 17, 56,
+        57, 18, 40, 41, 42, 40, 33, 46, 46, 40,
+        35, 52, 55,  4,  3,  4, 43, 44, 45, 48,
+         5, 17, 35, 27, 56, 22, 46, 19, 20, 49,
+        50, 46, 46, 40, 19,  3, 27, 32, 14, 15,
+        16, 19, 20, 33, 35, 40, 45, 46, 17, 43,
+        40, 46, 19, 35, 46,
     ],
     tname = [
         "\"end of file\"", "error", "\"invalid token\"", "SYMBOL", "INTEGER",
@@ -193,10 +195,10 @@ tables = dict(
         "COMMA", "SLASH", "STAR", "DOT", "AT", "PCNT", "LCURLY", "RCURLY",
         "PRIMTYPE", "$accept", "layout", "statement", "group_item",
         "parameter", "basetype", "type", "rootdef", "listdef", "struct",
-        "shapedef", "shape", "dimension", "symbolq", "dimensions", "location",
-        "address", "alignment", "ushape", "uaddress", "address_list",
-        "list_item", "list_items", "anonlist", "anongroup", "group_items",
-        "member", "members", "root_params", "root_param", "",
+        "shapedef", "shape", "ushapedef", "ushape", "dimension", "symbolq",
+        "dimensions", "location", "address", "alignment", "uaddress",
+        "address_list", "list_item", "list_items", "anonlist", "anongroup",
+        "group_items", "member", "members", "root_params", "root_param", "",
     ],
     final = 2)
 
@@ -270,14 +272,14 @@ def rule(name, atype, shape, alignment):
     """5 statement: SYMBOL EEQ type shape alignment"""
 
 @rules([-5, -3, -2, -1], "var")
-def rule(name, atype, shape, address):
+def rule(name, atype, ushape, uaddress):
     """6 statement: SYMBOL EQ type ushape uaddress"""
 
-@rules([-2, -1], "extend_array")
-def rule(name, address):
+@rules([-2, -1], "var_extend")
+def rule(name, address_list):
     """7 statement: SYMBOL address_list"""
 
-@rules([-2], "cdroot")
+@rules([-1], "cdroot")
 def rule(name):
     """8 statement: SYMBOL QSLASH"""
 
@@ -285,8 +287,8 @@ def rule(name):
 def rule(shape, location):
     """9 statement: rootdef root_params RCURLY shape location"""
 
-@rules([-5, -3, -2, -1])
-def rule(pointer, atype, shape, location):
+@rules([-5, -3, -2, -1], "pointee")
+def rule(value, atype, shape, location):
     """10 statement: INTEGER EQ type shape location"""
 
 @rules([-1], "set_address")
@@ -302,7 +304,7 @@ def rule(name, parameter):
     """13 group_item: SYMBOL CEQ parameter"""
 
 @rules([-2], "cd")
-def rule(name):
+def rule():
     """14 group_item: SYMBOL SLASH"""
 
 @rules([], "close_list")
@@ -313,34 +315,38 @@ def rule():
 def rule():
     """16 group_item: DOTDOT"""
 
-@rules([], "cdtop")
+@rules([], "cd")
 def rule():
     """17 group_item: SLASH"""
 
 @rules([-1], "error18")
-def rule(error):
+def rule():
     """18 group_item: error"""
 
-@rules([-1], "parameter")
-def rule():
+@rules([-1])
+def rule(value):
     """19 parameter: INTEGER"""
+    return value
 
-@rules([-2, -1], "parameter")
-def rule(atype, location):
+@rules([-2, -1])
+def rule(basetype, location):
     """20 parameter: basetype location"""
-
-@rules([-1], "basetype")
-def rule(name):
-    """21 basetype: SYMBOL"""
-
-@rules([-1], "basetype")
-def rule(name):
-    """22 basetype: PRIMTYPE"""
+    return basetype, location
 
 @rules([-1])
-def rule(atype):
+def rule(name):
+    """21 basetype: SYMBOL"""
+    return name
+
+@rules([-1])
+def rule(name):
+    """22 basetype: PRIMTYPE"""
+    return name
+
+@rules([-1])
+def rule(basetype):
     """23 type: basetype"""
-    return atype
+    return basetype
 
 @rules([], "close_struct")
 def rule():
@@ -351,201 +357,210 @@ def rule(name):
     """25 rootdef: SYMBOL QCURLY"""
 
 @rules([-2], "open_list")
-def rule(name):
+def rule():
     """26 listdef: SYMBOL EQB"""
 
-@rules([], "open_struct")
+@rules([], "close_struct")
 def rule():
     """27 struct: LCURLY"""
 
-@rules([], "open_shape")
+@rules([])
 def rule():
     """28 shapedef: LBRACK"""
 
-@rules([], "close_shape")
-def rule():
+@rules([-2], "shape")
+def rule(dimensions):
     """29 shape: shapedef dimensions RBRACK"""
 
 @rules([])
 def rule():
     """30 shape: <empty>"""
 
-@rules([-1], "dimension")
-def rule(value):
-    """31 dimension: INTEGER"""
+@rules([])
+def rule():
+    """31 ushapedef: LBRACK STAR"""
+
+@rules([-2], "shape")
+def rule(umarker):
+    """32 ushape: ushapedef RBRACK"""
+
+@rules([-4, -2], "shape")
+def rule(umarker, dimensions):
+    """33 ushape: ushapedef COMMA dimensions RBRACK"""
 
 @rules([-1])
-def rule(symbolic):
-    """32 dimension: symbolq"""
-    return symbolic
+def rule(value):
+    """34 dimension: INTEGER"""
+    return value
 
-@rules([-2, -1])
-def rule(symbolic, increment):
-    """33 dimension: symbolq PLUSSES"""
-    return symbolic + increment
-
-@rules([-2, -1])
-def rule(symbolic, increment):
-    """34 dimension: symbolq MINUSES"""
-    return symbolic - increment
-
-@rules([-1], "dimension")
+@rules([-1])
 def rule(name):
-    """35 symbolq: SYMBOL"""
+    """35 dimension: symbolq"""
+    return name
 
-@rules([-2, -2], "dimension")
-def rule(name, mode):
-    """36 symbolq: SYMBOL QUEST"""
+@rules([-2, -1])
+def rule(name, inc):
+    """36 dimension: symbolq PLUSSES"""
+    return (name, 0, inc) if isinstance(name, tuple) else (name, inc)
 
-@rules([-1], "extend_shape")
+@rules([-2, -1])
+def rule(name, dec):
+    """37 dimension: symbolq MINUSES"""
+    return (name, 0, -dec) if isinstance(name, tuple) else (name, -dec)
+
+@rules([-1])
+def rule(name):
+    """38 symbolq: SYMBOL"""
+    return name
+
+@rules([-2])
+def rule(name):
+    """39 symbolq: SYMBOL QUEST"""
+    return (name, 0)
+
+@rules([-2, -1])
+def rule(dimensions, dimension):
+    """40 dimensions: dimensions COMMA dimension"""
+    return dimensions.append(dimension)
+
+@rules([-1])
 def rule():
-    """37 dimensions: dimensions COMMA dimension"""
-
-@rules([-1], "extend_shape")
-def rule():
-    """38 dimensions: dimension"""
+    """41 dimensions: dimension"""
+    return [dimension]
 
 @rules([-1])
 def rule(address):
-    """39 location: address"""
+    """42 location: address"""
     return address
 
 @rules([-1])
 def rule(alignment):
-    """40 location: alignment"""
+    """43 location: alignment"""
     return alignment
 
 @rules([-1])
 def rule(address):
-    """41 address: AT INTEGER"""
+    """44 address: AT INTEGER"""
     return address
 
 @rules([])
 def rule():
-    """42 address: AT DOT"""
+    """45 address: AT DOT"""
     return -1  # alignment 1 same as current address
 
 @rules([-1])
 def rule(alignment):
-    """43 alignment: PCNT INTEGER"""
+    """46 alignment: PCNT INTEGER"""
     return -alignment
 
 @rules([])
 def rule():
-    """44 alignment: <empty>"""
-
-@rules([], "close_ushape")
-def rule():
-    """45 ushape: shapedef STAR RBRACK"""
-
-@rules([], "close_ushape")
-def rule():
-    """46 ushape: shapedef STAR COMMA dimensions RBRACK"""
+    """47 alignment: <empty>"""
 
 @rules([-1])
 def rule(address_list):
-    """47 uaddress: address_list"""
+    """48 uaddress: address_list"""
     return address_list
 
 @rules([])
 def rule():
-    """48 uaddress: <empty>"""
+    """49 uaddress: <empty>"""
 
 @rules([-1])
 def rule(address):
-    """49 address_list: address"""
+    """50 address_list: address"""
     return [address]
 
 @rules([-2, -1])
 def rule(address_list, address):
-    """50 address_list: address_list address"""
+    """51 address_list: address_list address"""
     return address_list.append(address)
 
 @rules([-4, -3, -2, -1], "var")
-def rule():
-    """51 list_item: EQ type shape location"""
+def rule(anon, atype, shape, location):
+    """52 list_item: EQ type shape location"""
 
 @rules([], "close_list")
 def rule():
-    """52 list_item: anonlist list_items RBRACK"""
+    """53 list_item: anonlist list_items RBRACK"""
 
 @rules([], "close_group")
 def rule():
-    """53 list_item: anongroup group_items RCURLY"""
+    """54 list_item: anongroup group_items RCURLY"""
 
-@rules([-1], "error54")
+@rules([-1], "error55")
 def rule(error):
-    """54 list_item: error"""
+    """55 list_item: error"""
 
 @rules([])
 def rule():
-    """55 list_items: list_items list_item"""
+    """56 list_items: list_items list_item"""
 
 @rules([])
 def rule():
-    """56 list_items: <empty>"""
+    """57 list_items: <empty>"""
 
 @rules([], "open_list")
 def rule():
-    """57 anonlist: EQB"""
+    """58 anonlist: EQB"""
 
 @rules([], "open_group")
 def rule():
-    """58 anongroup: SLASHC"""
+    """59 anongroup: SLASHC"""
 
 @rules([])
 def rule():
-    """59 group_items: group_items group_item"""
+    """60 group_items: group_items group_item"""
 
 @rules([])
 def rule():
-    """60 group_items: <empty>"""
+    """61 group_items: <empty>"""
 
 @rules([-5, -3, -2, -1], "var")
 def rule(name, atype, shape, location):
-    """61 member: SYMBOL EQ type shape location"""
+    """62 member: SYMBOL EQ type shape location"""
 
 @rules([-3, -1], "param")
-def rule(name, value):
-    """62 member: SYMBOL CEQ parameter"""
+def rule(name, parameter):
+    """63 member: SYMBOL CEQ parameter"""
 
 @rules([-4, -3, -2, -1], "var")
-def rule(name, atype, shape, location):
-    """63 member: EQ type shape location"""
+def rule(anon, atype, shape, location):
+    """64 member: EQ type shape location"""
 
-@rules([-1], "error64")
+@rules([-1], "error65")
 def rule(error):
-    """64 member: error"""
+    """65 member: error"""
 
 @rules([])
 def rule():
-    """65 members: members member"""
+    """66 members: members member"""
 
 @rules([])
 def rule():
-    """66 members: member"""
+    """67 members: member"""
 
 @rules([])
 def rule():
-    """67 root_params: root_params root_param"""
+    """68 root_params: root_params root_param"""
 
 @rules([])
 def rule():
-    """68 root_params: root_param"""
+    """69 root_params: root_param"""
 
-@rules([-2, -1], "root_block")
-def rule(basetype, location):
-    """69 root_param: EQ basetype location"""
+@rules([-3, -2, -1], "param")
+def rule(name, basetype, location):
+    """70 root_param: EQ basetype location"""
 
-@rules([-2, -1], "root_address")
-def rule(basetype, location):
-    """70 root_param: ATEQ basetype location"""
+@rules([-2, -1], "atparam")
+def rule():
+    """71 root_param: ATEQ basetype location"""
 
 @rules([-3, -1], "param")
-def rule(name, value):
-    """71 root_param: SYMBOL CEQ parameter"""
+def rule():
+    """72 root_param: SYMBOL CEQ parameter"""
 
-@rules([-1], "error72")
+@rules([-1], "error73")
 def rule(error):
-    """72 root_param: error"""
+    """73 root_param: error"""
 del rule
