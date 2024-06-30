@@ -322,8 +322,8 @@ name.  The parameter name must have been previously declared in either
 the current group or one of its ancestors.
 
 Additionally, a parameter name may have a + or - suffix to indicate
-one larger or one smaller than the parameter value.  Multiple + or
-- suffixes can be used to indicate two or more length differences.
+one larger or one smaller than the parameter value.  Multiple + or -
+suffixes can be used to indicate two or more length differences.
 
 If any dimension length is zero, the variable has no data, takes no
 space, and does not advance the current address.  This happens before
