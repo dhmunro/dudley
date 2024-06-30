@@ -643,7 +643,7 @@ appending the text of the layout file, append the additional text:
 
     !DUDLEY@address!<bom>
 
-Here <bom> indicates the digit 0 if the machine writing the binary
+Here \<bom\> indicates the digit 0 if the machine writing the binary
 data part of the file is big-endian, or the digit 1 if it is
 little-endian.  This will be overridden by the value of the special
 !BOM parameter written elsewhere in the file - it is intended as a
