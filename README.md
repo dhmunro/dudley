@@ -10,31 +10,47 @@ file has the preferred name extension ".dud"; the layout may be
 appended to the end of a binary data file to create a single
 self-describing binary file.
 
-A Dudley layout can precisely describe the data layout of a particular
-binary file, like HDF5 or PDB metadata.  Dudley can also describe a
-parametrized layout which can apply to a wide range of individual
-binary files or streams having the same variables but different array
-shapes.  This extended capability is similar to XDR.
+A Dudley layout can precisely describe where and how the data is
+stored in a particular binary file, like HDF5 or PDB metadata.  Dudley
+can also describe a parametrized layout which can apply to a wide
+range of individual binary files or streams having the same variables
+but different array shapes.  This capability is similar to XDR - a
+single description may be used to interpret multiple data streams.
 
 The Dudley data model is designed to be highly compatible with numpy.
 Dudley arrays are modeled on the numpy ndarray, and Dudley also
 supports lists and string-keyed dicts (called groups after HDF5).
 These non-array structures resemble JSON arrays and objects,
 respectively.  However, unlike JSON, Dudley does not allow you to
-interleave data with its description.
+interleave the data itself with its description.
 
-Unlike either HDF5 (or PDB) or XDR, a Dudley layout can also serve as
-a template for a whole class of binary data files.  For example, a
-single Dudley layout could describe every restart dump file for a
-physics simulation program.  Note that with comments, such a layout
-can also serve to document the meaning of every variable required to
-describe the simulation state at a given time.  Such a simulation
-program could also generate custom dump files specified by smaller
-Dudley layouts unique to each run.
+By allowing you to parametrize array shapes, a single Dudley layout
+could, for example, serve as a template for every restart dump file
+for a physics simulation program - individual restart files would not
+need to contain any metadata at all (beyond the parameter values
+specific to them, as defined in the layout).  Note that with comments,
+such a layout can also serve to document the meaning of every variable
+required to describe the simulation state at a given time.  The
+simulation program could also generate custom dump files specified by
+smaller Dudley templates unique to each run.
 
 In this template mode, Dudley also supports parallel processing dumps
 to multiple files, each containing only the blocks of the simulation
 owned by a subset of the processors.
+
+Dudley layouts are completely transparent - you know exactly where
+your data is being stored, and how much you will need to read back in
+order to locate any variable you wrote.  If you will always read back
+the entire stream you have written, this is not a very important
+feature.  An example would be a python pickle - there isn't any harm
+in an opaque format, because you can only use it to completely restore
+everything in the pickle.  However, a modern simulation may store many
+terabytes of data, and you very likely will later want to focus on
+much smaller subsets - if you need to read the entire stream in order
+to locate the part you want, you won't be happy.  Dudley lets you
+design large data layouts that you can access efficiently.  Since a
+layout is a human readable text file, Dudley also provides a means to
+easily share small data sets.
 
 
 ## Namespaces
