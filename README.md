@@ -285,13 +285,13 @@ group after its initial declaration:
 
     var =[
       = type[shape] @ address
-      /[  # third item of list is a group of named parameters and variables
+      /{  # third item of list is a group of named parameters and variables
         param := type[shape] @ address
         var = type[shape] @ address
         var =[ ... ]
         var/ ...
         ----- and so on -----
-      ]
+      }
       ----- and so on -----
     ]
 
