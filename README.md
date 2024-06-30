@@ -68,7 +68,7 @@ C or Python, that is begin with A-Za-z_ and continue with either those
 characters or digits 0-9.  However, other languages allow other
 characters, so a Dudley name may also be an arbitrary text string
 enclosed in quotes (either ' or ").  You can escape quote or backslash
-characters with a backslash (\).  Such quoted names must be confined
+characters with a backslash (\\).  Such quoted names must be confined
 to a single input line.
 
 In the following description, a type name will be called simply
