@@ -691,14 +691,14 @@ State template for a very simple 1D or 2D radhydro simulation:
     JMAX := i8    # negative to remove from dimension lists
     NGROUP := i8  # zero to make arrays take no space
     time = f8
-    r = f8(JMAX?, IMAX)  # r not present if JMAX negative
-    z = f8(JMAX, IMAX)  # coordinates and velocities node-centered
-    u = f8(JMAX?, IMAX)
-    v = f8(JMAX, IMAX)
-    rho = f8(JMAX-, IMAX-)  # densities and temperatures zone-centered
-    te = f8(JMAX-, IMAX-)
-    unu = f8(NGROUP, JMAX-, IMAX-)  # not present if NGROUP zero
-    gb = f8(NGROUP+)  # group boundaries also not present if NGROUP zero
+    r = f8[JMAX?, IMAX]  # r not present if JMAX negative
+    z = f8[JMAX, IMAX]  # coordinates and velocities node-centered
+    u = f8[JMAX?, IMAX]
+    v = f8[JMAX, IMAX]
+    rho = f8[JMAX-, IMAX-]  # densities and temperatures zone-centered
+    te = f8[JMAX-, IMAX-]
+    unu = f8[NGROUP, JMAX-, IMAX-]  # not present if NGROUP zero
+    gb = f8[NGROUP+]  # group boundaries also not present if NGROUP zero
 
 A set of time history records for this same simulation can be structured
 in many different ways:
@@ -710,16 +710,39 @@ variables:
     IMAX := i8
     JMAX := i8
     NGROUP := i8
-    gb = f8(NGROUP+)  # group boundaries do not change
-    Record == {
-      time = f8
-      r = f8(JMAX?, IMAX)
-      z = f8(JMAX, IMAX)
-      u = f8(JMAX?, IMAX)
-      v = f8(JMAX, IMAX)
-      rho = f8(JMAX-, IMAX-)
-      te = f8(JMAX-, IMAX-)
-      unu = f8(NGROUP, JMAX-, IMAX-)
+    static = {
+      gb = f8[NGROUP+]  # group boundaries do not change
     }
-    records = Record(NREC)
+    record = {
+      time = f8
+      r = f8[JMAX?, IMAX]
+      z = f8[JMAX, IMAX]
+      u = f8[JMAX?, IMAX]
+      v = f8[JMAX, IMAX]
+      rho = f8[JMAX-, IMAX-]
+      te = f8[JMAX-, IMAX-]
+      unu = f8[NGROUP, JMAX-, IMAX-]
+    }[NREC]
 
+HDF5 or PDB-like, with each record variable a homogeneous list - the
+list index corresponding to the UNLIMITED dimension:
+
+    IMAX := i8
+    JMAX := i8
+    NGROUP := i8
+    gb = f8[NGROUP+]  # group boundaries do not change
+    time = f8[*]
+    r = f8[*, JMAX?, IMAX]
+    z = f8[*, JMAX, IMAX]
+    u = f8[*, JMAX?, IMAX]
+    v = f8[*, JMAX, IMAX]
+    rho = f8[*, JMAX-, IMAX-]
+    te = f8[*, JMAX-, IMAX-]
+    unu = f8[*, NGROUP, JMAX-, IMAX-]
+    # Dudley description requires each record to be explicitly
+    # defined, for example with one line per record, like this:
+    time@. r@. z@. u@. v@. rho@. te@. unu@.
+    time@. r@. z@. u@. v@. rho@. te@. unu@.
+    time@. r@. z@. u@. v@. rho@. te@. unu@.
+    # ... and so on
+    # Thus, this layout could not be used as a template.

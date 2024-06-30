@@ -446,7 +446,7 @@ def rule(address):
 @rules([])
 def rule():
     """45 address: AT DOT"""
-    return -1  # alignment 1 same as current address
+    return Ellipsis  # signal to use current address
 
 @rules([-1])
 def rule(alignment):
