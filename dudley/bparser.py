@@ -360,7 +360,7 @@ def rule(name):
 def rule():
     """26 listdef: SYMBOL EQB"""
 
-@rules([], "close_struct")
+@rules([], "open_struct")
 def rule():
     """27 struct: LCURLY"""
 
@@ -548,12 +548,12 @@ def rule():
 def rule():
     """69 root_params: root_param"""
 
-@rules([-3, -2, -1], "param")
-def rule(name, basetype, location):
+@rules([-3, -2, -3, -1], "var")
+def rule(anon, basetype, noshape, location):
     """70 root_param: EQ basetype location"""
 
-@rules([-2, -1], "atparam")
-def rule():
+@rules([-2, -1], "atvar")
+def rule(basetype, location):
     """71 root_param: ATEQ basetype location"""
 
 @rules([-3, -1], "param")

@@ -166,7 +166,7 @@ two cases are, respectively:
     param := type @ address
 
 In the second form of the parameter declaration, the data type must be
-an integer (signed or unsigned) primitive data type.  The parameter
+an integer primitive data type (i1, i2, i4, or i8).  The parameter
 value will be read from the file at the specified address (byte offset
 into the file).  The @ address clause is optional.  If not specified,
 the address is assumed to be the next address in the file after the
@@ -253,10 +253,10 @@ member nor a heterogeneous list member.
 You define a named group variable (essentially a python dict):
 
     var /
-      param := type[shape] @ address  # parameter(s) here and in children
+      param := type @ address  # parameter(s) here and in children
       var = type[shape] @ address  # declare an array variable
       var /  # declare a subgroup (child group)
-        param := type[shape] @ address
+        param := type @ address
         var = type[shape] @ address
         ----- and so on -----
       ..  # double dot pops back to parent group
@@ -286,7 +286,7 @@ group after its initial declaration:
     var =[
       = type[shape] @ address
       /{  # third item of list is a group of named parameters and variables
-        param := type[shape] @ address
+        param := type @ address
         var = type[shape] @ address
         var =[ ... ]
         var/ ...
@@ -442,7 +442,7 @@ counted arrays, in which the length of the array is written at the
 address of the instance:
 
     string == {
-      count := u4
+      count := i4
       = S1[count]  # single anonymous member
     }
     text = string
@@ -531,7 +531,7 @@ with a special "?=" statement to be a one dimensional array.  The
 single dimension corresponds to the number of "blocks" in the global
 data set:
 
-    nblocks := u4  # or u8 or any integer data type
+    nblocks := i4  # or u8 or any integer data type
     ionode ?= {
       = u4  # anonymous member is block ionode index (any integer type)
       @= u8  # optional special member is block root address
