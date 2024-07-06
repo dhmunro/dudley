@@ -9,14 +9,12 @@
 
 %token<str> SYMBOL
 %token<num> INTEGER
-%token CEQ EEQ EQB SLASHC BAT DOTDOT QCURLY ATEQ QSLASH QUEST
-/*     :=  ==  =[  /{     !@  ..     ?{     @=   ?/     ?    */
+%token EQ CEQ EEQ PEQ SLASH ELLIPSIS DOTDOT DOT LBRACK RBRACK COMMA AT PCNT
+/*     =  :=  ==  +=  /     ...      ..     .   [      ]      ,     @  %   */
+%token LCURLY RCURLY BCURLY QUEST
+/*     {      }      !{     ?    */
 %token<num> PLUSSES MINUSES
-/*           +       -      */
-%token EQ LBRACK RBRACK COMMA SLASH STAR DOT AT PCNT
-/*     =  [      ]      ,     /     *    .   @  %   */
-%token LCURLY RCURLY
-/*     {      }     */
+/*          +       -      */
 %token<str> PRIMTYPE
 
 %%
@@ -27,24 +25,21 @@ layout:
 ;
 
 statement:
-  group_item
-| SYMBOL EEQ type shape alignment
-| SYMBOL EQ type ushape uaddress
-| SYMBOL address_list
-| SYMBOL QSLASH
-| rootdef root_params RCURLY shape location
-| INTEGER EQ type shape location
-| BAT INTEGER
-;
-
-group_item:
-  SYMBOL EQ type shape location
-| SYMBOL CEQ parameter
+  SYMBOL EQ variable
 | SYMBOL SLASH
-| listdef list_items RBRACK
 | DOTDOT
 | SLASH
+| SYMBOL EEQ atype shape alignment
+| SYMBOL EQ ELLIPSIS append_items
+| SYMBOL PEQ variable append_items
+| SYMBOL EQ atype ushape uaddress
+| SYMBOL address_list
+| INTEGER EQ variable
+| BCURLY members RCURLY
 | error
+;
+
+variable: atype shape location
 ;
 
 parameter:
@@ -52,39 +47,58 @@ parameter:
 | basetype location
 ;
 
+append_items:
+  PEQ variable
+|
+;
+
 basetype:
   SYMBOL
 | PRIMTYPE
 ;
 
-type:
+atype:
   basetype
-| struct members RCURLY
-;
-
-rootdef: SYMBOL QCURLY
-;
-
-listdef: SYMBOL EQB
-;
-
-struct: LCURLY
-;
-
-shapedef: LBRACK
+| LCURLY members RCURLY
+| LBRACK items RBRACK
 ;
 
 shape:
-  shapedef dimensions RBRACK
+  LBRACK dimensions RBRACK
 |
 ;
 
-ushapedef: LBRACK STAR
+location:
+  address
+| alignment
+; 
+
+address:
+  AT INTEGER
+| AT DOT
+;
+
+alignment:
+  PCNT INTEGER
+|
+;
+
+ushapedef: LBRACK ELLIPSIS
 ;
 
 ushape:
   ushapedef RBRACK
 | ushapedef COMMA dimensions RBRACK
+;
+
+uaddress:
+  address_list
+|
+;
+
+address_list:
+  address
+| address_list address
 ;
 
 dimension:
@@ -104,74 +118,21 @@ dimensions:
 | dimension
 ;
 
-location:
-  address
-| alignment
-; 
-
-address:
-  AT INTEGER
-| AT DOT
-;
-
-alignment:
-  PCNT INTEGER
-|
-;
-
-uaddress:
-  address_list
-|
-;
-
-address_list:
-  address
-| address_list address
-;
-
-list_item:
-  EQ type shape location
-| anonlist list_items RBRACK
-| anongroup group_items RCURLY
+items:
+  variable
+| items COMMA variable
 | error
-;
-
-list_items:
-  list_items list_item
-|
-;
-
-anonlist: EQB
-;
-
-anongroup: SLASHC
-;
-
-group_items:
-  group_items group_item
 |
 ;
 
 member:
-  SYMBOL EQ type shape location
+  SYMBOL EQ variable
 | SYMBOL CEQ parameter
-| EQ type shape location
+| EQ variable
 | error
 ;
 
 members:
   members member
-| member
-;
-
-root_params:
-  root_params root_param
-| root_param
-;
-
-root_param:
-  EQ basetype location
-| ATEQ basetype location
-| SYMBOL CEQ parameter
-| error
+|
 ;
