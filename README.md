@@ -110,6 +110,7 @@ Predefined primitive data types are based on numpy array interface:
     Unsigned integers: u1, u2, u4, u8
     Floating point:    f2, f4, f8  (IEEE 754 16, 32, 64 bit formats)
     Complex floats:    c4, c8, c16
+    Boolean:           b1
     ASCII:             S1
     Unicode:           U1, U2, U4  (UTF-8, UCS-2, and UCS4)
     Pointer:           p4, p8  (extension to numpy array interface)
@@ -132,7 +133,7 @@ modern machines and compilers:
     u1, u2, u4, u8 -> unsigned versions of i1, i2, i4, i8
     f4 -> float, f8 -> double (f2 not supported in ANSI C)
     c4, c8, c16 -> (real, imaginary) pair of f2, f4, f8
-    S1, U1 -> same data treatment as u1
+    b1, S1, U1 -> same data treatment as u1
     U2, U4 -> same data treatment u2, u4
     p4, p8 -> same data treatment as u4, u8, meaning similar to void*
 
@@ -681,6 +682,162 @@ contained in a file of a different format, like HDF5 or netCDF or PDB.
    the end of a comment introduced by # or #:, or the end of a special
    additional construct like !DUDLEY.  Any whitespace, including
    newlines, is otherwise optional unless needed to delimit other tokens.
+
+
+## Python API
+
+Although you can read a Dudley layout file to create a python object
+representing that layout in a python program, sometimes it is convenient
+to create that object using a python API directly.  Dudley provides a
+standard API for this purpose.
+
+The API predefines instances of the Type class corresponding to every
+Dudley primitive data type, which you can use to declare data arrays:
+
+- i1, i2, i4, i8 (signed integers)
+- f2, f4, f8 (floating point numbers)
+- c4, c8, c16 (complex numbers)
+- b1 (boolean)
+- u1, u2, u4, u8 (unsigned integers - use sparingly!)
+- S1 (8-bit ASCII characters)
+- U1, U2, U4 (Unicode characters)
+- p4, p8 (unsigned integers used as pointers - avoid!)
+
+These are all native byte order by default, but they have be and le
+properties if you want explicitly big-endian (most significant byte
+first) or little-endian (least significant byte first) byte order.
+For example, f8 corresponds to the Dudley "|f8", f8.be to ">f8", and
+f8.le to "<f8".
+
+The Dudley API defines Group and List container classes - Groups hold
+named variables, while Lists are sequences of anonymous variables.
+Each item (variable) in a Group or a List may itself be a Group or a
+List as well - that is, the you can organize your data into a very
+general structure of Groups and Lists, with arrays as the leaf nodes
+of your tree.
+
+Suppose you want to declare a 2D array "x" of six 8 byte floats,
+stored as three pairs, which is a member of a Group g::
+
+    g = Group()  # declares a top level Group to hold "x"
+    g["x"] = f8[3, 2]  # x is a 3-by-2 array of 8 byte floats
+
+You may also wish to specify the precise address in the file where
+the variable "x" is stored::
+
+    g["x"] = f8[3, 2], address  # address is the byte address in file
+
+Unspecified addresses are assumed to be the next available address in
+the file, possibly padded by a few bytes to satisfy type alignment
+constraints.  To declare a subgroup thing1 or a list thing2::
+
+    g["thing1"] = Group()
+    g["thing2"] = List()
+
+These assignments modify the initial empty Group or List to record
+that their parent Group is g.  You can retrieve the parent of any
+Group or List as its parent attribute container.parent, which will
+be either a Group or a List.
+
+To append something to a List, use the += operator:
+
+    thing2 = g["thing2"] = List()
+    thing2 += f8[3, 2], address
+    thing2 += ...  # can be a Group or a List as well as an array
+
+You can declare the first dimension of an array to be "unlimited",
+that is, declare the variable to be a homogeneous list of arrays of
+the shape specified by the remaining dimensions like this::
+
+    g["var"] = atype[..., dim1, dim2, etc], address
+
+If address is present, it specifies only the location of the first
+block of atype[dim1, dim2, etc] data.  To specify the addresses of
+subsequent blocks, use::
+
+    g["var"] += address  # or, to specify multiple blocks...
+    g["var"] += address1, address2, address3, ...
+
+You can define custom array data types using the Type class.  A custom
+type may be named or anonymous - an anonymous type applies to only a
+single data array, while a named type can be shared by many data
+arrays.  A custom data type may be simple - just a name for an array
+of a previously defined type - or compound - a set of named arrays
+like a C struct::
+
+    mytype = Type(f4[2, 3])  # anonymous simple type (not useful)
+    mytype = Type("mytype", f4[2, 3])  # named simple type
+    mytype = Type()  # begin anonymous compound type
+    mytype = Type("mytype")  # begin named compound type
+    mytype["var"] = atype[shape]  # declare member "var" of compound...
+    mytype["var"] = atype[shape], offset  # ...with explicit offset
+
+Any use of mytype in an array declaration "freezes" it.  In the case
+of a compound type, this means you will no longer be able to add
+members.  In the case of an anonymous type, you will not be able to
+use it a second time (only named data types may be shared).
+
+If you merely wish to describe the layout of a single data file, like
+HDF5 or PDB, this much of the Dudley API suffices.  In fact, neither
+HDF5 nor PDB directly support the Dudley List - a sequence of
+anonymous variables mapping naturally to a python list or to a
+javascript array.
+
+In order to operate as a template, potentially describing many binary
+data files, Dudley adds the concept of a *parameter*.  The germ of the
+idea behind Dudley parameters comes from netCDF named array
+dimensions.  Many scientific datasets are identical except for the
+lengths of the dimensions of arrays, so that by simply using symbolic
+names for the array dimensions, you can create a single parametrized
+layout covering all of the datasets.  The actual values for these
+dimension parameters can be written into the datastream itself, or
+into a separate datastream.  Notice that by writing many sets of
+parameters into a separate stream, you can very compactly specify the
+exact layout of a large number of potentially very large individual
+files.  This can be extremely useful to support large families of
+files produced during parallel processing.
+
+A Dudley parameter is a signed integer, which may be stored as any of
+the i-type primitives (i1, i2, i4, or i8).  A parameter always has a
+name.  It may have a fixed value, or be stored in a datastream::
+
+    IMAX = Param(IMAX=6)  # fixed value (=6) parameter IMAX
+    IMAX = Param("IMAX", 6)  # same as keyword form
+    IMAX = Param(IMAX=i8)  # parameter IMAX stored as i8 in stream
+    IMAX = Param("IMAX", i8)  # same as keyword form
+
+If you want to store a parameter as part of the same datastream as
+your data, use the += operator on a group or compound datatype::
+
+    g += IMAX  # IMAX parameter stored at next address in g
+    g += IMAX, address  # ...or stored at specific address in file
+    mytype += IMAX, offset
+
+A parameter must be declared in this way before its use in an array
+dimension.  This is true even for fixed value parameters - even though
+they are not stored in any datastream and take no space.  To use a
+parameter as an array dimension, just use it in a shape::
+
+    g.xyz = f8[IMAX, 3]  # declare an IMAX-by-3 f8 array xyz
+
+A Param object also supports addition on the right to a (small)
+integer, in order to specify a dimension a few shorter or longer than
+the parameter value::
+
+    g.abc = f8[IMAX-1, 3]  # declare an (IMAX-1)-by-3 f8 array abc
+
+Finally, a Param object supports unary minus (-IMAX), which produces
+the effect of "IMAX?" in the Dudley layout language.  A parameter used
+in an array dimension which is undeclared in the Group or Type
+containing the array must be declared in some ancestor of that Group
+or Type.
+
+How to define parameter stream?  Want support for arrays or lists of
+parameter sets generating an array of groups...
+
+
+
+## Javascript API
 
 
 ## Examples

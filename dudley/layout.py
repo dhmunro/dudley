@@ -172,13 +172,28 @@ class List(object):  # Series? Listing? Menu? Roster?
 
 
 class ArrayType(object):
+    __slots__ = "parent", "params"
     def __init__(self, atype=None, shape=None, alignment=None):
         self.parent = None  # always a Layout
-        self.externs = None
+        self.params = None
 
 
-class Struct(ArrayType):
-    pass
+class Struct(ArrayType, dict):
+    __slots__ = ()
+    def __init__(self, *args, **kwargs):
+        # This relies on kwargs being an OrderedDict in python >= 3.7!
+        # In earlier versions would need messy collections.OrderedDict.
+        # Alternative using *args works for all cases.
+        if args:
+            if kwargs:
+                raise TypeError("Struct cannot accept both *args and **kwargs")
+            if len(args) % 2:
+                raise ValueError("Struct needs even number of args")
+            nameval = zip(args[0::2], args[1::2])
+        else:
+            nameval = kwargs.items()
+        for name, value in nameval:
+            value.install(name, self)
 
 
 class Shape(tuple):
@@ -211,6 +226,10 @@ class Shape(tuple):
             dims = ["*"] + dims
         return "[" + ", ".join(dims) + "]"
 
+
+# TODO: Better to just keep (name/param, minval, inc) in Shape lists
+# Initially name, switch to param when Var is added to parent - this
+# is also when the search to find the Param happens.
 
 # Special extended parameter type for derived dimensions
 # IMAX?  or  IMAX+  or  IMAX-  or  IMAX?+  etc.
