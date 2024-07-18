@@ -7,9 +7,9 @@ convention) that describes the layout of binary data in a file - exactly
 where in the file each data array is written.  Python and C libraries
 are provided.  Dudley features:
 
-  * Very simple data model consists of multidimensional arrays
-    aggregated into named groups and anonymous lists (like JSON
-    objects and arrays).
+  * Very simple data model consists of multidimensional arrays and
+    containers that are either groups of named members or lists of
+    anonymous members (like JSON objects and arrays).
   * Human readable layout description encourages you to think
     carefully about how you store your data.  By adding comments
     a layout file you can document your data.
@@ -46,28 +46,27 @@ described by a Dudley layout.
 
 Dudley layouts are completely transparent - you know exactly where
 your data is being stored, and how much you will need to read back in
-order to locate any variable you wrote.  If you will always read back
-the entire stream you have written, this is not a very important
-feature.  An example would be a python pickle - there isn't any harm
-in an opaque format, because you can only use it to completely restore
-everything in the pickle.  However, a modern simulation may store many
-terabytes of data, and you very likely will later want to focus on
-much smaller subsets - if you need to read the entire stream in order
-to locate the part you want, you won't be happy.  Dudley lets you
-design large data layouts that you can access efficiently.  Since a
-layout is a human readable text file, Dudley also provides a means to
-easily share small data sets.
+order to locate any data array you wrote.  If you will always read
+back the entire stream you have written, this is not a very important
+feature.  However, a modern simulation may store many terabytes of
+data, and you very likely will later want to focus on much smaller
+subsets - if you need to read the entire stream in order to locate the
+part you want, you won't be happy.  Dudley lets you design large data
+layouts that you can access efficiently.  Since a layout is a human
+readable text file, Dudley also provides a means to easily share small
+data sets.
 
 
 ## Namespaces
 
 Dudley has three kinds of named objects: data types, parameters, and
-variables.  There is only one global data type namespace for the
-entire file, but every struct (compound data type) and group (dict)
-has its own parameter and variable namespaces.  The grammar completely
-determines the context of all symbolic names.  There are no reserved
-words in Dudley; you are free to use whatever names you please.
-Punctuation characters completely determine the context of all names.
+variables.  (A variable can be a data array or a group or a list.)
+There is only one global data type namespace for the entire file, but
+every struct (compound data type) and group (dict) has its own
+parameter and variable namespaces.  The grammar completely determines
+the context of all symbolic names.  There are no reserved words in
+Dudley; you are free to use whatever names you please.  Punctuation
+characters completely determine the context of all names.
 
 Symbolic names in the Dudley language must be legal variable names in
 C or Python, that is begin with A-Za-z_ and continue with either those
@@ -102,10 +101,12 @@ parsing document comments), but such extensions are beyond the scope
 of this basic language definition, since they have no effect on how or
 where your data is stored, and any consumer of your data will need to
 understand their meaning anyway.  The omission of data attributes is
-intended to encourage you to store any such information as actual
-named variables in your files.  (Also, for concepts like point versus
-zone centered arrays, the Dudley + and - dimension suffixes can play
-the role of a centering attribute.)
+intended to encourage you to either store any such information as
+actual named variables in your files (if dynamic and really part of
+your data) or as a document comment (if unchanging and a mere hint
+to the nature of the variable beyond its data type).  Note that you
+can distinguish point versus zone centered arrays using +- dimension
+suffixes.
 
 
 ## Primitive data types
@@ -148,12 +149,13 @@ but long is i4 on all Windows platforms.  Only the C type long long is
 i8 on all platforms.  Also unstated here is the assumption that all
 integers are stored in twos-complement format.
 
-Any of these primitive data types may be prefixed by < to specify little
-endian byte order or > to specify big endian byte order.  They may also
-be prefixed by |, which here is the same as no prefix, indicating the
-file-wide byte order, which must be specified elsewhere if any variables
-or parameters are declared without an explicit < or > prefix.  You cannot
-use the <, >, or | prefix with any type name except these primitives.
+Any of these primitive data types may be prefixed by < to specify
+little endian byte order or > to specify big endian byte order.  They
+may also be prefixed by |, which here is the same as no prefix,
+indicating the file-wide "native" byte order, which must be specified
+elsewhere if any variables or parameters are declared without an
+explicit < or > prefix.  You cannot use the <, >, or | prefix with any
+type name except these primitives.
 
 You can redefine these type names in the file, provided the new type
 definition precedes the first use of that primitive type name, and in
@@ -615,25 +617,21 @@ Dudley needs a way to write or read the default byte order as part of
 the file, unless all of the declarations have explicit < or >
 prefixes.  A special parameter-like declaration handles this:
 
-    !BOM := |U2 @ address  # "@ address" optional as usual
+    !ORDER @ address  # "@ address" optional as usual
 
-The BOM value is U+FEFF, so if the two bytes are [0xFE, 0xFF], the
-native byte order is big endian, while if the bytes are [0xFF, 0xFE],
-the native byte order is little endian.  Any other values at that
-address means the data stream has been corrupted and throws an
-exception.  Since placing a byte order mark at the beginning of a
-stream may indicate the whole stream is unicode, it is unwise to put
-this !BOM at address 0.  You can also define the default byte order
-in the layout file itself with one of:
+The ORDER value is a single byte, "<" for little endian or ">" for
+big endian.  Any other values at that address means the data stream
+has been corrupted and throw an exception.  You can also define the
+default byte order in the layout itself with one of:
 
-    !BOM := 0  # for big-endian (most significant byte first)
-    !BOM := 1  # for little-endian (least significant byte first)
+    !ORDER >  # for big-endian (most significant byte first)
+    !ORDER <  # for little-endian (least significant byte first)
 
 Dudley also supports an arbitrary file signature or "magic number",
 which usually would be placed at address 0 in a file.  To do this,
 Dudley recognizes a second special parameter-like declaration:
 
-    !SIGNATURE := "\x89DUD\x0d\x0a\x1a\x0a" @ address
+    !SIGNATURE "\x89DUD\x0d\x0a\x1a\x0a" @ address
 
 The signature can be any fixed byte string; with the optional address
 that signature must appear at that address in the file.  The value
@@ -641,26 +639,24 @@ shown is the default signature for a native Dudley data file (see the
 PNG format standard for the rationale).  Failure to match the expected
 signature indicates the data stream has been corrupted and throws an
 exception.  The Dudley signature would normally be be at address 0,
-followed by a !BOM at address 8.
+followed by a !ORDER at address 8.
 
 A Dudley layout may be appended to the data file it describes to
 create a single self-describing file.  Such a file should begin with
 the native Dudley signature, but this is not required.  After
 appending the text of the layout file, append the additional text:
 
-    !DUDLEY@address!<bom>
+    !DUDLEY[length]<    # if native byte ordering is little endian
+    !DUDLEY[length]>    # if native byte ordering is big endian
 
-Here \<bom\> indicates the digit 0 if the machine writing the binary
-data part of the file is big-endian, or the digit 1 if it is
-little-endian.  This will be overridden by the value of the special
-!BOM parameter written elsewhere in the file - it is intended as a
-default for data layouts which do not include that parameter.  The
-address is the first byte of the layout text, and the layout text ends
-just before this ! character - in other words, "!DUDLEY" is treated as
-end of file by the Dudley layout parser.  Ideally, these are the last
-bytes of the file, but as long as the leading ! character is within
-the final 4096 bytes of the file, the appended Dudley layout will be
-discovered.
+This < or > will be overridden by the value of the special !ORDER
+statement elsewhere in the file - it is merely a default for data
+layouts which do not include that statement.  The length is the number
+of bytes of layout text, ending just before this ! character - in
+other words, "!DUDLEY" is treated as end of file by the Dudley layout
+parser.  Ideally, these are the last bytes of the file, but as long as
+the leading ! character is within the final 4096 bytes of the file,
+the appended Dudley layout will be discovered.
 
 The preferred file extension for a file with the Dudley layout
 appended is .dud, the same as a bare layout file.
@@ -742,14 +738,19 @@ constraints.  To declare a subgroup thing1 or a list thing2::
 
 These assignments modify the initial empty Group or List to record
 that their parent Group is g.  You can retrieve the parent of any
-Group or List as its parent attribute container.parent, which will
-be either a Group or a List.
+Group or List as its parent attribute container.parent, which will be
+either a Group or a List.  The List constructor accepts positional
+arguments, if you wish to initialize non-empty lists.  The Group
+constructor accepts (name, member) pairs as positional arguments to
+initialize non-empty groups.
 
 To append something to a List, use the += operator:
 
     thing2 = g["thing2"] = List()
     thing2 += f8[3, 2], address
     thing2 += ...  # can be a Group or a List as well as an array
+    # Append multiple items at once like this:
+    thing2 += [f8[3, 2], (f4[4, 5], address), Group(), ...]
 
 You can declare the first dimension of an array to be "unlimited",
 that is, declare the variable to be a homogeneous list of arrays of
@@ -826,7 +827,7 @@ parameter as an array dimension, just use it in a shape::
 
     g.xyz = f8[IMAX, 3]  # declare an IMAX-by-3 f8 array xyz
 
-A Param object also supports addition on the right to a (small)
+A Param object also supports addition on the right by a (small)
 integer, in order to specify a dimension a few shorter or longer than
 the parameter value::
 
