@@ -1,42 +1,48 @@
 # The Dudley Layout Language
 
 Dudley is a data description language which has roughly the same scope
-as HDF5 or PDB metadata, plus many features of XDR.  Dudley code is a
-UTF-8 text file or stream (using any newline convention) that
-describes the layout of data in a file, which may also contain
-parameter values describing multidimensional array shapes.  A complete
-program in the Dudley language is called a "layout".  A Dudley layout
-file has the preferred name extension ".dud"; the layout may be
-appended to the end of a binary data file to create a single
-self-describing binary file.
+as HDF5 or PDB metadata, plus some features of XDR.  Dudley code is a
+human readable UTF-8 text file or stream (using any newline
+convention) that describes the layout of binary data in a file - exactly
+where in the file each data array is written.  Python and C libraries
+are provided.  Dudley features:
 
-A Dudley layout can precisely describe where and how the data is
-stored in a particular binary file, like HDF5 or PDB metadata.  Dudley
-can also describe a parametrized layout which can apply to a wide
-range of individual binary files or streams having the same variables
-but different array shapes.  This capability is similar to XDR - a
-single description may be used to interpret multiple data streams.
+  * Very simple data model consists of multidimensional arrays
+    aggregated into named groups and anonymous lists (like JSON
+    objects and arrays).
+  * Human readable layout description encourages you to think
+    carefully about how you store your data.  By adding comments
+    a layout file you can document your data.
+  * Fully compatible with numpy/scipy.
+  * Array dimensions can be parameters stored in the data stream
+    so that a single layout can describe many different datasets
+    (like XDR).  You can easily design and describe small datasets
+    to exchange information with collaborators.
 
-The Dudley data model is designed to be highly compatible with numpy.
-Dudley arrays are modeled on the numpy ndarray, and Dudley also
-supports lists and string-keyed dicts (called groups after HDF5).
-These non-array structures resemble JSON arrays and objects,
-respectively.  However, unlike JSON, Dudley does not allow you to
-interleave the data itself with its description.
+Data arrays are multidimensional arrays of numbers, boolean values, or
+text characters (ASCII or Unicode).  You can specify byte order and
+size in bytes of numbers, but floating point numbers are assumed to be
+in one of the IEEE-754 standard formats, and integers are assumed to
+be two's complement.  Dudley data types can also be compounds built
+from these primitive types (numpy record dtypes or C structs).
 
-By allowing you to parametrize array shapes, a single Dudley layout
-could, for example, serve as a template for every restart dump file
-for a physics simulation program - individual restart files would not
-need to contain any metadata at all (beyond the parameter values
-specific to them, as defined in the layout).  Note that with comments,
-such a layout can also serve to document the meaning of every variable
-required to describe the simulation state at a given time.  The
-simulation program could also generate custom dump files specified by
-smaller Dudley templates unique to each run.
+The Dudley data model is highly compatible with the python numpy
+library - and therefore scientific computing in general.  In a typical
+numpy program, datasets are built up from basic variables that are
+ndarrays (multidimensional arrays of numbers, strings, or structs),
+aggregated using groups (name-to-variable mappings, realized as dicts
+in python) and lists (index-to-anonymous-variable mappings).  These
+aggregates match the JSON object and array structures.  The top level
+group in a Dudley layout is analogous to the root folder in a file
+system, where named members of a group can be data arrays, groups,
+or lists of arrays, groups, and lists.
 
-In this template mode, Dudley also supports parallel processing dumps
-to multiple files, each containing only the blocks of the simulation
-owned by a subset of the processors.
+Both HDF5 and PDB permit the same general tree structure of named
+variables, but neither has direct support for lists of unnamed arrays.
+It is possible to produce a Dudley layout which describes much or all
+of the data in an HDF5 or PDB file - that is, you can very often use
+an HDF5 or PDB file without modification as the binary stream
+described by a Dudley layout.
 
 Dudley layouts are completely transparent - you know exactly where
 your data is being stored, and how much you will need to read back in
