@@ -26,13 +26,12 @@ layout:
 
 statement:
   SYMBOL EQ variable
+| SYMBOL EQ list
 | SYMBOL SLASH
+| SYMBOL PEQ list
 | DOTDOT
 | SLASH
 | SYMBOL EEQ atype shape alignment
-| SYMBOL EQ ELLIPSIS append_items
-| SYMBOL PEQ variable append_items
-| SYMBOL EQ atype ushape uaddress
 | SYMBOL address_list
 | INTEGER EQ variable
 | BCURLY members RCURLY

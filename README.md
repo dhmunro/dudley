@@ -195,8 +195,8 @@ is an implied "!@ 0" at the beginning of every Dudley layout.
 
 ## Variables
 
-A variable can be a data array, or a list of anonymous variables, or a
-group (python dict) of named variables.
+A variable can be a data array, or a group (python dict) of named
+variables, or a list of anonymous variables.
 
 ### Arrays
 
@@ -270,8 +270,9 @@ You define a named group variable (essentially a python dict):
         ----- and so on -----
       ..  # double dot pops back to parent group
       /  # slash pops back to root group
-      var =[  # declare a list
-        = type[shape] @ address
+      var = [  # declare a list
+        type[shape] @ address,
+        ----- and so on -----
       ]
       ----- and so on -----
 
@@ -292,15 +293,16 @@ except that the "root group" of any such group is the top level inside
 that list item.  It is impossible to append more items to an anonymous
 group after its initial declaration:
 
-    var =[
-      = type[shape] @ address
-      /{  # third item of list is a group of named parameters and variables
+    var = [
+      type[shape] @ address,
+      {  # third item of list is a group of named parameters and variables
         param := type @ address
         var = type[shape] @ address
         var =[ ... ]
         var/ ...
         ----- and so on -----
-      }
+      },
+      
       ----- and so on -----
     ]
 
@@ -451,18 +453,18 @@ counted arrays, in which the length of the array is written at the
 address of the instance:
 
     string == {
-      count := i4
-      = S1[count]  # single anonymous member
+      COUNT := i4
+      = S1[COUNT]  # single anonymous member
     }
     text = string
 
 declares a variable "text" created from an array of ASCII characters,
-written to the file as a 4 byte integer count followed by that many
+written to the file as a 4 byte integer COUNT followed by that many
 characters.  Reading it back produces a result indistinguishable from
 
-    text = S1[count]
+    text = S1[COUNT]
 
-if count were defined as some fixed value.  This is a popular
+if COUNT were defined as some fixed value.  This is a popular
 construct in many existing file and stream formats (supported by both
 XDR and HDF5 for example).  However, you should avoid it because the
 length of the data cannot be computed without reading the file at the
@@ -540,13 +542,13 @@ with a special "?=" statement to be a one dimensional array.  The
 single dimension corresponds to the number of "blocks" in the global
 data set:
 
-    nblocks := i4  # or u8 or any integer data type
+    NBLOCKS := i4  # or u8 or any integer data type
     ionode ?= {
       = u4  # anonymous member is block ionode index (any integer type)
       @= u8  # optional special member is block root address
       param := type  # additional members are block parameters
       param := type
-    }(nblocks)  # optional "@ address" in index file
+    }[NBLOCKS]  # optional "@ address" in index file
 
 This special ionode variable definition may appear only at the top
 level of the Dudley layout; it lives in the (top level) variable
