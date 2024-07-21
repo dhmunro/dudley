@@ -9,8 +9,8 @@
 
 %token<str> SYMBOL
 %token<num> INTEGER
-%token EQ CEQ EEQ PEQ SLASH ELLIPSIS DOTDOT DOT LBRACK RBRACK COMMA AT PCNT
-/*     =  :=  ==  +=  /     ...      ..     .   [      ]      ,     @  %   */
+%token EQ CEQ EEQ PEQ SLASH DOTDOT DOT LBRACK RBRACK COMMA AT PCNT
+/*     =  :=  ==  +=  /     ..     .   [      ]      ,     @  %   */
 %token LCURLY RCURLY BCURLY QUEST
 /*     {      }      !{     ?    */
 %token<num> PLUSSES MINUSES
@@ -25,20 +25,22 @@ layout:
 ;
 
 statement:
-  SYMBOL EQ variable
-| SYMBOL EQ list
-| SYMBOL SLASH
+  group_member
 | SYMBOL PEQ list
-| DOTDOT
-| SLASH
-| SYMBOL EEQ atype shape alignment
 | SYMBOL address_list
-| INTEGER EQ variable
+| SYMBOL EEQ datatype shape alignment
+| INTEGER EQ array
 | BCURLY members RCURLY
-| error
 ;
 
-variable: atype shape location
+group_member:
+  SYMBOL CEQ parameter
+| SYMBOL EQ array
+| SYMBOL SLASH
+| DOTDOT
+| SLASH
+| SYMBOL EQ list
+| error
 ;
 
 parameter:
@@ -46,25 +48,39 @@ parameter:
 | basetype location
 ;
 
-append_items:
-  PEQ variable
-|
-;
-
 basetype:
   SYMBOL
 | PRIMTYPE
 ;
 
-atype:
+array: datatype shape location
+;
+
+datatype:
   basetype
 | LCURLY members RCURLY
-| LBRACK items RBRACK
 ;
 
 shape:
   LBRACK dimensions RBRACK
 |
+;
+
+dimensions:
+  dimensions COMMA dimension
+| dimension
+;
+
+dimension:
+  INTEGER
+| symbolq
+| symbolq PLUSSES
+| symbolq MINUSES
+;
+
+symbolq:
+  SYMBOL
+| SYMBOL QUEST
 ;
 
 location:
@@ -82,16 +98,25 @@ alignment:
 |
 ;
 
-ushapedef: LBRACK ELLIPSIS
+list:
+  LBRACK items RBRACK
 ;
 
-ushape:
-  ushapedef RBRACK
-| ushapedef COMMA dimensions RBRACK
+items:
+  item
+| items COMMA item
+|
 ;
 
-uaddress:
-  address_list
+item:
+  array
+| list
+| SLASH group_members SLASH
+| error
+;
+
+group_members:
+  group_members group_member
 |
 ;
 
@@ -100,38 +125,14 @@ address_list:
 | address_list address
 ;
 
-dimension:
-  INTEGER
-| symbolq
-| symbolq PLUSSES
-| symbolq MINUSES
-;
-
-symbolq:
-  SYMBOL
-| SYMBOL QUEST
-;
-
-dimensions:
-  dimensions COMMA dimension
-| dimension
-;
-
-items:
-  variable
-| items COMMA variable
-| error
+members:
+  members member
 |
 ;
 
 member:
-  SYMBOL EQ variable
-| SYMBOL CEQ parameter
-| EQ variable
+  SYMBOL CEQ parameter
+| SYMBOL EQ array
+| EQ array
 | error
-;
-
-members:
-  members member
-|
 ;

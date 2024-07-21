@@ -57,42 +57,232 @@ readable text file, Dudley also provides a means to easily share small
 data sets.
 
 
-## Namespaces
+## Basic Dudley layout grammar
 
-Dudley has three kinds of named objects: data types, parameters, and
-variables.  (A variable can be a data array or a group or a list.)
-There is only one global data type namespace for the entire file, but
-every struct (compound data type) and group (dict) has its own
-parameter and variable namespaces.  The grammar completely determines
-the context of all symbolic names.  There are no reserved words in
-Dudley; you are free to use whatever names you please.  Punctuation
-characters completely determine the context of all names.
+Arrays of floating point, integer, or character primitives comprise
+the data in a Dudley layout, while groups of named members and lists
+of anonymous members are the two kinds of containers for these data.
+Groups and lists may each contain groups and lists in addition to
+arrays, nested arbitrarily.  Thus,
 
-Symbolic names in the Dudley language must be legal variable names in
-C or Python, that is begin with A-Za-z_ and continue with either those
-characters or digits 0-9.  However, other languages allow other
-characters, so a Dudley name may also be an arbitrary text string
-enclosed in quotes (either ' or ").  You can escape quote or backslash
-characters with a backslash (\\).  Such quoted names must be confined
-to a single input line.
+    var = datatype[shape] @address
 
-In the following description, a type name will be called simply
-"type", a parameter name simply "param", and a variable name simply
-"var".  Struct member names and variable names are treated in exactly
-the same way, so "var" may also represent a struct member.  In the
-case of groups or structs, the parameter namespaces of the parent
-groups or structs will be searched in reverse order, so the parameter
-namespace is hierarchical in this sense.
+declares that an array named "var" with the given datatype and array
+shape is written at the specified byte address in the data stream.
+The @address may be omitted if "var" is written at the next available
+address (possibly preceded by a few bytes of alignment padding, as
+explained later).  The [shape] may be omitted if this array is just a
+scalar instance of the datatype.  A couple of dozen datatypes are
+predefined, like "<f8" meaning an 8-byte little-endian IEEE-754
+floating point value, or ">i4" meaning a 4-byte big-endian twos
+complement integer value.
+
+An array shape is a comma delimited list of dimensions [dim1, dim2,
+...], in order from slowest varying to fastest varying - "C order" or
+"row major order".  Hence "f8[3, 2]" means three pairs of 8-byte
+floats.  (You can omit the < or > order specifier to get the default
+byte order for this data stream, as explained below.)
+
+Dudley groups are analogous to the folders in a file system.  You
+create a new group (or re-open and existing group) called "grp" like
+this:
+
+    grp/
+      thing1 = datatype[shape]  # thing1 is in group grp
+      sub/
+        thing2 = datatype[shape]  # thing2 is in group grp/sub
+        ..  # ".." pops back to parent group
+      thing3 = datatype[shape]  # thing3 is in group grp
+      sub/
+        thing4 = datatype[shape]  # thing4 is in group grp/sub
+        /  # "/" pops back to root group
+    thing5 = datatype[shape]  # thing5 is in group / (the root)
+
+Notice that you can comment a Dudley layout - everything from a
+"#" character to end-of-line is treated as whitespace.  Apart from
+comments, Dudley treats line breaks like any other whitespace.  The
+line breaks and indentation in these examples is unnecessary, so
+
+    /grp/sub/thing6=datatype[shape] thing7=datatype[shape]
+
+declares both thing6 and thing7 to be in the /grp/sub group.
+
+If you find yourself naming sequences of variables like x0, x1, x2,
+and so on, you might want to consider using a list container simply
+called "x" instead:
+
+    x = [
+      type0[shape0],  # Note that list items are comma delimited.
+      type1[shape1],
+      type2[shape2]
+    ]
+
+The list "x" here is a member of the current group, just as "sub"
+was a member of "grp".  You can also nest list or groups within
+lists:
+
+    y = [
+      [  # Nested lists have the obvious syntax with [] delimiters.
+        type0[shape0]
+      ],
+      /  # Delimit a group inside a list using slashes /.../.
+        member1 = typem[shapem]
+        member2 = typem[shapem]
+        member3/  # nested groups may have subgroups
+          thing8 = datatype[shape]
+          ..
+        member4 = []  # a list (or a group) may be empty
+      /,
+      type2[shape2]
+    ]
+
+Just as you can add members to a group by reopening it, you can add
+items to a list after its original declaration:
+
+    x += [  # Use the += operator to extend an existing list.
+      type3[shape3] @address3,  # You may always specify
+      type4[shape4] @address4   # byte addresses explicitly
+    ]
+
+You may also append arrays to a list which have the same datatype and
+shape as the final list element using this shorthand:
+
+    x @address5 @address6  # appends two more type4[shape4] items
+
+Instead of an integer byte address value like "@ 543210", you may
+specify "@ ." to get the next available address.  Ordinarily, this is
+the same as simply omitting the "@ address", but in the list append
+shorthand, it is useful to be able to add items with a string like
+"@.@.@.@.".  (The shorthand only works if the final item in the list
+is an array - it is an error if the final item is a list or group.)
 
 
-## Comments
+## Dudley datatypes
 
-The # character marks the beginning of a comment, which extends to the
-end of the line.  A comment beginning with #: is a document comment
-which describes the meaning of the type, parameter, or variable
-defined on this line, or on the previous line if the #: is the first
-non whitespace token on the line.  If the previous line already had a
-document comment, this line is a continuation of that document string.
+You can name a datatype using the == operator:
+
+    mytype == datatype[shape] %alignment
+
+The name "mytype" applies to the entire layout; type names in Dudley
+have a global namespace, distinct from the namespace of any group
+(including the root group).  Once defined, you can use "mytype" as the
+datatype of any array.  There is no way to change the definition of
+"mytype" once it has been defined.
+
+The "%alignment" and "[shape]" may be omitted.  If specified, the
+slignment must be a small power of two; it means that mytype byte
+addresses in the data stream will always fall at multiples of
+alignment, by adding a few undefined padding bytes if necessary.  By
+default, the primitive datatypes are all aligned to multiples of their
+size (e.g.- no alignment for i1, i2 on 2-byte boundaries, i8 on 8-byte
+boundaries, and so on).  If not specified, the alignment of mytype
+will be the same as datatype.
+
+You may also specify "%alignment" for individual instances of arrays
+instead of "@address" in order to override the default alignment for
+that particular instance of the array datatype.
+
+Dudley implicity defines unprefixed primitive types as their
+|-prefixed form at first use, so if you declare a variable as "i8",
+"i8" implicitly becomes "|i8" everywhere else in the layout.  Before
+the first use, you can explicity define the unprefixed primitive
+names.  For example, for old 32-bit Intel machines, an i8 was
+little-endian and 4-byte aligned:
+
+    i8 = <i8 %4
+
+But the main reason for the == syntax is to define compound data
+types, analogous to C structs or numpy record dtypes.  Perhaps
+
+    Vector3 == {
+      x = f8
+      y = f8
+      z = f8
+    }
+    r = Vector3[3, 2]  # Declare a 3x2 array of Vector3 instances.
+
+The syntax inside of the struct {} delimiters is the same as for array
+declarations in any group.  If present in a struct declaration, any
+"@address" means the byte offset relative to the start of the struct
+instance; you can also use "%alignment" to force a non-default
+alignment for any individual struct member.
+
+By default, the alignment of the whole struct equals the maximum of
+any of its members.
+
+You may define an anonymous struct type using the {} syntax for the
+datatype in any array declaration:
+
+    r = {x=f8 y=f8 z=f8}[3, 2]
+
+Unlike a group, you can have an array of anonymous struct instances,
+like r in this example.  Unlike an anonymous struct instance, a group
+may have list members.  Note that a struct instance can have members
+which are anonymous struct instances, so the possibility of list
+members is the only real extra feature of a group.  Also, you can
+always append new members to a group, while a struct instance is
+permanently confined to the members declared in the curly braces.
+
+
+## Parameters
+
+So far, a Dudley layout has the same scope as HDF5 or PDB metadata:
+You can describe the location of every array written into a particular
+binary file.
+
+While you occasionally have many files with identical structure, in
+scientific computing you very often encounter many files with the same
+structure except for the array dimensions.  Or perhaps the simulation
+ran in parallel on a large number of processors, each owning a block
+of the problem with slightly varying sizes, and each writing one
+member of a family of output files.
+
+In order to describe this kind of a family of binary files by a single
+layout, Dudley introduces the concept of *parameters*.  A Dudley
+parameter is a symbolic dimension length which can be used in any
+array shape (even in named type declarations).  Each symbol may have a
+fixed value (like a named dimension in netCDF format), or its value
+may be written into the data stream like a scalar (unshaped array)
+value.  The latter case is the interesting one: each data file
+contains just a few values - array dimensions - which determine the
+precise location of all the arrays described in the layout.
+
+    IMAX := 5  # fixed value parameter
+    JMAX := i4 @address  # parameter written into data stream
+    var = datatype[IMAX, JMAX, 3]  # use parameters in shapes
+
+As for a data array, the "@address" in a parameter declaration may be
+omitted.  A parameter must be a scalar of integer type (i1, i2, i4, or
+i8, possibly with an order prefix).  Like data arrays, parameters may
+be members of any group, but parameters have a separate namespace from
+the array, list, or subgroup members.  Parameter declarations may also
+appear in a struct, so that values stored in the struct instance may
+be used as dimensions for subsequent arrays in the struct.
+
+Instead of needing to parse a potentially large amount of nearly
+identical metadata in order to determine what's in each file, an
+interpreter needs to read only a few bytes of the file to be able to
+reconstruct everything from a single parametrized layout.  Even if the
+machine parsing cost is negligible, the advantage in human readability
+and usefulness of the Dudley layout can be huge.  For example, you can
+share a couple of dozen analysis results consisting of a few arrays
+each with a colleague by simply sending a single Dudley layout along
+with the binary file for each result.  The layout gives you a natural
+framework for explaining the meaning of each array.
+
+
+## Document comments
+
+A comment beginning with #: is a document comment which describes the
+meaning of the type, parameter, or variable defined on this line, or
+on the previous line if the #: is the first non whitespace token on
+the line.  If the previous line already had a document comment, this
+line is a continuation of that document string.
+
+    # An ordinary comment does not document a particular variable.
+    pres = f8[IMAX, JMAX]  #: pressure (kPa) at ground level
+    temp = f8[IMAX, JMAX]  #: temperature (C) at ground level
+                           #: (measured in shade)
 
 The intent is for document comments to replace data attributes in HDF5
 and other formats.  If you need compact attributes that can be reduced
@@ -100,13 +290,14 @@ to just a number, you can extend the Dudley syntax to support that (by
 parsing document comments), but such extensions are beyond the scope
 of this basic language definition, since they have no effect on how or
 where your data is stored, and any consumer of your data will need to
-understand their meaning anyway.  The omission of data attributes is
-intended to encourage you to either store any such information as
-actual named variables in your files (if dynamic and really part of
-your data) or as a document comment (if unchanging and a mere hint
-to the nature of the variable beyond its data type).  Note that you
-can distinguish point versus zone centered arrays using +- dimension
-suffixes.
+understand their meaning anyway.
+
+The omission of data attributes is intended to encourage you to either
+store any such information as actual named variables in your files (if
+dynamic and really part of your data) or as a document comment (if
+unchanging and a mere hint to the nature of the variable beyond its
+data type).  Note, however, that you may be able to distinguish point
+versus zone centered arrays using +- dimension suffixes.
 
 
 ## Primitive data types
@@ -128,10 +319,10 @@ instead the fastest varying array index and variables with these types
 must always be declared with at least one dimension.  Also, here the
 suffix indicates which Unicode encoding, while in the numpy array
 interface U always means UCS-4, or U4 here.  To convert S1 to Unicode,
-best practice is probably to assume cp1252, falling back to latin1 if
-any of the missing code points in cp1252 actually occurs in the text.
-(This is more or less the W3 recommendation for how to handle html
-documents when the character set is not explicitly specified.)
+best practice is to assume cp1252, falling back to latin1 if any of
+the missing code points in cp1252 actually occurs in the text.  (This
+is more or less the W3 recommendation for how to handle html documents
+when the character set is not explicitly specified.)
 
 These primitive types map to the following C primitive types on all
 modern machines and compilers:
