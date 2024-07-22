@@ -259,6 +259,105 @@ the array, list, or subgroup members.  Parameter declarations may also
 appear in a struct, so that values stored in the struct instance may
 be used as dimensions for subsequent arrays in the struct.
 
+Since parameters are associated with groups or struct instances, they
+will shadow another parameter of the same name that is defined higher
+in the group hierarchy.  The instance of a parameter which applies to
+a particular array shape is always determined when the struct
+*instance* is declared.
+
+    IMAX := i8
+    var1 = f8[IMAX]  # var1 uses the root IMAX
+    DemoType == {
+      JMAX := i4
+      mem1 = f4[IMAX]  # IMAX depends on where DemoType used
+      mem2 = f4[JMAX]  # JMAX always the JMAX in this instance
+    }
+    grp/
+      IMAX := i4  
+      var2 = f8[IMAX]  # the /grp IMAX
+      var3 = DemoType  # var3.mem1 uses the /grp IMAX
+      ..
+    var4 = f8[IMAX]  # the root IMAX, same as var1
+    var5 = DemoType[3]  # var5[i].mem1 uses the root IMAX
+
+That is, a named struct with any parametrized shapes not declared in
+that struct (or an ancestor struct) inherits that external parameter
+from the group (or ancestor group) where it is used to declare an
+instance.  Thus, while a named type has global scope, it may be
+parametrized in the same sense as an entire layout is parametrized - a
+named struct with external parameters represents a whole family of
+different specific structs.
+
+Parameters serve as a simple form of documentation for how arrays in
+the file are related - when two arrays share a dimension parameter,
+you can be sure that those dimensions represent the same extent in the
+physical model - they aren't simply accidentally equal.  Often arrays
+of slightly different length are related in this manner - most
+commonly, when one array represents zone boundaries, and another
+represents values in each zone.  In that case, the number of
+boundaries is always one greater than the number of zones.  Dudley
+provides a syntax for expressing this relationship using a + or -
+suffix after a parameter name:
+
+    boundary_value = f8[IMAX]
+    zonal_value = f8[IMAX-]  # has IMAX-1 elements
+
+You can use IMAX+ for dimension length IMAX+1, IMAX-- for IMAX-2, and
+so on.
+
+Dudley permits an array dimension to be 0, which naturally means that
+no data is stored, nor any space taken by the array in the data
+stream.  When combined with parameters stored in the data stream, this
+provides a mechanism for conditionally including arrays in a
+parametrized layout, so that some files in the family described by the
+layout contain the array while others do not.  Thus,
+
+    pbins = f8[NGROUP, IMAX, JMAX]
+
+might be radiation intensity in each zone for a radhydro code, where
+NGROUP is a number of photon energies, while IMAX and JMAX are spatial
+dimensions.  In problems with no radiation, by setting NGROUP=0, the
+pbins array will not be present in the file, just as it is not defined
+for such a simulation.
+
+As a special case, if a parameter like NGROUP is zero, then any +-
+suffixes are ignored, so if the photon group energy boundary array
+is declared as
+
+    gb = f8[NGROUP+]  # NGROUP+1 phton energy boundaries
+
+then when NGROUP=0, gb also does not exist - gb is *not* an f8[1]
+array, it is also f8[0].  That is, any array which mentions NGROUP
+in its shape is omitted if NGROUP=0.
+
+There are also situations in which you want a single layout to
+describe an array which may have different dimensionality in some
+files than in others.  For example, a hydrocode might handle both
+2D and 1D simulations.  For a 2D simulation, the fluid velocity
+might be:
+
+    u = f8[IMAX, JMAX]  # x velocity component at IMAXxJMAX places
+    v = f8[IMAX, JMAX]  # y velocity component at IMAXxJMAX places
+
+You could get the correct number of velocities for a 1D simulation
+by setting JMAX=1, but you really want u to be f8[IMAX] for a 1D
+simulation.  Dudley lets you do this by interpreting a parameter
+value of -1 to mean that this index is to be removed.  That is,
+Dudley treats f8[IMAX, -1] as if it were f8[IMAX].
+
+However, when you set JMAX=-1 to indicate a 1D simulation, you also
+want the v array to be completely omitted.  That is, you want
+v to become an f8[IMAX, 0] when JMAX=-1.  To get that behavior, a
+parameter value of -1 being treated the same as parameter value 0,
+use a ? suffix after the parameter name in the shape list:
+
+    v = f8[IMAX, JMAX?]  # no y velocity component if JMAX=-1
+
+If you need this special behavior for a dimension with a +- suffix,
+the ? suffix must precede any + or -.  Like JMAX=0, JMAX=-1 removes
+the dimension (or omits the variable entirely) before any + or -
+increments, so any +- suffix is ignored in both those cases.
+
 Instead of needing to parse a potentially large amount of nearly
 identical metadata in order to determine what's in each file, an
 interpreter needs to read only a few bytes of the file to be able to
@@ -335,362 +434,8 @@ modern machines and compilers:
     U2, U4 -> same data treatment u2, u4
     p4, p8 -> same data treatment as u4, u8, meaning similar to void*
 
-Note that the long data type is i8 on all UNIX platforms (and MacOS),
-but long is i4 on all Windows platforms.  Only the C type long long is
-i8 on all platforms.  Also unstated here is the assumption that all
-integers are stored in twos-complement format.
-
-Any of these primitive data types may be prefixed by < to specify
-little endian byte order or > to specify big endian byte order.  They
-may also be prefixed by |, which here is the same as no prefix,
-indicating the file-wide "native" byte order, which must be specified
-elsewhere if any variables or parameters are declared without an
-explicit < or > prefix.  You cannot use the <, >, or | prefix with any
-type name except these primitives.
-
-You can redefine these type names in the file, provided the new type
-definition precedes the first use of that primitive type name, and in
-all future references you explicitly prefix the predefined primitive
-with |.  The unprefixed primitive type name is implicitly defined (as
-itself with | prepended) only upon its first use.
-
-
-## Parameters
-
-Parameters are integer values which can be used to declare array
-shapes.  They can either be defined in the Dudley layout (like netCDF
-metadata) or read from the file itself.  The Dudley syntax for these
-two cases are, respectively:
-
-    param := integer
-    param := type @ address
-
-In the second form of the parameter declaration, the data type must be
-an integer primitive data type (i1, i2, i4, or i8).  The parameter
-value will be read from the file at the specified address (byte offset
-into the file).  The @ address clause is optional.  If not specified,
-the address is assumed to be the next address in the file after the
-previous read.
-
-Generally, you should imagine that the data file is being read in the
-order of the parameter and variable declarations in the Dudley layout.
-You can also place an
-
-    !@ address
-
-directive on a separate line to set the address of the following
-parameter or variable if you want to omit individual address
-specifications for a sequence of subsequent declarations.  There
-is an implied "!@ 0" at the beginning of every Dudley layout.
-
-
-## Variables
-
-A variable can be a data array, or a group (python dict) of named
-variables, or a list of anonymous variables.
-
-### Arrays
-
-You declare an array variable with:
-
-    var = type[shape] @ address
-
-Array variables can have any type (predefined primitive or typedef),
-and optionally include a [shape] - a list of array dimensions if
-present.  As for a parameter declaration, the @ address clause is
-optional, with the default again being the next address after the
-previous read or free-standing !@ address directive.
-
-### Lists
-
-Dudley supports two kinds of list variables - heterogeneous and
-homogeneous.
-
-You declare a heterogeneous list variable with:
-
-    var =[     # no space between = and [
-      = type[shape] @ address  # first item of list is data variable
-      = type[shape] @ address  # second item of list is data variable
-      =[  # third item of list is a sublist
-        = type[shape] @ address
-        ...etc...
-      ]
-      ...etc...
-    ]
-
-containing zero or more anonymous variable declarations in its body.
-Unlike a data variable, you can "reopen" a list variable by repeating
-the list declaration sequence with the same var name at any later
-point in the Dudley layout to append more items (anonymous variable
-declarations) to the list.  You can also add anonymous group
-declarations as elements of a heterogeneous list variable, as
-described below.
-
-You declare a homogeneous list variable with:
-
-    var = type(*, shape) @ addresses
-
-Every element of this list will be a type[shape] array.  Without the
-explicit "@ addresses" this homogeneous list is initially empty.  The
-"addresses" may be either a single address or a "@"-delimited list of
-addresses to declare subsequent list items.  Each address may be
-either an integer or simply ".", with "." meaning the next address in
-the file or stream (equivalent to declaring a variable without
-specifying any address).  You may later append list items with:
-
-    var @ address @ address ...
-
-A homogeneous list resembles an array, but its slowest varying index
-is of indeterminate length and need not be stored contiguously in the
-file.  This feature provides a simple means to describe variables
-which change as a simulation evolves; it emulates the most common use
-case for the UNLIMITED dimension of netCDF or HDF5 files, or a PDB
-block variable.  Note that a homogeneous list may not be a struct
-member nor a heterogeneous list member.
-
-### Groups
-
-You define a named group variable (essentially a python dict):
-
-    var /
-      param := type @ address  # parameter(s) here and in children
-      var = type[shape] @ address  # declare an array variable
-      var /  # declare a subgroup (child group)
-        param := type @ address
-        var = type[shape] @ address
-        ----- and so on -----
-      ..  # double dot pops back to parent group
-      /  # slash pops back to root group
-      var = [  # declare a list
-        type[shape] @ address,
-        ----- and so on -----
-      ]
-      ----- and so on -----
-
-Like a list, you can return to a group and continue to append more named
-variables to it whever you like.  In particular, notice that
-
-    /var/var/var/  # acts like cd to a fully specified path name
-
-and
-
-    /var/var/var = type[shape] @ address  # declares variable with full path
-
-(The latter also leaves the parent group of the data variable as the
-current group.)
-
-Defining an anonymous group as a list item follows a similar pattern,
-except that the "root group" of any such group is the top level inside
-that list item.  It is impossible to append more items to an anonymous
-group after its initial declaration:
-
-    var = [
-      type[shape] @ address,
-      {  # third item of list is a group of named parameters and variables
-        param := type @ address
-        var = type[shape] @ address
-        var =[ ... ]
-        var/ ...
-        ----- and so on -----
-      },
-      
-      ----- and so on -----
-    ]
-
-Note that a single address determines the location of all elements of
-an array, but the items of a list may have unrelated addresses.
-
-
-## Array dimensions
-
-The format of a [shape] list in a data variable declaration is
-
-    [dim1, dim2, ...]
-
-The dimensions are always listed from slowest to fastest varying, so
-that [3, 2] means three pairs, not two triples.  This is "C order" or
-"row major order".  You would build a shape [3, 2] array like this:
-[[a, b], [c, d], [e, f]], and the elements in this notation appear in
-the same order they are stored in memory.  (Note that FORTRAN array
-indexing uses the opposite "column major" convention.  You need to
-reverse your array dimension lists to use Dudley with FORTRAN or any
-other column major language.  Dudley's lack of support for both
-dimension order conventions is a deliberate design feature.  You need
-to learn to think carefully about exactly how your data is stored to
-use Dudley effectively.)
-
-Each dimension length may be either an integer value or a parameter
-name.  The parameter name must have been previously declared in either
-the current group or one of its ancestors.
-
-Additionally, a parameter name may have a + or - suffix to indicate
-one larger or one smaller than the parameter value.  Multiple + or -
-suffixes can be used to indicate two or more length differences.
-
-If any dimension length is zero, the variable has no data, takes no
-space, and does not advance the current address.  This happens before
-computing any + or - increment or decrement suffix.
-
-If any dimension length is negative, by default it is removed from the
-dimension list, reducing the number of dimensions of the array.
-Again, this happens before computing any + or - increment or decrement
-suffix.
-
-An alternative behavior for a negative dimension length is to treat
-it as equivalent to zero dimension length - namely, the variable will
-have no data and not advance the current address.  You trigger this
-alternative treatment with a ? suffix after the parameter name (before
-any + or - suffixes).
-
-For example:
-
-    x = f8[JMAX, IMAX]
-    y = f8[JMAX?, IMAX]
-    rho = f8[JMAX-, IMAX-]
-    unu = f8[NGROUP, JMAX-, IMAX-]
-
-declares x and y to be 2D arrays (IMAX consecutive f8 values repeated
-JMAX times). rho to be a 2D array with one fewer item in each row and
-column, and unu to be a 3D array consisting of NGROUP repeats of 2D
-arrays shaped like rho.  This kind of pattern would be useful in a
-simulation where x and y were 2D mesh coordinates, and rho and unu
-were scalar and NGROUP array values, respectively, associated with
-each zone in that mesh.  IMAX, JMAX, and NGROUP could be parameters
-stored in each file describe by this layout.  Now the code may have a
-mode in which it does not use the unu variable at all.  Setting NGROUP
-to be 0 has the effect of removing the unu variable from the file
-entirely - so you don't need a second Dudley layout to describe this
-mode of operation.  Furthermore, the code may have a 1D mode in which
-there is no y coordinate at all, and the JMAX dimension is missing
-from all the other variables:
-
-    x = f8[IMAX]
-    rho = f8[IMAX-]
-    unu = f8[NGROUP, IMAX-]
-
-Setting JMAX to -1 will make the original layout description identical
-to this 1D description, so once again, a single Dudley layout can
-describe both the 2D and 1D modes of code operation.
-
-
-## Data types and typedefs
-
-You can define named compound data types similar to C structs.  There
-is not a huge distinction between groups and struct types; a struct is
-more or less a template for a group.  However, for modest member
-counts at least, a group is intended to be mapped to a Python dict,
-while a struct is intended to be mapped to a numpy structured dtype
-(or C struct).  The Dudley syntax is:
-
-    type == {
-      param := type @ offset  # param := integer also legal
-      var = type[shape] @ offset
-      ----- and so on -----
-    }
-
-That is, a struct type consists of parameter and variable
-declarations, whose addresses have become byte offsets relative to the
-beginning of each struct instance (in-file).  The variables are the
-struct members intended to be present in the in-memory representation
-of a struct instance.  The parameters (if any) are intended to not be
-present in the in-memory representation, but only in the file.
-However, you might also wish to present the in-memory representation
-of each instance as a Python dict, in order to implement arrays of
-groups.  Any parameters should appear in the shapes of some of the
-data members (variables), since their scope is limited to a single
-struct instance.
-
-One distinction between a struct type and a group is that the optional
-@ delimits an offset - that is, an address relative to the beginning
-of the struct instance - whereas the @ address in a group represents
-an absolute disk address in the file.
-
-You can also use the == operator to create an alias for another data
-type, possibly dimensioned, analogous to a C typedef:
-
-    type == type[shape] % alignment  # alignment optional
-
-Struct data types need not be explicitly named.  Anywhere "type"
-appears in the Dudley grammar, it can be either a (possibly prefixed)
-primitive data type, a symbol which has been previously defined
-as a data type in an == statement, or a struct declaration in { }
-brackets.
-
-Notice that the difference between an anonymous struct instance and a
-group is simply how you want to think about your data.  For example,
-
-    var = { memb1 = type1[shape1]
-            memb2 = type2[shape2] }
-
-could refer to exactly the same data stream as:
-
-    var / memb1 = type1[shape1]
-          memb2 = type2[shape2]
-
-However, an API based on Dudley may present this data stream very
-differently.  For example, a python API should present the first as a
-numpy object with a structured array dtype, while the second would
-appear as a dict.  As far as the Dudley layout goes, the major
-difference is that you can append more members to the group var later
-in the stream, since group members are not constrained to have
-consecutive addresses, unlike struct members.
-
-As a special case, if there is only a single member (variable
-declaration) in the struct, you may omit the member (variable) name,
-like the anonymous variable declarations in a list.  In this case, an
-instance of the type should be presented as if it were an instance of
-the anonymous member.  This syntax is a way to get the effect of
-counted arrays, in which the length of the array is written at the
-address of the instance:
-
-    string == {
-      COUNT := i4
-      = S1[COUNT]  # single anonymous member
-    }
-    text = string
-
-declares a variable "text" created from an array of ASCII characters,
-written to the file as a 4 byte integer COUNT followed by that many
-characters.  Reading it back produces a result indistinguishable from
-
-    text = S1[COUNT]
-
-if COUNT were defined as some fixed value.  This is a popular
-construct in many existing file and stream formats (supported by both
-XDR and HDF5 for example).  However, you should avoid it because the
-length of the data cannot be computed without reading the file at the
-address of the data itself, making it necessary to provide explicit
-addresses in the Dudley layout after every instance of such a
-parametrized type.  Of course, if you are using Dudley as just a
-stream decoder like XDR, or if you are willing for the layout to
-specify "@ address" for every variable in the file like HDF5, then
-this warning is irrelevant.  For Dudley template layouts, however,
-structs with parameters embedded in each instance are a non-starter.
-
-Although Dudley data types are global - there is only a single
-namespace for data types - when a data type references a parameter in
-an array shape, the value of that parameter is taken from the closest
-group to the struct instance which declares that parameter name.
-For example:
-
-    NITEMS := i4  # global NITEMS parameter
-    SomeType == { memb1 = i8
-                  memb2 = f4[NITEMS] }
-    var1 = SomeType[4]  # var1 SomeType uses global NITEMS
-    grp1 /
-        var2 = SomeType  # var2 SomeType uses global NITEMS
-        NITEMS := i8   # grp1 NITEMS shadows global
-        var3 = SomeType[3]  # var3 SomeType uses grp1 NITEMS
-        ..
-    var4 = SomeType[2]  # var4 SomeType uses global NITEMS
-
-In other words, references to Dudley parameterized data types bind
-each parameter to the closest ancestor group defining that parameter
-at the time the instance of that struct was declared.  Within a data
-type definition (==), any parameters referenced have no particular
-binding (in fact, the parameters need not have been previously
-declared).  Only when the data type is instantiated are the parameter
-bindings resolved.
+Note that the long data type is i8 on all 64-bit UNIX platforms (and
+MacOS), but long is i4 on all Windows platforms, 64-bit or 32-bit.
 
 
 ## Pointer data
@@ -712,8 +457,9 @@ reallocate memory at the same address for a subsequent pointee.)  The
 values 0 and (unsigned) -1 are reserved to represent the NULL pointer,
 and must not appear as the integer in any pointee declaration.
 
-Pointee declarations always have global scope; they will never be
-members of any group other than the root of the whole file.
+Pointee declarations always have global scope like named types; they
+will never be members of any group other than the root of the whole
+file.
 
 
 ## Parallel processing support
@@ -734,7 +480,7 @@ single dimension corresponds to the number of "blocks" in the global
 data set:
 
     NBLOCKS := i4  # or u8 or any integer data type
-    ionode ?= {
+    !{
       = u4  # anonymous member is block ionode index (any integer type)
       @= u8  # optional special member is block root address
       param := type  # additional members are block parameters
@@ -806,43 +552,72 @@ data.
 
 ## Additional constructs
 
+As a special case, if there is only a single member (variable
+declaration) in the struct, you may omit the member (variable) name,
+like the anonymous variable declarations in a list.  In this case, an
+instance of the type should be presented as if it were an instance of
+the anonymous member.  This syntax is a way to get the effect of
+counted arrays, in which the length of the array is written at the
+address of the instance:
+
+    string == {
+      COUNT := i4
+      = S1[COUNT]  # single anonymous member
+    }
+    text = string
+
+declares a variable "text" created from an array of ASCII characters,
+written to the file as a 4 byte integer COUNT followed by that many
+characters.  Reading it back produces a result indistinguishable from
+
+    text = S1[COUNT]
+
+if COUNT were defined as some fixed value.  This is a popular
+construct in many existing file and stream formats (supported by both
+XDR and HDF5 for example).  However, you should avoid it because the
+length of the data cannot be computed without reading the file at the
+address of the data itself, making it necessary to provide explicit
+addresses in the Dudley layout after every instance of such a
+parametrized type.  Of course, if you are using Dudley as just a
+stream decoder like XDR, or if you are willing for the layout to
+specify "@ address" for every variable in the file like HDF5, then
+this warning is irrelevant.  For Dudley template layouts, however,
+structs with parameters embedded in each instance are a non-starter.
+
 Dudley needs a way to write or read the default byte order as part of
 the file, unless all of the declarations have explicit < or >
-prefixes.  A special parameter-like declaration handles this:
+prefixes.  A special syntax handles this:
 
-    !ORDER @ address  # "@ address" optional as usual
+    !DEFAULT >  # for big-endian (most significant byte first)
+    !DEFAULT <  # for little-endian (least significant byte first)
 
-The ORDER value is a single byte, "<" for little endian or ">" for
-big endian.  Any other values at that address means the data stream
-has been corrupted and throw an exception.  You can also define the
-default byte order in the layout itself with one of:
+You can also use the !DEFAULT statement to change the maximum default
+alignment from 8 (for f8, i8, and u8 primitives) to 1, 2, or 4 bytes
+as it was on some old architectures.  For example,
 
-    !ORDER >  # for big-endian (most significant byte first)
-    !ORDER <  # for little-endian (least significant byte first)
+    !DEFAULT <4  # little-endian with 4-byte maximum default alignment
 
-Dudley also supports an arbitrary file signature or "magic number",
-which usually would be placed at address 0 in a file.  To do this,
-Dudley recognizes a second special parameter-like declaration:
+Importantly, these default settings may be written to the file like
+this:
 
-    !SIGNATURE "\x89DUD\x0d\x0a\x1a\x0a" @ address
+    !DEFAULT @ address  # "@ address" optional as usual
 
-The signature can be any fixed byte string; with the optional address
-that signature must appear at that address in the file.  The value
-shown is the default signature for a native Dudley data file (see the
-PNG format standard for the rationale).  Failure to match the expected
-signature indicates the data stream has been corrupted and throws an
-exception.  The Dudley signature would normally be be at address 0,
-followed by a !ORDER at address 8.
+The DEFAULT value is a two bytes, e.g.- "<8" for little endian, 8-byte
+max alignment, or ">2" for big endian 2-byte max alignment.  Again,
+the only legal max-alignment values are 1, 2, 4, or 8, with 8 being
+the default.  Any other values than those eight possiblities at that
+address means the data stream has been corrupted and throw an
+exception.
 
 A Dudley layout may be appended to the data file it describes to
 create a single self-describing file.  Such a file should begin with
 the native Dudley signature, but this is not required.  After
 appending the text of the layout file, append the additional text:
 
-    !DUDLEY[length]<    # if native byte ordering is little endian
-    !DUDLEY[length]>    # if native byte ordering is big endian
+    !DUDLEY[length]<8    # little endian, 8-byte max align
+    !DUDLEY[length]>8    # big endian, 8-byte max align
 
-This < or > will be overridden by the value of the special !ORDER
+This <8 or >8 will be overridden by the value of the special !DEFAULT
 statement elsewhere in the file - it is merely a default for data
 layouts which do not include that statement.  The length is the number
 of bytes of layout text, ending just before this ! character - in
@@ -860,6 +635,20 @@ over several sessions.  In that case, the layout text file should get
 the .dud extension, while the binary data file can have any other
 extension (say .dat).  This is also convenient when the binary data is
 contained in a file of a different format, like HDF5 or netCDF or PDB.
+
+Dudley also supports an arbitrary file signature or "magic number",
+which usually would be placed at address 0 in a file.  To do this,
+Dudley recognizes a second special parameter-like declaration:
+
+    !SIGNATURE "\x89DUD\x0d\x0a\x1a\x0a" @ address
+
+The signature can be any fixed byte string; with the optional address
+that signature must appear at that address in the file.  The value
+shown is the default signature for a native Dudley data file (see the
+PNG format standard for the rationale).  Failure to match the expected
+signature indicates the data stream has been corrupted and throws an
+exception.  The Dudley signature would normally be be at address 0,
+followed by a !DEFAULT at address 8.
 
 
 ## Notes on Dudley grammar

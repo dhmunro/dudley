@@ -12,7 +12,7 @@ __all__ = ["regexp", "handler", "tables", "rules"]
 # so add 2 to re group number to get bison symbol kind.
 regexp = re.compile(r'(?:((?:"(?:\\.|[^"\\])+"'
                     r"|'(?:\\.|[^'\\])+'|[A-Za-z_][0-9A-Za-z_]*))"  # 1 SYMBOL
-                    r"|(0x[0-9aA-Fa-f]+|\d+)"  # 2 INTEGER
+                    r"|(\-?(?:0x[0-9aA-Fa-f]+|\d+))"  # 2 INTEGER
                     r"|(=)"  # 3 EQ
                     r"|(:=)"  # 4 CEQ
                     r"|(==)"  # 5 EEQ
