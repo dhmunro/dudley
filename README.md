@@ -3,9 +3,9 @@
 Dudley is a data description language which has roughly the same scope
 as HDF5 or PDB metadata, plus some features of XDR.  Dudley code is a
 human readable UTF-8 text file or stream (using any newline
-convention) that describes the layout of binary data in a file - exactly
-where in the file each data array is written.  Python and C libraries
-are provided.  Dudley features:
+convention) that describes the layout of binary data in a file -
+exactly where in the file each data array is written.  Pure Python and
+C libraries are provided.  Dudley features:
 
   * Very simple data model consists of multidimensional arrays and
     containers that are either groups of named members or lists of
@@ -13,6 +13,7 @@ are provided.  Dudley features:
   * Human readable layout description encourages you to think
     carefully about how you store your data.  By adding comments
     a layout file you can document your data.
+  * Libraries are very lightweight compared to HDF5 or PDB.
   * Fully compatible with numpy/scipy.
   * Array dimensions can be parameters stored in the data stream
     so that a single layout can describe many different datasets
