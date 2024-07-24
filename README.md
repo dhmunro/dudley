@@ -463,94 +463,6 @@ will never be members of any group other than the root of the whole
 file.
 
 
-## Parallel processing support
-
-Dudley has a mechanism to support a family of files each written by
-one "ionode" which owns only a subset of "blocks" comprising some
-global data set.  The number of such blocks may vary from one ionode
-to the next (presumably as a side effect of balancing the load among
-processors).  A single "index file" holds all of the parameters for
-all of the blocks, in order to enable the full data set to be read by
-a different number of processors with a different partitioning of the
-blocks among them.
-
-The Dudley layout for the whole family describes the index file layout
-in the usual manner, but contains one or more "ionode" types declared
-with a special "?=" statement to be a one dimensional array.  The
-single dimension corresponds to the number of "blocks" in the global
-data set:
-
-    NBLOCKS := i4  # or u8 or any integer data type
-    !{
-      = u4  # anonymous member is block ionode index (any integer type)
-      @= u8  # optional special member is block root address
-      param := type  # additional members are block parameters
-      param := type
-    }[NBLOCKS]  # optional "@ address" in index file
-
-This special ionode variable definition may appear only at the top
-level of the Dudley layout; it lives in the (top level) variable
-namespace for the index file.
-
-The anonymous "=" member of this special ionode variable is
-required; its value is the index of the ionode owning this block.
-(The association between an ionode index and the corresponding
-processor or file is left to the application - note that the index
-file layout is free to include other variables needed to work out the
-association, such as a corresponding list of filenames.)  Within the
-nblocks instances of this struct, any given ionode index may appear
-multiple times (meaning it owns multiple blocks) or not at all
-(meaning it owns no blocks).
-
-The anonymous "@=" member of this special ionode variable is optional;
-its value is the root address of this particular block in the file
-associated with this ionode.
-
-Parameter declarations within the special ionode variable are the
-parameters describing the shape of the array data for each block in
-the individual files.  Writing these parameters to the index file (and
-the optional "@=" root address) allows the address of any variable in
-the entire family to be computed from the data in the index file,
-without needing to read anything from any of the files owned by any
-individual ionode.
-
-More than one "?=" variable may be declared, and they need not share a
-common dimension length - that is, the application may contain several
-different kinds of blocks.  However, any ionode index value in all the
-"?=" declarations should refer to the same ionode processor and file.
-
-Once a "?=" variable has bee defined, the Dudley layout can use the
-special "?/" notion to declare the root group associated with one block
-(of this ionode type if there are multiple kinds of blocks) like this:
-
-    ionode ?/
-      var = type[shape]
-      var = type[shape]
-      ----- and so on -----
-
-The array shapes may use the parameters declared in the corresponding
-"?=" variable declaration.  These may optionally be repeated as
-parameters in the "?/" group; the application is responsible for
-ensuring that any repeated parameter values written to the individual
-ionode files match the corresponding values written to the index file.
-
-Any "@ address" specifications within such an ionode group are
-relative to the root address for that block, not absolute addresses in
-the file (as for ordinary groups).
-
-Notice that a Dudley layout of this sort gracefully falls back to the
-case of a single file, possibly combined with the index file (at the
-option of the application).  This opens the possibility of a single
-Dudley layout description covering all restart dumps, serial or
-parallel, for a complex radhydro code.  With document comments, such a
-layout file would serve as a very concise description of the
-meaning of everything required to specify the state of the code.
-Similarly, each standard post processing file family could be
-described by its single Dudley layout.  Furthermore, by editing such a
-standard file it would be easy to derive new layouts containing custom
-data.
-
-
 ## Additional constructs
 
 As a special case, if there is only a single member (variable
@@ -652,21 +564,94 @@ exception.  The Dudley signature would normally be be at address 0,
 followed by a !DEFAULT at address 8.
 
 
-## Notes on Dudley grammar
+## Parallel processing support
 
-1. Terminal tokens in the grammar are:
-   -  [A-Za-z_][A-Za-z_0-9]*   (symbols)
-   -  (0x)?[0-9]+   (integers)
-   -  < | > = == := ?= @= ( , + - ) { } [ ] / .. @ ! # #: % " '
-   -  [\x0d\x0a]  (newlines, either LF, CRLF or CR)
-   -  whitespace  (space, tab, vertical tab, form feed)
-   - (" ' reserved for use declaring variable names with illegal characters)
-   - (% reserved for use in alignment declarations)
+WORK IN PROGRESS
 
-2. Newlines are distinguished from other whitespace only to determine
-   the end of a comment introduced by # or #:, or the end of a special
-   additional construct like !DUDLEY.  Any whitespace, including
-   newlines, is otherwise optional unless needed to delimit other tokens.
+Dudley has a mechanism to support a family of files each written by
+one "ionode" which owns only a subset of "blocks" comprising some
+global data set.  The number of such blocks may vary from one ionode
+to the next (presumably as a side effect of balancing the load among
+processors).  A single "index file" holds all of the parameters for
+all of the blocks, in order to enable the full data set to be read by
+a different number of processors with a different partitioning of the
+blocks among them.
+
+The Dudley layout for the whole family describes the index file layout
+in the usual manner, but contains one or more "ionode" types declared
+with a special "?=" statement to be a one dimensional array.  The
+single dimension corresponds to the number of "blocks" in the global
+data set:
+
+    NBLOCKS := i4  # or u8 or any integer data type
+    !{
+      = u4  # anonymous member is block ionode index (any integer type)
+      @= u8  # optional special member is block root address
+      param := type  # additional members are block parameters
+      param := type
+    }[NBLOCKS]  # optional "@ address" in index file
+
+This special ionode variable definition may appear only at the top
+level of the Dudley layout; it lives in the (top level) variable
+namespace for the index file.
+
+The anonymous "=" member of this special ionode variable is
+required; its value is the index of the ionode owning this block.
+(The association between an ionode index and the corresponding
+processor or file is left to the application - note that the index
+file layout is free to include other variables needed to work out the
+association, such as a corresponding list of filenames.)  Within the
+nblocks instances of this struct, any given ionode index may appear
+multiple times (meaning it owns multiple blocks) or not at all
+(meaning it owns no blocks).
+
+The anonymous "@=" member of this special ionode variable is optional;
+its value is the root address of this particular block in the file
+associated with this ionode.
+
+Parameter declarations within the special ionode variable are the
+parameters describing the shape of the array data for each block in
+the individual files.  Writing these parameters to the index file (and
+the optional "@=" root address) allows the address of any variable in
+the entire family to be computed from the data in the index file,
+without needing to read anything from any of the files owned by any
+individual ionode.
+
+More than one "?=" variable may be declared, and they need not share a
+common dimension length - that is, the application may contain several
+different kinds of blocks.  However, any ionode index value in all the
+"?=" declarations should refer to the same ionode processor and file.
+
+Once a "?=" variable has bee defined, the Dudley layout can use the
+special "?/" notion to declare the root group associated with one block
+(of this ionode type if there are multiple kinds of blocks) like this:
+
+    ionode ?/
+      var = type[shape]
+      var = type[shape]
+      ----- and so on -----
+
+The array shapes may use the parameters declared in the corresponding
+"?=" variable declaration.  These may optionally be repeated as
+parameters in the "?/" group; the application is responsible for
+ensuring that any repeated parameter values written to the individual
+ionode files match the corresponding values written to the index file.
+
+Any "@ address" specifications within such an ionode group are
+relative to the root address for that block, not absolute addresses in
+the file (as for ordinary groups).
+
+Notice that a Dudley layout of this sort gracefully falls back to the
+case of a single file, possibly combined with the index file (at the
+option of the application).  This opens the possibility of a single
+Dudley layout description covering all restart dumps, serial or
+parallel, for a complex radhydro code.  With document comments, such a
+layout file would serve as a very concise description of the
+meaning of everything required to specify the state of the code.
+Similarly, each standard post processing file family could be
+described by its single Dudley layout.  Furthermore, by editing such a
+standard file it would be easy to derive new layouts containing custom
+data.
 
 
 ## Python API
@@ -698,8 +683,8 @@ The Dudley API defines Group and List container classes - Groups hold
 named variables, while Lists are sequences of anonymous variables.
 Each item (variable) in a Group or a List may itself be a Group or a
 List as well - that is, the you can organize your data into a very
-general structure of Groups and Lists, with arrays as the leaf nodes
-of your tree.
+general tree structure of Groups and Lists, with arrays as the leaf
+nodes of your tree.
 
 Suppose you want to declare a 2D array "x" of six 8 byte floats,
 stored as three pairs, which is a member of a Group g::
@@ -734,19 +719,8 @@ To append something to a List, use the += operator:
     thing2 += ...  # can be a Group or a List as well as an array
     # Append multiple items at once like this:
     thing2 += [f8[3, 2], (f4[4, 5], address), Group(), ...]
-
-You can declare the first dimension of an array to be "unlimited",
-that is, declare the variable to be a homogeneous list of arrays of
-the shape specified by the remaining dimensions like this::
-
-    g["var"] = atype[..., dim1, dim2, etc], address
-
-If address is present, it specifies only the location of the first
-block of atype[dim1, dim2, etc] data.  To specify the addresses of
-subsequent blocks, use::
-
-    g["var"] += address  # or, to specify multiple blocks...
-    g["var"] += address1, address2, address3, ...
+    # Shorthand to repeat last item at several addresses:
+    thing2 += addr1, addr2, addr3, ...
 
 You can define custom array data types using the Type class.  A custom
 type may be named or anonymous - an anonymous type applies to only a
@@ -755,14 +729,18 @@ arrays.  A custom data type may be simple - just a name for an array
 of a previously defined type - or compound - a set of named arrays
 like a C struct::
 
-    mytype = Type(f4[2, 3])  # anonymous simple type (not useful)
-    mytype = Type("mytype", f4[2, 3])  # named simple type
+    mytype = Type(f4[2, 3])  # anonymous simple type
     mytype = Type()  # begin anonymous compound type
     mytype = Type("mytype")  # begin named compound type
-    mytype["var"] = atype[shape]  # declare member "var" of compound...
-    mytype["var"] = atype[shape], offset  # ...with explicit offset
+    mytype["mem1"] = atype[shape1]  # declare member "mem" of compound...
+    mytype["mem2"] = atype[shape2], off2  # ...with explicit offset
+    mytype.close()  # explicitly close compound type
+    # Alternatively, you can construct a compound directly:
+    mytype = Type(("mem1", atype[shape1]),
+                  ("mem2", (atype[shape2], off2)))
+    root.typedef["mytype"] = mytype  # names mytype as side-effect
 
-Any use of mytype in an array declaration "freezes" it.  In the case
+Any use of mytype in an array declaration closes it.  In the case
 of a compound type, this means you will no longer be able to add
 members.  In the case of an anonymous type, you will not be able to
 use it a second time (only named data types may be shared).
@@ -801,7 +779,9 @@ your data, use the += operator on a group or compound datatype::
 
     g += IMAX  # IMAX parameter stored at next address in g
     g += IMAX, address  # ...or stored at specific address in file
-    mytype += IMAX, offset
+    mytype += IMAX, offset  # can also be stored in compound instance
+    # A parameter may also appear in a compound constructor list:
+    mytype = Type((IMAX, offset), ...)
 
 A parameter must be declared in this way before its use in an array
 dimension.  This is true even for fixed value parameters - even though
@@ -821,10 +801,6 @@ the effect of "IMAX?" in the Dudley layout language.  A parameter used
 in an array dimension which is undeclared in the Group or Type
 containing the array must be declared in some ancestor of that Group
 or Type.
-
-How to define parameter stream?  Want support for arrays or lists of
-parameter sets generating an array of groups...
-
 
 
 ## Javascript API

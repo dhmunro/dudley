@@ -24,7 +24,7 @@ regexp.finditer() into the token numbers required by the Bison parser
 tables.
 
 """
-__all__ = [BisonParser, SemanticError, AbortParse]
+__all__ = ["BisonParser", "SemanticError", "AbortParse"]
 
 
 class BisonParser(object):
@@ -90,25 +90,26 @@ class BisonParser(object):
         if isinstance(stream, str) or stream is None:
             # parse a single line (or None to generate EOF)
             for itok in self.lexer.tokens(stream):
-                self.nerrs = self.automaton.send(token)
+                self.nerrs = self.automaton.send(itok)
             return self.nerrs
         # reset the parser
         self.lexer.lineno = 0
         self.nerrs = 0
         self.automaton = self._automaton()
-        next(self.iterator)  # advance to first yield for next_token()
+        next(self.automaton)  # advance to first yield for next_token()
         if stream is Ellipsis:
             return 0
         # otherwise, do complete parse of entire input stream
-        self.lexer.on(stream)
-        for nerrs in self.automaton.send(token):
+        lexer = self.lexer.on(stream)
+        for nerrs in self.automaton.send(lexer()):
             pass
         return nerrs
 
     def _automaton(self):
         pact, defact, table, check, pgoto, defgoto, r1, r2, final = [
-            self.tables[nm] for nm in ["pact", "defact", "table", "check",
-                                       "pgoto", "defgoto", "r1", "r2", "final"]]
+            self.tables[nm]
+            for nm in ["pact", "defact", "table", "check",
+                       "pgoto", "defgoto", "r1", "r2", "final"]]
         parse_rules = self.rules
         special_rule = self.special_rule
         lexer = self.lexer
@@ -116,7 +117,7 @@ class BisonParser(object):
         default_pact = min(pact)  # take default action
         ntokens = max(r1) - len(pgoto) + 1  # terminals of the grammar
         # tokens have EOF, error, UNDEF prepended as 0, 1, 2
-        eof_token, err_token, undef_token = 0, 1, 2
+        eof_token, err_token = 0, 1  # undef_token = 2
 
         state = 0  # 0 is initial state
         nerrs = errstatus = 0
@@ -140,8 +141,8 @@ class BisonParser(object):
                     j = table[i]  # >0 state for shift, <0 -rule for reduce
                     if j > 0:
                         state = j  # table entry is new state
-                        if errorstatus:
-                            errorstatus -= 1
+                        if errstatus:
+                            errstatus -= 1
                         # ---------- shift lookahead token ------------
                         stack.append((state, lexer.value))
                         lookahead = None
@@ -205,6 +206,7 @@ class BisonParser(object):
             # unhandled error token
             pass
         self.parse(Ellipsis)  # automatic reset when parse finishes
+        yield nerrs
 
 
 class BisonLexer(object):
@@ -214,12 +216,12 @@ class BisonLexer(object):
         self.handler = handler
         self.lineno = 0
 
-    def on(stream):
+    def on(self, stream):
         self._next_token = self.tokenize(
             stream, self.regexp, self.ntokens, self.handler)
         return self
 
-    def tokenize(self, stream, regexp, ntokens, handler):
+    def tokenize(self, stream):
         self.lineno = 0
         for line in stream:
             for itok in self.tokens(line):
@@ -234,7 +236,7 @@ class BisonLexer(object):
         self.special = False
         yield 0
 
-    def tokens(line=None):
+    def tokens(self, line=None):
         self.special = False
         self.value = None
         self.m = mprev = None
@@ -242,15 +244,15 @@ class BisonLexer(object):
             yield 0
         else:
             self.lineno += 1
-            for m in regexp.finditer(line):
+            for m in self.regexp.finditer(line):
                 # mprev provided so that handler knows mprev.end()
                 # Note that mprev == None means this is new line.
                 # Tokens greater than ntokens-1 reserved for conditions
                 # outside formal grammar handled by special_rule() method,
                 # like comments or special items.  Here, we assume all
                 # of these extend to end-of-line.
-                itok, value = handler(m, mprev)
-                if itok >= ntokens:
+                itok, value = self.handler(m, mprev)
+                if itok >= self.ntokens:
                     self.special = True  # remains True until end-of-line
                 self.value = value
                 self.m = mprev = m
