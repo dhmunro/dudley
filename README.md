@@ -1,11 +1,30 @@
 # The Dudley Layout Language
 
-Dudley is a data description language which has roughly the same scope
-as HDF5 or PDB metadata, plus some features of XDR.  Dudley code is a
-human readable UTF-8 text file or stream (using any newline
-convention) that describes the layout of binary data in a file -
-exactly where in the file each data array is written.  Pure Python and
-C libraries are provided.  Dudley features:
+Dudley is a data description language, that is, a way to specify
+exactly where and how binary data is stored in a file or byte stream -
+the *layout* of the data.  Dudley is inspired by XDR
+(https://www.rfc-editor.org/info/rfc4506) and netCDF (particularly
+"classic" netCDF-3, https://www.unidata.ucar.edu/software/netcdf).
+Used as metadata for a single data stream, Dudley has roughly the same
+scope as HDF5 (https://portal.hdfgroup.org/documentation) or PDB (see
+https://silo.readthedocs.io/files.html).
+
+However, unlike netCDF, HDF5, or PDB metadata, a Dudley layout may
+contain parameters, so that a single layout may describe many
+different files or data streams - a design feature more like XDR than
+the self-describing file formats.  For scientific computing, this can
+drastically reduce the amount of time required to parse metadata in
+order to locate individual arrays of numbers in large families of
+files, when you want to read back only a small fraction of what has
+been written.  Perhaps even more significantly, you can design a
+single Dudley layout describing every restart file a physics
+simulation code can produce - only the specific parameter values
+(array dimensions) need be stored in the individual files.  Since a
+Dudley layout is human readable, such a restart description can also
+serve as a quick reference guide for all the variables used by the
+code itself.
+
+Dudley features:
 
   * Very simple data model consists of multidimensional arrays and
     containers that are either groups of named members or lists of
@@ -16,9 +35,12 @@ C libraries are provided.  Dudley features:
   * Libraries are very lightweight compared to HDF5 or PDB.
   * Fully compatible with numpy/scipy.
   * Array dimensions can be parameters stored in the data stream
-    so that a single layout can describe many different datasets
-    (like XDR).  You can easily design and describe small datasets
-    to exchange information with collaborators.
+    so that a single layout can describe many different datasets.
+    You can easily design and describe small datasets to exchange
+    information with collaborators.
+
+
+## Data model
 
 Data arrays are multidimensional arrays of numbers, boolean values, or
 text characters (ASCII or Unicode).  You can specify byte order and
@@ -38,8 +60,13 @@ group in a Dudley layout is analogous to the root folder in a file
 system, where named members of a group can be data arrays, groups,
 or lists of arrays, groups, and lists.
 
-Both HDF5 and PDB permit the same general tree structure of named
-variables, but neither has direct support for lists of unnamed arrays.
+The netCDF-3 ("classic") format supports named array variables,
+including arrays with an "unlimited" slowest dimension, which amount
+to homogeneous lists of arrays.  Both HDF5 and PDB permit the same
+general tree structure of named array variables (including homogeneous
+lists via "unlimited" dimensions), but neither has direct support for
+arbitrary lists of unnamed arrays.
+
 It is possible to produce a Dudley layout which describes much or all
 of the data in an HDF5 or PDB file - that is, you can very often use
 an HDF5 or PDB file without modification as the binary stream
@@ -50,12 +77,12 @@ your data is being stored, and how much you will need to read back in
 order to locate any data array you wrote.  If you will always read
 back the entire stream you have written, this is not a very important
 feature.  However, a modern simulation may store many terabytes of
-data, and you very likely will later want to focus on much smaller
-subsets - if you need to read the entire stream in order to locate the
-part you want, you won't be happy.  Dudley lets you design large data
-layouts that you can access efficiently.  Since a layout is a human
-readable text file, Dudley also provides a means to easily share small
-data sets.
+data requiring gigabytes of HDF5 metadata, and you very likely will
+later want to focus on much smaller subsets - if you need to read the
+entire metadata stream in order to locate the part you want, you won't
+be happy.  Dudley lets you design large data layouts that you can
+access efficiently.  Since a layout is a human readable text file,
+Dudley also provides a means to easily share small data sets.
 
 
 ## Basic Dudley layout grammar

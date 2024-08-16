@@ -1,8 +1,11 @@
 """
 """
+from __future__ import absolute_import
 
 from numbers import Number, Integral
 import re
+
+from .bisonp import BisonParser, SemanticError, AbortParse
 
 
 class Layout(object):
@@ -16,101 +19,132 @@ class Layout(object):
     types : dict
         dict of named datatypes used in this Layout
     """
-    def __init__(self, description, data):
-        pass
+    def __init__(self, address=None, default=None):
+        self.address, self.default = address, default
+        self.root = self.current = Group()
+        self.types = dict(prefixed_primitives)
 
-    #------ Following section is commands implementing parser rules. ------
-    def var(self, name, atype, shape=None, location=None):
-        ushape = shape and shape[0] is None
+    # ------ Following section is commands implementing parser rules. ------
+    def add(self, nameitem):
+        name, item = nameitem
+        item0 = self.current.get(name)
+        if isinstance(name, tuple):  # this is list += list or addr_list
+            name = name[0]
+            if not isinstance(item0, List):
+                raise SemanticError(
+                    "{} is not an existing List for +=".format(name))
+            item0 += item
+        elif item is dict:
+            if name is None:
+                self.current = self.root
+            elif name is Ellipsis:
+                self.current = self.current.parent
+            else:
+                if item0 is None:
+                    self.current[name] = g = Group(self.current)  # new subgrp
+                    self.current = g
+                elif isinstance(item0, Group):
+                    self.current = item0  # existing subgrp
+                else:
+                    raise SemanticError(
+                        "{} exists but is not a Group".format(name))
+        elif item0 is not None:
+            if item0 is not None:
+                raise SemanticError(
+                    "cannot redeclare existing variable {}".format(name))
+        elif isinstance(item, (Datum, List, Param)):
+            self.current[name] = item
+        else:
+            raise AbortParse("parser delivered unrecognized item to add")
 
-    def shape(self, *dims):
-        ushape = dims[0] is None
-        if ushape:
-            dims = dims[1:]
-        if len(dims) == 1 and isinstance(dims[1], list):
-            dims = dims[1]
-        for i, dim in enumerate(dims):
-            if isinstance(dim, Number):
-                continue
-            altmode = False
-            increment = 0
-            if isinstance(dim, tuple):
-                altmode = len(dim) == 3
-                increment = dim[-1]
-                dim = dim[0]
-            dims[i] = self.find_param(dim, increment, altmode)
-        if ushape:
-            dims = [None] + dims
-        return dims
+    def newparam(self, basetype, location=None):
+        return Param(basetype, location)
 
-    def param(self, name, basetype, location=None):
-        if isinstance(basetype, tuple):
-            basetype, location = basetype
+    def newarray(self, datatype, shape, location):
+        # datatype must be either anonymous Struct or known type name
+        if isinstance(datatype, Struct):
+            datatype.resolve
+        return Datum(datatype, shape, location)
 
-    def cd(self, name=None):
-        pass
+    def newlist(self, item=None):
+        return List(item)
 
-    def cdup(self, name=None):
-        pass
+    def newgroup(self):
+        return Group()
 
-    def open_list(self, name):
-        pass
+    def newstruct(self):
+        return Struct()
 
-    def close_list(self):
-        pass
+    def _check_type(self, datatype):
+        if isinstance(datatype, Struct):
+            types = self.types
+            atype = types.get(datatype)
+            if atype is None:
+                native = "|" + datatype
+                if native in prefixed_primitives:
+                    types[datatype] = native
+                else:
+                    raise SemanticError(
+                        "undefined datatype {}".format(datastype))
 
-    def atype(self, name, atype, shape=None, alignment=None):
-        shape = self.shape(shape)
-        if not alignment:
-            alignment = None
-        elif alignment > 0:
-            alignment = -1
-
-    def open_struct(self):
-        pass
-
-    def close_struct(self):
-        pass
-
-    def open_group(self):
-        pass
-
-    def close_group(self):
-        pass
-
-    def set_address(self, location):
-        pass
-
-    def var_extend(self, name, *address_list):
-        if len(address_list == 1) and isinstance(address_list, list):
-            address_list = address_list[0]
-
-    def pointee(self, pointer, atype, shape=None, location=None):
-        shape = self.shape(shape)
-
-    def open_root(self, name):
-        pass
-
-    def atvar(self, basetype, location):
-        pass
-
-    def close_root(self):
-        pass
-
-    def cdroot(self, name):
-        pass
+    def typedef(self, name, datatype, shape=None, align=None):
+        # datatype is typename or struct
+        types = self.types
+        if name in types:
+            raise SemanticError(
+                "cannot redefine existing datatype {}".format(name))
+        if not isinstance(datatype, Struct):
+            # datatype must be a string
+            atype = types.get(datatype)
+            if atype is None:
+                native = "|" + datatype
+                if native in prefixed_primitives:
+                    types[datatype] = native
+                else:
+                    raise SemanticError(
+                        "undefined datatype {}".format(datatype))
+        else:
+            if datatype.parent:
+                datatype = Struct(datatype)  # make a copy of datatype
+            datatype.parent = self
+        types[name] = datatype  # a str or Struct
 
 
-class Var(object):
-    __slots__ = "parent", "params", "atype", "shape", "address", "align"
+# Datum is a leaf in the layout - an instance of an array or or scalar value.
+# Datatype atype either a named type (primitive or typedef) or a Struct,
+#   which may remain partially unresolved until this Datum has a parent.
+class Datum(object):
+    __slots__ = "parent", "params", "atype", "shape", "location"
+
     def __init__(self, atype, shape=None, location=None):
         self.parent = None
         self.params = None
+        if not isinstance(atype, (str, Struct)):
+            raise SemanticError("Datatype must be name or Struct")
+        if location is None:
+            self.location = None
+        elif isinstance(location, Integral):
+            location = int(location)
+            if location < 0:  # location is an alignment
+                if (-location) & (-location-1):
+                    raise SemanticError("alignment must be power of two")
+            self.location = location
+        if shape:
+            dims = []
+            for d in shape:
+                if isinstance(d, Integral):
+                    d = int(d)
+                elif not isinstance(d, Param):
+                    raise SemanticError("dimension must be int or Param")
+                dims.append(d)
+            self.shape = tuple(dims)
+        else:
+            self.shape = None
 
 
-# Note that a Var may be anonymous, while a Param may not.
+# Note that a Datum may be anonymous, while a Param may not.
 # Thus, when a raw parameter is inserted into its parent Group or Struct,
-# its parent and name attributes must be set.
+#       its parent and name attributes must be set.
 # The address can be:
 #   >= 0 if known (read, written, or specified in layout)
 #   < 0 if alignment specified in layout, overrides iN alignment
@@ -157,9 +191,10 @@ class Param(object):
     def __invert__(self):
         return _ParamX(self, 0, 0)
 
+
 _param_type = re.compile(r"[<|>]?i[1248]$")
 
-    
+
 class Group(dict):  # Folder? Block?
     def __init__(self):
         self.parent = None
@@ -268,3 +303,25 @@ class _ParamX(object):
         if not isinstance(y, Integral):
             raise ValueError("can only add integer to Parameter")
         return _ParamX(self.param, self.minvalue, self.increment + y)
+
+
+prefixed_primitives = {
+    "|i1": True, "|i2": True, "|i4": True, "|i8": True,
+    "|u1": True, "|u2": True, "|u4": True, "|u8": True,
+    "|f2": True, "|f4": True, "|f8": True,
+    "|c4": True, "|c8": True, "|c16": True,
+    "|b1": True, "|S1": True, "|U1": True, "|U2": True, "|U4": True,
+    "|p4": True, "|p8": True,
+    "<i1": True, "<i2": True, "<i4": True, "<i8": True,
+    "<u1": True, "<u2": True, "<u4": True, "<u8": True,
+    "<f2": True, "<f4": True, "<f8": True,
+    "<c4": True, "<c8": True, "<c16": True,
+    "<b1": True, "<S1": True, "<U1": True, "<U2": True, "<U4": True,
+    "<p4": True, "<p8": True,
+    ">i1": True, ">i2": True, ">i4": True, ">i8": True,
+    ">u1": True, ">u2": True, ">u4": True, ">u8": True,
+    ">f2": True, ">f4": True, ">f8": True,
+    ">c4": True, ">c8": True, ">c16": True,
+    ">b1": True, ">S1": True, ">U1": True, ">U2": True, ">U4": True,
+    ">p4": True, ">p8": True
+}

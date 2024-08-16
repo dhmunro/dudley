@@ -48,6 +48,7 @@ def check_file(name):
         raise ValueError("{} files match {}".format(len(files), name))
     return abspath(files[0])
 
+
 # .tab.c file regexps
 _yytables = [("final", re.compile(r"#define\s+YYFINAL\s+(\d+)")),
              ("tname", re.compile(r"char\s*\*.*yytname.*=")),
@@ -68,8 +69,8 @@ def parse_tables(tab_file):
     with open(tab_file) as f:
         fi = iter(f)
         for line in fi:
-            for key, re in _yytables:
-                m = re.search(line)
+            for key, regex in _yytables:
+                m = regex.search(line)
                 if m:
                     break
             else:
@@ -94,6 +95,7 @@ def parse_tables(tab_file):
             tables[key] = table
     return tables
 
+
 # grammar file regexps
 _section = re.compile(r"\s*%%")
 _lhs = re.compile(r"\s*([A-Za-z_]\w*\s*:|\|)\s*")
@@ -115,7 +117,7 @@ def parse_grammar(grammar_file):
     with open(grammar_file) as f:
         lhs = ""
         skip_section = True
-        empty_rule = False
+        # empty_rule = False
         for line in f:
             m = _section.match(line)
             if skip_section:
@@ -153,13 +155,13 @@ def dump_tables(tables, f=sys.stdout):
     f.write("tables = dict(\n")
     for key in ["pact", "defact", "pgoto", "defgoto", "table", "check",
                 "r1", "r2", "stos", "tname"]:
-        f.write("    {} = [\n".format(key))
+        f.write("    {}=[\n".format(key))
         if key != "tname":
             dump_cols(tables[key], f, 8)
         else:
             dump_strs(tables[key], f, 8)
-        f.write("    ],\n".format(key))
-    f.write("    final = {})\n".format(tables["final"]))
+        f.write("    ],\n")
+    f.write("    final={})\n".format(tables["final"]))
 
 
 def dump_strs(xlist, f=sys.stdout, indent=0, width=80):
@@ -180,10 +182,11 @@ def dump_cols(xlist, f=sys.stdout, indent=0, width=80):
     ncols = 10
     n = len(xlist)
     if n < ncols:
-        if not n: return
+        if not n:
+            return
         ncols = n
     xlist = _yysplit.split(repr(xlist)[1:-1])  # convert to strings
-    nrows = n // ncols
+    # nrows = n // ncols
     nextra = n % ncols
     if nextra:
         xlist += [""] * (ncols - nextra)
@@ -209,21 +212,27 @@ def dump_rules(rules, f=sys.stdout):
     #   pass
     f.write("\n\nclass FunctionList(list):\n")
     f.write("    def __call__(self, args, method=None):\n\n")
-    f.write("        def __call__(self, f):\n")
+    f.write("        def rule(self, f):\n")
     f.write("            f.method = method\n")
     f.write("            f.args = args\n")
+    f.write("            f.rule = f.__doc__\n")
     f.write("            self.append(f)\n")
     f.write("            return f\n\n")
     f.write("        return rule\n\n")
     f.write("    def bind_to(self, builder):\n")
-    f.write("        for i, rule in enumerate(self):\n")
+    f.write("        rules = []\n")
+    f.write("        for rule in self:\n")
     f.write("            method = rule.method\n")
     f.write("            if not method:\n")
-    f.write("                continue\n")
-    f.write("            method = builder[method]\n")
-    f.write("            method.args = args\n")
-    f.write("            method.rule = rule.__doc__\n")
-    f.write("            self[i] = method\n\n")
+    f.write("                method = rule\n")
+    f.write("            else:\n")
+    f.write("                method = getattr(builder, method)\n")
+    f.write("                if hasattr(method, \"rule\"):\n")
+    f.write("                    method.rule += \"\\n\" + rule.__doc__\n")
+    f.write("                else:\n")
+    f.write("                    method.rule = rule.__doc__\n")
+    f.write("            rules.append(method)\n")
+    f.write("        return rules\n\n")
     f.write("\nrules = FunctionList()\n")
     f.write("\n# Each rule function must return the LHS value (or None).\n")
     f.write("# The RHS values on the parser stack are indexed from -N\n")
@@ -246,8 +255,8 @@ def dump_rules(rules, f=sys.stdout):
     for i, rule in enumerate(rules):
         f.write("\n\n@rules([])\n")
         f.write("def rule():\n")
-        f.write('    """{} {}"""'.format(i, rule))
-    f.write("\ndel rule\n")
+        f.write('    """{} {}"""\n'.format(i, rule))
+    f.write("\n\ndel rule\n")
 
 
 if __name__ == "__main__":

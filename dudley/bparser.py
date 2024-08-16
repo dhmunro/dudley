@@ -12,7 +12,7 @@ __all__ = ["regexp", "handler", "tables", "rules"]
 # so add 2 to re group number to get bison symbol kind.
 regexp = re.compile(r'(?:((?:"(?:\\.|[^"\\])+"'
                     r"|'(?:\\.|[^'\\])+'|[A-Za-z_][0-9A-Za-z_]*))"  # 1 SYMBOL
-                    r"|(\-?(?:0x[0-9aA-Fa-f]+|\d+))"  # 2 INTEGER
+                    r"|(-?(?:0x[0-9aA-Fa-f]+|\d+))"  # 2 INTEGER
                     r"|(=)"  # 3 EQ
                     r"|(:=)"  # 4 CEQ
                     r"|(==)"  # 5 EEQ
@@ -40,7 +40,7 @@ regexp = re.compile(r'(?:((?:"(?:\\.|[^"\\])+"'
 quoted = re.compile(r"[\"']")
 # several token kinds need special handling:
 SYMBOL, INTEGER, QUEST, PLUSSES, MINUSES, PRIMTYPE = 3, 4, 21, 22, 23
-UNKOWN = 25
+UNKNOWN = 25
 EOF, UNDEF = 0, 2  # Bison EOF and undefined token indexes (1 is error)
 
 
@@ -54,11 +54,11 @@ def handler(m, mprev):
     elif itok == INTEGER:
         value = int(m.group(), 0)
     elif itok == QUEST:
-        if not mprev or m.start() != mprev.end():  
+        if not mprev or m.start() != mprev.end():
             itok = UNDEF
     elif itok == PLUSSES or itok == MINUSES:
         start, end = m.span()
-        if mprev and start == mprev.end():  
+        if mprev and start == mprev.end():
             value = m.end() - m.start()
         else:
             itok = UNDEF
@@ -77,7 +77,7 @@ def handler(m, mprev):
 # of the Dudley layout.
 
 tables = dict(
-    pact = [
+    pact=[
         -12,  33, -12, -12,  51,  23, -12, -12, -12, -12,
         -12,   3,   7,   2,  10, -12,  61, -12,  16,   2,
          44, -12,   0, -12, -12, -12, -12,  27, -12, -12,
@@ -88,7 +88,7 @@ tables = dict(
         -12, -12, -12, -12,  35,  72, -12, -12, -12, -12,
          76, -12, -12, -12,
     ],
-    defact = [
+    defact=[
          3,  0,  1, 16,  0,  0, 14, 13, 53,  2,
          4,  0,  0,  0,  0, 12,  0, 50,  6,  0,
          0, 19,  0, 53, 20, 22, 11, 25, 15, 17,
@@ -99,17 +99,17 @@ tables = dict(
         38,  7, 55, 54,  0, 14, 48, 42, 33, 24,
          0, 30, 31, 26,
     ],
-    pgoto = [
+    pgoto=[
         -12, -12, -12,  4, 13, -10, -11, 74,  56, -12,
           9, -12,  39, 17, 36,  -7, -12, 29, -12, -12,
          71, -12,
     ],
-    defgoto = [
+    defgoto=[
          0,  1,  9, 10, 30, 25, 45, 27, 51, 66,
         67, 68, 53, 54, 55, 46, 47, 48, 60, 18,
         20, 42,
     ],
-    table = [
+    table=[
         26, 43, 31,  21,  28,  21,  21, 33, 37, 44,
         21, 29, 22, -43, -43,  22,  43, 23, 21, 23,
         23, 17, 22,  24,  44,  24,  24, 22, 19, 59,
@@ -121,7 +121,7 @@ tables = dict(
         65, 79, 80,  81,  82, -46, -46, 32, 56, 83,
         69, 77, 71,   0,  49,
     ],
-    check = [
+    check=[
         11,  1, 12,  3, 11,  3,  3, 14, 19,  9,
          3,  4, 12, 13, 14, 12,  1, 17,  3, 17,
         17,  4, 12, 23,  9, 23, 23, 12,  5, 40,
@@ -133,7 +133,7 @@ tables = dict(
          4, 13, 14, 21, 22, 13, 14, 13, 32, 80,
         51, 62, 56, -1, 23,
     ],
-    r1 = [
+    r1=[
          0, 24, 25, 25, 26, 26, 26, 26, 26, 26,
         27, 27, 27, 27, 27, 27, 27, 28, 28, 29,
         29, 30, 31, 31, 32, 32, 33, 33, 34, 34,
@@ -141,7 +141,7 @@ tables = dict(
         39, 40, 40, 40, 41, 41, 41, 41, 42, 42,
         43, 43, 44, 44, 45, 45, 45, 45,
     ],
-    r2 = [
+    r2=[
         0, 2, 2, 0, 1, 3, 2, 5, 3, 3,
         3, 3, 2, 1, 1, 3, 1, 1, 2, 1,
         1, 3, 1, 3, 3, 0, 3, 1, 1, 1,
@@ -149,7 +149,7 @@ tables = dict(
         3, 1, 3, 0, 1, 1, 3, 1, 2, 0,
         1, 2, 2, 0, 3, 3, 2, 1,
     ],
-    stos = [
+    stos=[
          0, 25,  0,  1,  3,  4,  9, 10, 19, 26,
         27,  5,  6,  7,  8,  9, 15, 37, 43,  5,
         44,  3, 12, 17, 23, 29, 30, 31, 39,  4,
@@ -160,7 +160,7 @@ tables = dict(
          4, 38, 30, 28,  3,  9, 27, 41, 20, 13,
         14, 21, 22, 34,
     ],
-    tname = [
+    tname=[
         "\"end of file\"", "error", "\"invalid token\"", "SYMBOL", "INTEGER",
         "EQ", "CEQ", "EEQ", "PEQ", "SLASH", "DOTDOT", "DOT", "LBRACK",
         "RBRACK", "COMMA", "AT", "PCNT", "LCURLY", "RCURLY", "BCURLY", "QUEST",
@@ -170,29 +170,35 @@ tables = dict(
         "alignment", "list", "items", "item", "group_members", "address_list",
         "members", "member", "",
     ],
-    final = 2)
+    final=2)
 
 
 class FunctionList(list):
     def __call__(self, args, method=None):
 
-        def __call__(self, f):
+        def rule(self, f):
             f.method = method
             f.args = args
+            f.rule = f.__doc__
             self.append(f)
             return f
 
         return rule
 
     def bind_to(self, builder):
-        for i, rule in enumerate(self):
+        rules = []
+        for rule in self:
             method = rule.method
             if not method:
-                continue
-            method = builder[method]
-            method.args = args
-            method.rule = rule.__doc__
-            self[i] = method
+                method = rule
+            else:
+                method = getattr(builder, method)
+                if hasattr(method, "rule"):
+                    method.rule += "\n" + rule.__doc__
+                else:
+                    method.rule = rule.__doc__
+            rules.append(method)
+        return rules
 
 
 rules = FunctionList()
@@ -216,245 +222,293 @@ rules = FunctionList()
 # recording the docstring of the rule for informational
 # purposes.
 
-# 41 lst = builder.newlist(item)
-# 42 lst + item
-# 43 lst = builder.newlist()
-# 44 array  45 list  46 group_members  47 error
-# 48 group + memb
-# 49 group = builder.newgroup()
-
 
 @rules([])
 def rule():
     """0 $error?"""
 
+
 @rules([])
 def rule():
     """1 $accept: . $end"""
+
 
 @rules([])
 def rule():
     """2 layout: layout statement"""
 
+
 @rules([])
 def rule():
     """3 layout: <empty>"""
 
-@rules()
+
+@rules([-1], "add")
 def rule():
     """4 statement: group_member"""
 
-@rules([-3, -1], "listadd")
+
+@rules([-3, -1])
 def rule(name, items):
     """5 statement: SYMBOL PEQ list"""
+    return (name,), items
 
-@rules([-2, -1], "listadd")
+
+@rules([-2, -1])
 def rule(name, addrs):
     """6 statement: SYMBOL address_list"""
+    return (name,), addrs
+
 
 @rules([-5, -3, -2, -1], "typedef")
 def rule(name, datatype, shape, alignment):
     """7 statement: SYMBOL EEQ datatype shape alignment"""
 
+
 @rules([-3, -1], "pointee")
 def rule(pntr, arraydef):
     """8 statement: INTEGER EQ array"""
+
 
 @rules([-2], "index_file")
 def rule(members):
     """9 statement: BCURLY members RCURLY"""
 
-@rules([-3, -1], "membdef")
-def rule(name, value):
-    """10 group_member: SYMBOL CEQ parameter"""
 
-@rules([-3, -1], "membdef")
+@rules([-3, -1])
+def rule(name, param):
+    """10 group_member: SYMBOL CEQ parameter"""
+    return name, param
+
+
+@rules([-3, -1])
 def rule(name, arraydef):
     """11 group_member: SYMBOL EQ array"""
+    return name, arraydef
 
-@rules([-2], "cd")
+
+@rules([-2])
 def rule(name):
     """12 group_member: SYMBOL SLASH"""
+    return name, dict
 
-@rules([], "cdup")
+
+@rules([])
 def rule():
     """13 group_member: DOTDOT"""
+    return Ellipsis, dict
 
-@rules([], "cd")
+
+@rules([])
 def rule():
     """14 group_member: SLASH"""
+    return None, dict
 
-@rules([-3, -1], "membdef")
+
+@rules([-3, -1])
 def rule(name, items):
     """15 group_member: SYMBOL EQ list"""
+    return name, items
 
-@rules([-1], "error16")
+
+@rules([-1], "error_group")
 def rule(error):
     """16 group_member: error"""
 
-@rules([-1])
+
+@rules([-1], "newparam")
 def rule(value):
     """17 parameter: INTEGER"""
-    return value
 
-@rules([-2, -1])
+
+@rules([-2, -1], "newparam")
 def rule(basetype, location):
     """18 parameter: basetype location"""
-    return basetype, location
+
 
 @rules([-1])
 def rule(name):
     """19 basetype: SYMBOL"""
     return name
 
+
 @rules([-1])
 def rule(name):
     """20 basetype: PRIMTYPE"""
     return name
 
-@rules([-3, -2, -1])
+
+@rules([-3, -2, -1], "newarray")
 def rule(datatype, shape, location):
     """21 array: datatype shape location"""
-    return datatype, shape, location
+
 
 @rules([-1])
 def rule(basetype):
     """22 datatype: basetype"""
     return basetype
 
+
 @rules([-2])
-def rule(members):
+def rule(struct):
     """23 datatype: LCURLY members RCURLY"""
-    return members
+    return struct
+
 
 @rules([-2])
 def rule(dimensions):
     """24 shape: LBRACK dimensions RBRACK"""
     return dimensions
 
+
 @rules([])
 def rule():
     """25 shape: <empty>"""
-    return ()
+
 
 @rules([-3, -1])
 def rule(dims, dim):
     """26 dimensions: dimensions COMMA dimension"""
     return dims + (dim,)
 
+
 @rules([-1])
 def rule(dim):
     """27 dimensions: dimension"""
     return (dim,)
+
 
 @rules([-1])
 def rule(dim):
     """28 dimension: INTEGER"""
     return dim
 
+
 @rules([-1])
 def rule(dim):
     """29 dimension: symbolq"""
     return dim
+
 
 @rules([-2, -1])
 def rule(dim, delta):
     """30 dimension: symbolq PLUSSES"""
     return (dim + (delta,)) if isinstance(dim, tuple) else (dim, 0, delta)
 
+
 @rules([-2, -1])
 def rule(dim, delta):
     """31 dimension: symbolq MINUSES"""
     return (dim + (-delta,)) if isinstance(dim, tuple) else (dim, 0, -delta)
+
 
 @rules([-1])
 def rule(dim):
     """32 symbolq: SYMBOL"""
     return dim
 
+
 @rules([-2])
 def rule(dim):
     """33 symbolq: SYMBOL QUEST"""
-    return (dim, 1)
+    return dim, 1
+
 
 @rules([-1])
 def rule(addr):
     """34 location: address"""
     return addr
 
+
 @rules([-1])
 def rule(align):
     """35 location: alignment"""
     return -align if align else None
+
 
 @rules([-1])
 def rule(addr):
     """36 address: AT INTEGER"""
     return addr
 
+
 @rules([])
 def rule():
     """37 address: AT DOT"""
+
 
 @rules([-1])
 def rule(align):
     """38 alignment: PCNT INTEGER"""
     return align
 
+
 @rules([])
 def rule():
     """39 alignment: <empty>"""
+
 
 @rules([-1])
 def rule(items):
     """40 list: LBRACK items RBRACK"""
     return items
 
+
 @rules([-1], "newlist")
 def rule(item):
     """41 items: item"""
+
 
 @rules([-3, -1])
 def rule(items, item):
     """42 items: items COMMA item"""
     return items + item
 
+
 @rules([], "newlist")
 def rule():
     """43 items: <empty>"""
+
 
 @rules([-1])
 def rule(item):
     """44 item: array"""
     return item
 
+
 @rules([-1])
 def rule(item):
     """45 item: list"""
     return item
 
-@rules([-2], item)
-def rule():
+
+@rules([-2])
+def rule(item):
     """46 item: SLASH group_members SLASH"""
     return item
 
-@rules([-1], "error47")
+
+@rules([-1], "error_list")
 def rule(error):
     """47 item: error"""
+
 
 @rules([-2, -1])
 def rule(group, memb):
     """48 group_members: group_members group_member"""
     return group + memb
 
+
 @rules([], "newgroup")
 def rule():
     """49 group_members: <empty>"""
+
 
 @rules([-1])
 def rule(addr):
     """50 address_list: address"""
     return [addr]
+
 
 @rules([-1])
 def rule(addr_list, addr):
@@ -462,28 +516,52 @@ def rule(addr_list, addr):
     addr_list.append(addr)
     return addr_list
 
+
 @rules([-2, -1])
-def rule(membs, memb):
+def rule(struct, memb):
     """52 members: members member"""
-    return membs.add(memb)
+    return struct + memb
+
 
 @rules([], "newstruct")
 def rule():
     """53 members: <empty>"""
 
-@rules([-3, -1], "newparam")
+
+@rules([-3, -1])
 def rule(name, param):
     """54 member: SYMBOL CEQ parameter"""
+    return name, param
 
-@rules([-3, -1], "arraydef")
+
+@rules([-3, -1])
 def rule(name, arraydef):
     """55 member: SYMBOL EQ array"""
+    return name, arraydef
 
-@rules([-1], "arraydef")
+
+@rules([-1])
 def rule(arraydef):
     """56 member: EQ array"""
+    return None, arraydef
 
-@rules([-1], "error57")
+
+@rules([-1], "error_struct")
 def rule(error):
     """57 member: error"""
+
+
 del rule
+
+# builder methods:
+#   add((name, item))  --> this and group.__add__ recognize (name, dict)
+#       ((name,), item) for += list or addr_list
+#   newparam(int or (basetype, location))
+#   newarray(datatype, shape, location)
+#   newlist(item) or newlist()
+#   newgroup()  ->  group + (name, item)  or  ((name,), item)
+#   newstruct()
+#   typedef(name, datatype, shape, align)
+#   pointee(pntr, array)
+#   index_file(group)
+#   error_group, error_list, error_struct
