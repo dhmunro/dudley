@@ -87,43 +87,40 @@ Dudley also provides a means to easily share small data sets.
 
 ## Simplified grammar
 
-    var = dtype[shape] @address  # documentation comment associated with var
-                                 # continuation of document comment
-                                 ## double # means layout comment, completely
-                                 ## ignored during parsing
-                                 ## The @address is optional; the next available
-                                 ## address is the default.
-    var = dtype[shape] %align    ## variant of optional @address specifying only
-                                 ## alignment - align may be 1, 2, 4, 8, or 16
-    var2 = dtype[shape]  # documentation comment (optional)
-                         ## variable attribute comments begin with : and have a
-                         ## formal grammar of comma separated name-value pairs:
+    var = dtype[shape] @address  ## documentation comment associated with var
+                                 ##  continuation of document comment
+                                 # single # means layout comment, completely
+                                 #   ignored during parsing
+                                 # The @address is optional; the next available
+                                 # address is the default.
+    var = dtype[shape] %align    # variant of optional @address specifying only
+                                 #   alignment - align may be 1, 2, 4, 8, or 16
+    var2 = dtype[shape]  ## documentation comment (optional)
+                         # Variable attribute comments begin with : and have a
+                         # formal grammar of comma separated name-value pairs:
                          #: attr1=avalue, attr2=avalue,
                          #: attr3=avalue
-                         ## The avalue can be a number, string, or [,] list
-    group/  ## double # means layout comment, completely ignored by parser
-      var = dtype[shape]  ## declares group/var, address optional
+                         # The avalue can be a number, string, or [,] list.
+    group/  ## document comment for group
+      var = dtype[shape]  # declares group/var, address optional
       group2/
-        var = dtype[shape]  ## declares group/group2/var
-        ..  ## back to parent group level
-      var2 = dtype[shape]  ## declares group/var2
+        var = dtype[shape]  # declares group/group2/var
+        ..  # back to parent group level
+      var2 = dtype[shape]  # declares group/var2
       group3/
-        var = dtype[shape]  ## declares group/group3/var
-        /  ## back to root group level
-    group/group2/var3 = dtype[shape]  ## full or partial path on one line
-    list = [  ## create a list, which is a group with anonymous members
-        dtype[shape],  ## optionally may have @address or %align
-        / var = dtype[shape]  ## a list item may be an (anonymous) group
-        /,  ## ends anonymous group declaration (cannot go up to layout root)
-            ## note that leading / is otherwise illegal for group within list
-        [ dtype[shape]  ## a list item may be a sublist
-        ]
-    ]
-    list + [  ## add items to an existing list (extend list)
-        dtype[shape]  ## and so on
-    ]*n  ## optional *n extends list with n of these lists of items
-         ## n can be a number or a parameter
-    list + []*n  ## special case extends list by n more of its last item
+        var = dtype[shape]  # declares group/group3/var
+        /  # back to root group level
+    group/group2/var3 = dtype[shape]  # full or partial path on one line
+    list [  # create or extend list, which is a group with anonymous members
+        dtype[shape],  # optionally may have @address or %align
+        / var = dtype[shape]  # a list item may be an (anonymous) group
+        /,  # ends anonymous group declaration (cannot go up to layout root)
+            # note that leading / is otherwise illegal for group within list
+        [ dtype[shape]  # a list item may be a sublist
+        ]  # optional *n as for outer list allowed for sublists
+    ]*n  # optional *n extends list with n of these lists of items
+         # n can be a number or a parameter, may be 0
+    list [n]  # extends list by n more of its last item (similar to *n)
 
 Note that list = [/var1=dtype[shape], ..., varN=dtype[shape]/]*n is netCDF-like
 history records.
@@ -133,7 +130,7 @@ Shape is a comma delimited list of dimensions, slowest varying first
 parameter may have + or - suffix(es) to indicate one more or less than the
 parameter value.
 
-    param : pvalue  # documentation comment
+    param : pvalue  ##  documentation comment
 
 Parameters belong to groups like variables, and their scope is limited to the
 group in which they are defined and its descendant groups.  A parameter must
@@ -141,7 +138,7 @@ always be defined before its first use in a shape.  Parameters may also be
 stored in the data stream as integer scalar variables, although their dtype
 must be an integer:
 
-    param : dtype @address  ## as for variables, @address is optional
+    param : dtype @address  # as for variables, @address is optional
 
 Dimensions of length 0 are legal, meaning that the array has no data and takes
 no space in the data stream.  Dimensions of -1 are also legal, and mean that
@@ -153,10 +150,10 @@ of > order specifier, or a previously declared type name (syntax described
 below), or an anonymous struct declaration in curly braces:
 
     {
-        param : pvalue  ## parameters local to the struct
-                        ## if pvalue is a dtype, takes space in each instance
-        var = dtype[shape]  ## param or var may have @address or %align
-                            ## which are relative to each instance
+        param : pvalue  # parameters local to the struct
+                        # if pvalue is a dtype, takes space in each instance
+        var = dtype[shape]  # param or var may have @address or %align
+                            # which are relative to each instance
         var2 = dtype[shape]
     }
 
@@ -167,20 +164,20 @@ discussed in more detail below.
 
 Two syntaxes are available to declare a non-primitive type name:
 
-    type { dtype }[shape] %align  ## typedef form to include a shape
+    type { dtype }[shape] %align  # typedef form to include a shape
 
-    type {  ## struct form
+    type {  # struct form
         param : pvalue
         var = dtype[shape]
-    }[shape] %align  ## struct form also permits overall shape and alignment
+    }[shape] %align  # struct form also permits overall shape and alignment
 
 Finally, the whole layout stream may optionally begin with a single summary
 block, which contains the various parameters and variables required to find
 the data stream and compute any variable addresses which are not explicitly
 declared in the layout:
 
-    <{  ## The leading < or > default order specifier is optional.
-        param1 : pvalue  # documentation comment
+    <{  # The leading < or > default order specifier is optional.
+        param1 : pvalue  ##  documentation comment
         param2 : pvalue
         time : f8  # time is a typical example of a variable summary value
     }
