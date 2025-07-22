@@ -121,7 +121,7 @@ Dudley also provides a means to easily share small data sets.
          # n can be a number or a parameter, may be 0
     list [n]  # extends list by n more of its last item (similar to *n)
 
-Note that list = [/var1=dtype[shape] ... varN=dtype[shape]]*n is netCDF-like
+Note that list [/var1=dtype[shape] ... varN=dtype[shape]]*n is netCDF-like
 history records.
 
 Shape is a comma delimited list of dimensions, slowest varying first
