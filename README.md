@@ -114,15 +114,14 @@ Dudley also provides a means to easily share small data sets.
     list [  # create or extend list, which is a group with anonymous members
         dtype[shape],  # optionally may have @address or %align
         / var = dtype[shape]  # a list item may be an (anonymous) group
-        /,  # ends anonymous group declaration (cannot go up to layout root)
-            # note that leading / is otherwise illegal for group within list
+        ,  # comma ends anonymous group declaration
         [ dtype[shape]  # a list item may be a sublist
         ]  # optional *n as for outer list allowed for sublists
     ]*n  # optional *n extends list with n of these lists of items
          # n can be a number or a parameter, may be 0
     list [n]  # extends list by n more of its last item (similar to *n)
 
-Note that list = [/var1=dtype[shape], ..., varN=dtype[shape]/]*n is netCDF-like
+Note that list = [/var1=dtype[shape] ... varN=dtype[shape]]*n is netCDF-like
 history records.
 
 Shape is a comma delimited list of dimensions, slowest varying first
