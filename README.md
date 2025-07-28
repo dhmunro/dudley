@@ -305,6 +305,52 @@ Note that the long data type is i8 on all 64-bit UNIX platforms (and
 MacOS), but long is i4 on all Windows platforms, 64-bit or 32-bit.
 
 
+## Filters
+
+At least two common problems in data storage fall outside the scope of the
+Dudley layout described so far:
+
+The first is data compression.  Your data might intially be describable as
+an array of `dtype[shape]`, but you would like to compress it somehow so that it
+takes less space in your data stream.  Dudley supports compressed data with
+the extended syntax:
+
+    var = dtype[shape] -> filter_name @address
+
+The @address (or %align) is optional as usual; it represents the address at
+which the compressed data stream is written.  The `dtype[shape]` represents the
+object to be compressed, and which is expected to be decompressed when read
+back.  The filter must write some kind of preamble that enables it to read
+back the compressed data (at least how many bytes).  Like a struct dtype which
+has shape parameters in each instance, the size of the variable is unknown by
+the layout, so either the layout can only be accessed sequentially, or any
+subsequent variable needs an explicit @address.  Dudley recognizes filter_name
+values "gzip", "zfp", "png", and "jpeg" natively, and allows you to register
+custom filters.
+
+The second problem is references to variables written elsewhere in the stream.
+In this case, the form of reference variable stored in the data stream is known,
+but the particular variable referenced (its dtype and shape) is unknown.  Dudley
+supports references with the extended syntax
+
+    var = dtype[shape] <- filter_name @address
+
+Here, the dtype and shape describe the form of the stored reference, while the
+filter_name takes this value and returns the variable in the layout which it
+references.  The exact mechanism will differ among different underlying file
+formats.  Native Dudley files define a reference filter called "ref", which
+you use like this:
+
+    var = i8[shape] <- ref
+
+To recap the two types of filters: the compression-like filters -> store
+a compressed version of the specified `dtype[shape]` as a string of bytes
+meaningful only to the filter.  The reference-like filters <- store an array
+of references to variables described elsewhere in the layout in the form
+form of the specified `dtype[shape]`, in some form the filter knows how to
+connect.
+
+
 ## Examples
 
 State template for a very simple 1D or 2D radhydro simulation:
