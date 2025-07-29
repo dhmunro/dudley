@@ -62,7 +62,7 @@ often map to variable names in simulation or processing codes that wrote the
 data.  This dict-list pair of containers is also very close to JSON object and
 array containers.
 
-It is possible to create a DUdley layout describing all or most of the
+It is possible to create a Dudley layout describing all or most of the
 contents of binary files written in many other formats, such as netCDF, HDF,
 or PDB.
 
@@ -102,8 +102,8 @@ advances the next avaialbel address to the next multiple of `align`, which must
 be a power of 2.  Additionally, each `dtype` has a default alignment, so that
 unless overidden by and explicit `%align` or `@address`, it will assume its
 deafult alignment when determining the next available address.  The default
-alignment for all the primitive data types is their size (except the complex
-`c16` primitive, which has a default alignment of 8).
+alignment for all the primitive data types is their size, except the complex
+`c16` primitive, which has a default alignment of 8.
 
 A dtype may be one of three things: a primitive type name, a previously
 defined named data type, or an anonymous compound data type enclosed in `{}`.
@@ -124,9 +124,9 @@ prefix "<" to indicate little endian (least significant first) byte order or
 is also recognized to mean the native byte order of the machine interpreting
 the binary data, which is initially the default behavior in the absence of any
 explicit order prefix.  Any order specifier is the byte order in the stream;
-the native byte order is always the assumed for data values in memory.
+the native byte order is always the assumed order for data values in memory.
 
-THe first non-comment character in the Dudley layout file may optionally be the
+The first non-comment character in the Dudley layout file may optionally be the
 "<" or ">" byte order prefix to specify that the default byte order for every
 primitive in the layout is "<" or ">" rather than "|".  The default byte order
 for the layout may also be written into the binary file being described.  Thi
@@ -217,7 +217,24 @@ However, Dudley does recognize two special kinds of comments: Documentation
 comments begin with "##", while attribute comments begin with "#:".  Dudley
 can optionally remember document and/or attribute comments when it parses a
 layout, and associate them with the array or container definition where they
-appeared.
+appeared:
+
+    # This is a layout comment, completely ignored, ...
+    IMAX: i8  JMAX: i8  # ...as is this.
+    temperature = f8[IMAX, JMAX]  ## (C) ground level air temperature in zones
+      ## Document comments can be continued on multiple lines;
+      ## all three of these lines refer to the data array "temperature".
+      #: units="C", centering=[1,1]
+      # The previous line defines "units" and "centering" attributes for
+      # "temperature" (unnecessary, given the first documentation line?).
+      # Attribute values may be numeric or quoted string constants, or 1D
+      # homogeneous arrays of numbers or strings.  Multiple attribute comment
+      # lines, like multiple document comment lines, are permitted.
+    /  ## This document comment applies to the whole file.
+    mygroup/  ## This document comment applies to the dict "mygroup".
+      mylist[  ## This document comment applies to the list "mylist".
+        f4[20]  ## This document comment applies to mylist[0].
+      ]  ## This docuemnt comment again applies to "mylist" itself.
 
 
 ## Parameters and array shapes
