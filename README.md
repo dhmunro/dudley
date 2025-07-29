@@ -248,7 +248,7 @@ Dimensions of length 0 are legal, meaning that the array has no data and takes
 no space in the data stream.  Dimensions of -1 are also legal, and mean that
 the associated dimension is removed from the shape, so the number of dimensions
 is one less than the declaration.  For example, declare a variable with a
-leading dimenension with the parameter IF_EXISTS as its leading dimension:
+leading dimension with the parameter IF_EXISTS as its leading dimension:
 
     IF_EXISTS : i1
     varname = f8[IF_EXISTS, 3, 5]
