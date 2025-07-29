@@ -450,12 +450,11 @@ you use like this:
 
     var = i8[shape] <- ref
 
-To recap the two types of filters: the compression-like filters -> store
+To recap the two kinds of filters: the compression-like filters -> store
 a compressed version of the specified `dtype[shape]` as a string of bytes
 meaningful only to the filter.  The reference-like filters <- store an array
-of references to variables described elsewhere in the layout in the form
-form of the specified `dtype[shape]`, in some form the filter knows how to
-connect.
+of the specified `dtype[shape]`, which the filter somehow interprets as
+references to variables described elsewhere in the layout.
 
 
 ## Examples
@@ -469,7 +468,7 @@ State template for a very simple 1D or 2D radhydro simulation:
       time = f8     ## (ns) simulation time
     }  # summary completely specifies any file described by this layout
     r = f8[JMAX, IMAX]  ## (um) radial node coordinates
-    z = f8[JMAX, IMAX]  ## (um) axial node coordiantes
+    z = f8[JMAX, IMAX]  ## (um) axial node coordinates
     u = f8[JMAX, IMAX]  ## (um/ns) radial node velocity component
     v = f8[JMAX, IMAX]  ## (um/ns) axial node velocity component
     rho = f8[JMAX-, IMAX-]  ## (g/cc) zonal mass density
