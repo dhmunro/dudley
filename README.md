@@ -159,12 +159,12 @@ Dudley has no reserved keywords, so any character string is legal for any
 name.  The only exception is that dtype names must not begin with "<", ">",
 or "|".  However, if a name does not begin with an alphabetic character or
 underscore "_", and contains any character not alphanumeric or underscore,
-then it must be quoted, either in "" or ''.  Backslash escape sequences are
-recognized inside quoted names.  For example,
+then it must be quoted, either in "..." or '...'.  Backslash escape sequences
+are recognized inside quoted names.  For example,
 
     "dash-name" = i8
 
-is a legal varaible declaration in Dudley.
+is a legal variable declaration in Dudley.
 
 Note that after a dict delaration, subsequent array declarations all belong to
 that subgroup, until the special token "..", when the name of the next item in
@@ -240,7 +240,7 @@ appeared:
 ## Parameters and array shapes
 
 Shape is a comma delimited list of dimensions, slowest varying first
-("C order").  Dimensions may be a number or a symbolic parameter.  A symbolic
+("C order").  Each dimension may be a number or a symbolic parameter.  A
 parameter may have + or - suffix(es) to indicate one more or less than the
 parameter value.
 
@@ -256,8 +256,16 @@ leading dimenension with the parameter IF_EXISTS as its leading dimension:
 Then by writing IF_EXISTS = 0, varname will not be written (will take no space
 in the data stream), while by writing IF_EXISTS = -1, varname will be a 3x5
 array of double precision floats.  This gives you a convenient means for
-omitting variables from some files described by a layout, while including it
+omitting a variable from some files described by a layout, while including it
 in others.
+
+A parameter declaration must precede its use in any shape.  A parameter may
+be used in any descendant of the dict (or struct instance) in which it is
+declared; it will shadow (supersede) any parameter of the same name declared
+in an ancestor.  However, in the case of a parameter used for a shape inside
+a named type declaration, it is the parameter value in scope for the
+*instance* of that type which applies, not the value when the *type* was
+declared (see below).
 
 
 ## Compound and named data types
@@ -266,9 +274,9 @@ A dtype may be one of the primitive data types, with or without an explicit <
 of > order specifier, or a previously declared type name (syntax described
 below), or an anonymous struct declaration in curly braces:
 
-    {
-        param : pvalue  # parameters local to the struct
-                        # if pvalue is a dtype, takes space in each instance
+    { %align  # Optional alignment before first member applies to whole dtype.
+        param : pvalue  # A parameter local to the struct instance.
+                        # If pvalue is a dtype, takes space in each instance.
         var = dtype[shape]  # param or var may have @address or %align
                             # which are relative to each instance
         var2 = dtype[shape]
@@ -279,13 +287,13 @@ overall length in the file is unknown until the particular instance is read.
 This happens for variables outside a struct declaration as well, as will be
 discussed in more detail below.  You can declare custom type names like this:
 
-    typename {
+    type_name {
         param : pvalue  # parameters local to the struct
                         # if pvalue is a dtype, takes space in each instance
         var = dtype[shape]  # param or var may have @address or %align
                             # which are relative to each instance
         var2 = dtype[shape]
-    } %align  # optional alignment is the default for any instances
+    }
 
 If the type contains only a single non-param member with the name "" (that is,
 the empty string), then the dtype is a typedef, presented to users without
@@ -302,9 +310,47 @@ by whatever IMAX and JMAX parameters are in scope when the mesh_data dtype is
 used.  Hence, mesh_data arrays may have different shapes for variables in
 different dicts in a single stream (layout).
 
-However, mesh_name, and any other typename always has global scope; it is
-illegal to define a single typename more than once in a layout; no matter
-which dict it is decalred in, a dtype always applies to the whole file.
+However, "mesh_data", and any other type name always has global scope; it is
+illegal to define a single type name more than once in a layout; no matter
+which dict it is declared in, a named type always applies to the whole file.
+
+It is legal to redefine unprefixed primitive data types before their first use
+if you want to specify a non-default alignment (the default alignment always
+is the size of the primitive) or a specific byte order:
+
+    i8 {%4 ""=|i8}  # i8 will have default alignment 4 instead of 8
+
+
+## Special syntax for extending lists
+
+In order to simplify describing HDF and PDB files containing arrays with
+"unlimited" dimension, Dudley has an abbreviated syntax for extending list
+variables.
+
+    density [f8[IMAX,JMAX]]  # declares a list with a single item
+    ... other declarations ...
+    density@address  # Append an element to density of the same dtype[shape]
+      # its last element, starting at the specified address.
+    density%0  # Append an element to density at the next available address
+      # (The special alignment value 0 is a no-op - use whatever alignment
+      #  would apply to this data.)
+    density %0 %0 %0  # Append three more elements to density.
+      # A sequence of any number of @address or %align values are accepted.
+    density[f8[42]]  # Since density is an ordinary list, extend as usual.
+    density %0  # Appends a f8[42] element here.
+
+    # This whole sequence is equivalent to:
+    density[
+        f8[IMAX, JMAX],
+        f8[IMAX, JMAX]@address,
+        f8[IMAX, JMAX],
+        f8[IMAX, JMAX], f8[IMAX, JMAX], f8[IMAX, JMAX],
+        f8[42],
+        f8[42]
+    ]
+
+
+## Summary block
 
 Optionally, before any other declarations, the layout stream may begin with a
 single summary block in curly braces, which contains the various parameters and
@@ -328,19 +374,6 @@ in struct definitions) nor any indeterminate length struct instances.  In
 other words, a layout which begins with a summary block can serve as a
 template for a family or indeed a whole category of files.
 
-It is legal to redefine primmitive data types before their first use if you
-want to specify a non-default alignment (the default alignment always is the
-size of the primitive) or a specific byte order:
-
-    i8 {""=i8}%4  # i8 will have default alignment 4 instead of 8
-
-A Dudley layout may begin with a single < or > character, indicating that
-primitive types with unspecified byte order in the layout have this order.
-If present, only comments may precede this global order indicator; the
-summary block, if any, must follow it.
-
-Finally, one or more - characters followed by a newline where a dict item is
-expected terminates a Dudley layout stream, the same as end-of-file.
 
 ## File signatures
 
@@ -361,7 +394,7 @@ byte first) while the > variant make the default byte order big endian.  This
 may be overridden by an explicit > or < prefix for a summary block in the
 layout itself, so that the < or > may merely indicate the byte order of the
 machine writing the file rather than any contents.  The first byte of the
-signature is address zero in the layout
+signature is address zero in the corresponding layout.
 
 Furthermore, the second eight bytes of a native file are either all zero, or
 the address of the layout appended to the end of the binary file, in the byte
@@ -372,49 +405,11 @@ subsequently extended.
 This was inspired by the PNG header.  The rationale is that non-binary FTP
 file transfers will corrupt either the 0d 0a sequence or the 0a character,
 while the 1a character stops terminal output on MSDOS (and maybe Windows).
-Here the 8d character is chosen because it is illega as the first character
+Here the 8d character is chosen because it is illegal as the first character
 of a UTF-8 stream and it is not defined in the CP-1252 character encoding,
 nor in the latin-1 encoding (it is the C1 control character RI there), and as
 for the leading character of the PNG signature, any file transfer which resets
 the top bit to zero will corrupt it.
-
-
-## Primitive data types
-
-Predefined primitive data types are based on numpy array interface:
-
-    Signed integers:   i1, i2, i4, i8  (suffix is number of bytes)
-    Unsigned integers: u1, u2, u4, u8
-    Floating point:    f2, f4, f8  (IEEE 754 16, 32, 64 bit formats)
-    Complex floats:    c4, c8, c16  (f2[2], f4[2], f8[2])
-    Boolean:           b1
-    ASCII:             S1
-    Unicode:           U1, U2, U4  (UTF-8, UCS-2, and UCS4)
-
-Unlike the numpy ndarray interface, the S and U types do not have the
-(maximum) number of characters as the count suffix - that count is
-instead the fastest varying array index and variables with these types
-must always be declared with at least one dimension.  Also, here the
-suffix indicates which Unicode encoding, while in the numpy array
-interface U always means UCS-4, or U4 here.  To convert S1 to Unicode,
-best practice is to assume cp1252, falling back to latin1 if any of
-the missing code points in cp1252 actually occurs in the text.  (This
-is more or less the W3 recommendation for how to handle html documents
-when the character set is not explicitly specified.)
-
-These primitive types map to the following C primitive types on all
-modern machines and compilers:
-
-    i1 -> char, i2 -> short, i4 -> int, i8 -> long long
-    u1, u2, u4, u8 -> unsigned versions of i1, i2, i4, i8
-    f4 -> float, f8 -> double (f2 not supported in ANSI C)
-    c4, c8, c16 -> (real, imaginary) pair of f2, f4, f8
-    b1, S1, U1 -> same data treatment as u1
-    U2, U4 -> same data treatment u2, u4
-    p4, p8 -> same data treatment as u4, u8, meaning similar to void*
-
-Note that the long data type is i8 on all 64-bit UNIX platforms (and
-MacOS), but long is i4 on all Windows platforms, 64-bit or 32-bit.
 
 
 ## Filters
@@ -523,8 +518,8 @@ list index corresponding to the UNLIMITED dimension:
     unu = [f8[NGROUP, JMAX-, IMAX-]]
     # Dudley description requires each record to be explicitly
     # defined, for example with one line per record, like this:
-    time[1] r[1] z[1] u[1] v[1] rho[1] te[1] unu[1]
-    time[1] r[1] z[1] u[1] v[1] rho[1] te[1] unu[1]
-    time[1] r[1] z[1] u[1] v[1] rho[1] te[1] unu[1]
+    time%0  r%0  z%0  u%0  v%0  rho%0  te%0  unu%0 
+    time%0  r%0  z%0  u%0  v%0  rho%0  te%0  unu%0 
+    time%0  r%0  z%0  u%0  v%0  rho%0  te%0  unu%0 
     # ... and so on
     # Thus, this layout could not be used as a template.
