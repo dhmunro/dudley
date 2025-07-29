@@ -41,94 +41,186 @@ Dudley features:
     so that a single layout can describe many different datasets.
     You can easily design and describe small datasets to exchange
     information with collaborators.
+  * Support for data compression and arrays of references to data or
+    containers.
 
 
-## Data model
+## Data model overview
 
 Data arrays are multidimensional arrays of numbers, boolean values, or
 text characters (ASCII or Unicode).  You can specify byte order and
 size in bytes of numbers, but floating point numbers are assumed to be
 in one of the IEEE-754 standard formats, and integers are assumed to
 be two's complement.  Dudley data types can also be compounds built
-from these primitive types (like numpy record dtypes or C structs).
+from these primitive types, like numpy record dtypes or C structs.
 
-The Dudley data model is highly compatible with the python numpy
-library - and therefore scientific computing in general.  In a typical
-numpy program, datasets are built up from basic variables that are
-ndarrays (multidimensional arrays of numbers, strings, or structs),
-aggregated using dicts (name-to-variable mappings) and lists
-(index-to-anonymous-variable mappings).  These aggregates match the JSON
-object and array structures.  The top level dict in a Dudley layout is
-analogous to the root folder in a file system, where named members of a
-dict can be data arrays, dicts, or lists of arrays, dicts, and lists.
+Data arrays may be collected in two types of containers: dicts map variable
+names to data arrays or containers, while lists are sequences of anonymous
+data arrays or containers.  The analogy with python dicts and lists is as
+close as possible, except Dudley dicts can only have text keys, which
+often map to variable names in simulation or processing codes that wrote the
+data.  This dict-list pair of containers is also very close to JSON object and
+array containers.
 
-Dudley layouts are completely transparent - you know exactly where
-your data is being stored, and how much you will need to read back in
-order to locate any data array you wrote.  If you will always read
-back the entire stream you have written, this is not a very important
-feature.  However, a modern simulation may store many terabytes of
-data requiring gigabytes of HDF5 metadata, and you very likely will
-later want to focus on much smaller subsets - if you need to read the
-entire metadata stream in order to locate the part you want, you won't
-be happy.  Dudley lets you design large data layouts that you can
-access efficiently.  Since a layout is a human readable text file,
-Dudley also provides a means to easily share small data sets.
+It is possible to create a DUdley layout describing all or most of the
+contents of binary files written in many other formats, such as netCDF, HDF,
+or PDB.
+
+Dudley also supports two features beyond the simple array-dict-list model
+described above: First, you can specify that a data array is to be compressed
+in the data stream rather than stored as it is in memory.  Dudley recognizes
+gzip, zfp, png, and jpeg compression if you have installed the corresponding
+open source libraries - png (lossless) and jpeg (lossy) are restricted to 2D
+image arrays, while gzip (lossless) and zfp (lossy) can be applied to more
+general data arrays.  Second, you can store an array of references to other
+data or container objects, as long as you are careful to avoid circular
+references.  Unlike the basic array-dict-list model, compressed and reference
+objects will only be readable by Dudley.  However, Dudley does allow you to
+design and use your own custom compression or reference encoding scheme.
 
 
-## Simplified grammar
+## Basic Dudley grammar
 
-    var = dtype[shape] @address  ## documentation comment associated with var
-                                 ##  continuation of document comment
-                                 # single # means layout comment, completely
-                                 #   ignored during parsing
-                                 # The @address is optional; the next available
-                                 # address is the default.
-                                 # The name "var" may be in quotes, which
-                                 # allows it to contain arbitrary characters.
-                                 # Dudley places no limits on variable names,
-                                 # although legal C, python, or javascript
-                                 # variable names are strongly recommended
-                                 # and need not be quoted.
-    var = dtype[shape] %align    # variant of optional @address specifying only
-                                 #   alignment - align may be 1, 2, 4, 8, or 16
-    var2 = dtype[shape]  ## documentation comment (optional)
-                         # Variable attribute comments begin with : and have a
-                         # formal grammar of comma separated name-value pairs:
-                         #: attr1=avalue, attr2=avalue,
-                         #: attr3=avalue
-                         # The avalue can be a number, string, or [,] list.
+A Dudley layout is a human readable text format.  If the layout is in its own
+file, the recommended file extension is ".dud".  A layout may also be appended
+to the binary data it describes, in which case the recommended file extension
+is ".bdud".  (Binary data described by a separate ".dud" file should be ".bd".)
+The preferred Dudley character encoding is UTF-8, although CP-1252 or Latin-1
+encodings may be discovered if assuming UTF-8 produces errors.  (All of these
+are supersets of 7-bit ASCII.)
 
-    PARAM : integer  ##  documentation comment
-                     # Declares a parameter.  PARAM may be used as a dimension
-                     # in the shape for subsequent variable declarations in the
-                     # current dict (or dtype) or its descendants.
-                     # Although the integer value is usually positive, 0 and -1
-                     # have well-defined meanings.
-    PARAM : i4 @address  # Parameters may also be read from or written to the
-                         # data stream like ordianry variables.  However,
-                         # only the integer data types i1, i2, i4, or i8 are
-                         # legal dtypes, and no shape is permitted.
+A data array is a data type - `dtype` - with an optional list of dimensions -
+`[shape]` - and an optional byte address in the file - address:
 
-    group/  ## document comment for group
-      var = dtype[shape]  # declares group/var, address optional
-      group2/
-        var = dtype[shape]  # declares group/group2/var
-        ..  # back to parent group level
-      var2 = dtype[shape]  # declares group/var2
-      group3/
-        var = dtype[shape]  # declares group/group3/var
-        /  # back to root group level
-    group/group2/var3 = dtype[shape]  # full or relative path on one line
+    dtype[shape] @address
+    dtype[shape] %align
 
-    list [  # create or extend list, which is a group with anonymous members
-        dtype[shape],  # optionally may have @address or %align
-        / var = dtype[shape]  # a list item may be an (anonymous) group
-        ,  # comma ends anonymous group declaration
-        [ dtype[shape]  # a list item may be a sublist
-        ]  # optional *n as for outer list allowed for sublists
-    ]*n  # optional *n extends list with n of these lists of items
-         # n can be a number or a parameter, may be 0
-    list [n]  # extends list by n more of its last item (similar to *n)
+The `[shape]` should be omitted for a scalar instance of `dtype`.  The
+`@address` can be omitted if the data is at the next available address in the
+stream.  Instead of `@address`, you may instead specify `%align`, which
+advances the next avaialbel address to the next multiple of `align`, which must
+be a power of 2.  Additionally, each `dtype` has a default alignment, so that
+unless overidden by and explicit `%align` or `@address`, it will assume its
+deafult alignment when determining the next available address.  The default
+alignment for all the primitive data types is their size (except the complex
+`c16` primitive, which has a default alignment of 8).
+
+A dtype may be one of three things: a primitive type name, a previously
+defined named data type, or an anonymous compound data type enclosed in `{}`.
+The primitve data types are integers (signed or unsigned), floating point
+(assumed IEEE-754), complex numbers, boolean values, or text characters (ASCII,
+UTF-8, URF-16, or UTF-32).  These are specified by a single character "i", "u",
+"f", "c", "b", "S", "U", which mostly follow the numpy dtype conventions
+(except for the text types "S" and "U"), followed by the number of bytes in
+a single primitive value:
+
+    i1  i2  i4  i8    u1  u2  u4  u8
+    f2  f4  f8    c4  c8  c16    b1
+    S1    U1  U2  U4
+
+These primitive names (and only these primitive names) may optionally have a
+prefix "<" to indicate little endian (least significant first) byte order or
+">" to indicate big endian (most significant first) byte order.  The "|" prefix
+is also recognized to mean the native byte order of the machine interpreting
+the binary data, which is initially the default behavior in the absence of any
+explicit order prefix.  Any order specifier is the byte order in the stream;
+the native byte order is always the assumed for data values in memory.
+
+THe first non-comment character in the Dudley layout file may optionally be the
+"<" or ">" byte order prefix to specify that the default byte order for every
+primitive in the layout is "<" or ">" rather than "|".  The default byte order
+for the layout may also be written into the binary file being described.  Thi
+is the usual choice, so that the Dudley layout describes files written on
+machines of either endianness.
+
+A dict, such as the root dict for the whole layout, is a collectionj of named
+items, each of which can be a data array, a dict, or a list.  Additionally, a
+dict may contain items of a fourth type - parameters - which are a special form
+of data restricted to scalar integer values that can be used as array
+dimensions.  To declare these, you begin with a name, followed by one the
+characters "=", "/", "[", or ":", which, respectively, declare a data array,
+a dict, a list, or a parameter:
+
+    data_name = dtype[shape] @address
+    dict_name/
+      data_name2 = dtype2[shape2]
+      data_name3 = dtype3[shape3]
+      ..
+    data_name4 = dtype4[shape4] @address4
+    list_name [
+        dtype5[shape5],
+        dtype6[shape6] @address6,
+        dtype7[shape7]
+    ]
+    param_name: 42
+    param_name2: i8 @address2
+
+Dudley has no reserved keywords, so any character string is legal for any
+name.  The only exception is that dtype names must not begin with "<", ">",
+or "|".  However, if a name does not begin with an alphabetic character or
+underscore "_", and contains any character not alphanumeric or underscore,
+then it must be quoted, either in "" or ''.  Backslash escape sequences are
+recognized inside quoted names.  For example,
+
+    "dash-name" = i8
+
+is a legal varaible declaration in Dudley.
+
+Note that after a dict delaration, subsequent array declarations all belong to
+that subgroup, until the special token "..", when the name of the next item in
+in the dict was expected, pops the layout back to the parent dict.
+
+Also note that while there is no punctuation between item declarations in a
+dict, the items in a list are comma separated.  An item in a list may be a
+sub-list in the obvious way by enclosing it in `[...]` brackets.  Less
+obviously, a dict may be an item in a list by making the first character of
+the item a "/", followed by anything declaration that can go in a dict.  Where
+the name of a new item in the list is expected, a "," or a "]" ends the
+sub-dict, and resumes declaring the next list item, or finishes the list.
+(This is why dict items cannot be comma separated.)  Unlike sub-dicts or
+sub-lists of a dict, Dudley has no way to extend sub-lists or sub-dicts of a
+list.
+
+    list_name [[dtype[shape], ...], ...,
+               /var_name[shape]
+                var2_name[shape2]
+               ,
+               dtype[shape], ...]
+
+The special token, "/", is also recognized when the name of the next item
+in a dict is expected.  This pops out of all sub-dicts back to the root dict
+(so you don't need a sequence of consecutive ".." to pop out of several levels
+of sub-dicts).  Since Dudley ignores whitespace, including newlines (except as
+a comment termination), recognizing "/" means you may always use a full path
+name when declaring variables:
+
+    /dict_name/data_name8 = dtype8[shape8]
+
+To break this down, "/" pops back to the root dict, "dict_name/" descends into
+the "dict_name" sub-dict, and "data_name8 = ..." appends a new item to
+"dict_name".  Notice that if "dict_name" already exists, then "dict_name/" is
+legal and begins appending more items to the dict.  Similarly, lists may be
+extended simply by declaring more items:
+
+    /list_name = [dtype9[shape9], dtype10[shape10]]
+
+In contrast, attempting to redeclare a data array or a parameter is an error,
+so "data_name = ..." would be an error.
+
+Ordinarily, Dudley ignores whitespace, including newlines, except when
+it is necessary to separate tokens.  (E.g.- "a=f8 b=i4".).  The one exception
+is that Dudley treats all the characters from a "#" to the next newline as
+if they were just a single newline.  In other words, "#" is the comment
+character for Dudley layouts.
+
+However, Dudley does recognize two special kinds of comments: Documentation
+comments begin with "##", while attribute comments begin with "#:".  Dudley
+can optionally remember document and/or attribute comments when it parses a
+layout, and associate them with the array or container definition where they
+appeared.
+
+
+## Parameters and array shapes
 
 Shape is a comma delimited list of dimensions, slowest varying first
 ("C order").  Dimensions may be a number or a symbolic parameter.  A symbolic
@@ -149,6 +241,9 @@ in the data stream), while by writing IF_EXISTS = -1, varname will be a 3x5
 array of double precision floats.  This gives you a convenient means for
 omitting variables from some files described by a layout, while including it
 in others.
+
+
+## Compound and named data types
 
 A dtype may be one of the primitive data types, with or without an explicit <
 of > order specifier, or a previously declared type name (syntax described
