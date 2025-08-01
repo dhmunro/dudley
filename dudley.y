@@ -3,62 +3,96 @@
 %union{
   char *str;
   long long num;
+  double realnum;
 }
 
 %start layout
 
-%token<str> SYMBOL
+%token<str> SYMBOL PRIMTYPE
 %token<num> INTEGER
-%token EQ CEQ EEQ PEQ SLASH DOTDOT DOT LBRACK RBRACK COMMA AT PCNT
-/*     =  :=  ==  +=  /     ..     .   [      ]      ,     @  %   */
-%token LCURLY RCURLY BCURLY QUEST
-/*     {      }      !{     ?    */
+%token<realnum> FLOATING
+%token EQ COLON SLASH DOTDOT LBRACK RBRACK COMMA AT PCNT LCURLY RCURLY
+/*     =    :     /     ..      [      ]     ,   @   %     {      }   */
+%token LT GT PIPE LARROW RARROW LPAREN RPAREN
+/*     <  >   |     <-     ->     (      )   */
 %token<num> PLUSSES MINUSES
-/*          +       -      */
-%token<str> PRIMTYPE
+/*             +       -   */
 
 %%
 
 layout:
-  layout statement
+  dict_items
+| preamble dict_items
+| preamble
 |
 ;
 
-statement:
-  group_member
-| SYMBOL PEQ list
-| SYMBOL address_list
-| SYMBOL EEQ datatype shape alignment
-| INTEGER EQ array
-| BCURLY members RCURLY
+order:
+  LT
+| GT
+| PIPE
 ;
 
-group_member:
-  SYMBOL CEQ parameter
-| SYMBOL EQ array
-| SYMBOL SLASH
-| DOTDOT
-| SLASH
-| SYMBOL EQ list
-| error
+preamble:
+  order
+| order struct_def
+| struct_def
 ;
 
-parameter:
-  INTEGER
-| basetype location
-;
-
-basetype:
-  SYMBOL
+primitive:
+  order PRIMTYPE
 | PRIMTYPE
 ;
 
-array: datatype shape location
+data_or_param:
+  SYMBOL EQ data_item
+| SYMBOL COLON INTEGER
+| SYMBOL COLON primitive
 ;
 
-datatype:
-  basetype
-| LCURLY members RCURLY
+at_or_pcnt:
+  AT INTEGER
+| PCNT INTEGER
+;
+
+placement:
+  at_or_pcnt
+|
+;
+
+dict_item:
+  data_or_param
+| SYMBOL SLASH
+| SYMBOL list_def
+| SYMBOL struct_def
+| SYMBOL at_or_pcnt
+| SLASH
+| DOTDOT
+| error
+;
+
+dict_items:
+  dict_item
+| dict_items dict_item
+;
+
+data_item:
+  primitive shape filter placement
+| SYMBOL shape filter placement
+| struct_def shape filter placement
+;
+
+dimension:
+  INTEGER
+| SYMBOL
+| SYMBOL PLUSSES
+| SYMBOL MINUSES
+;
+
+dimensions:
+  dimension
+| dimensions COMMA dimension
+| error
 ;
 
 shape:
@@ -66,73 +100,51 @@ shape:
 |
 ;
 
-dimensions:
-  dimensions COMMA dimension
-| dimension
+filterop:
+  LARROW
+| RARROW
 ;
 
-dimension:
+filterarg:
   INTEGER
-| symbolq
-| symbolq PLUSSES
-| symbolq MINUSES
-;
-
-symbolq:
-  SYMBOL
-| SYMBOL QUEST
-;
-
-location:
-  address
-| alignment
-; 
-
-address:
-  AT INTEGER
-| AT DOT
-;
-
-alignment:
-  PCNT INTEGER
-|
-;
-
-list:
-  LBRACK items RBRACK
-;
-
-items:
-  item
-| items COMMA item
-|
-;
-
-item:
-  array
-| list
-| SLASH group_members SLASH
+| FLOATING
 | error
 ;
 
-group_members:
-  group_members group_member
+filter:
+  filterop SYMBOL
+| filterop SYMBOL LPAREN filterarg RPAREN
 |
 ;
 
-address_list:
-  address
-| address_list address
+list_def:
+  LBRACK list_items RBRACK
 ;
 
-members:
-  members member
+list_items:
+  list_item
+| list_items COMMA list_item
 |
 ;
 
-member:
-  SYMBOL CEQ parameter
-| SYMBOL EQ array
-| EQ array
+list_item:
+  data_item
+| list_def
+| SLASH dict_items
+| error
+;
+
+struct_def:
+  LCURLY struct_items RCURLY
+;
+
+struct_items:
+  struct_item
+| PCNT INTEGER struct_item
+| struct_items struct_item
+;
+
+struct_item:
+  data_or_param
 | error
 ;
