@@ -183,33 +183,6 @@ class DLayout(object):
         pass
 
 
-class DParser(object):
-    def __init__(self, layout, stream):
-        self.layout = layout
-        self.token_src = token_src = DTokenizer(stream)
-        stack = []
-        if token_src.peek()[0] in ("<", ">"):
-            layout.default_order = token_src.next()[0]
-        token = token_src.peek()
-        docs, attrs, errs = token_src.pop_docs_attrs_errs()  # global
-        root = DDict(layout)
-        if token_src.peek()[0] == "{":
-            summary = DType(layout)
-            token = summary.parse(token_src)  # token which stopped parse
-            docs, attrs, errs = token_src.pop_docs_attrs_errs() 
-            root = DDict(summary)
-        else:
-            root = DDict(layout)
-
-    def __call__(self):
-        # yacc error recovery:
-        # 1. discards previous tokens until error is acceptable
-        # 2. discards subsequent tokens until an error production matches
-        # 3. resumes parse from that point
-        # 4. no new errors until 3 tokens pushed successfully
-        self.stack
-
-
 class DDict(dict):
     isdict = True
     islist = isdata = istype = isparam = False
@@ -399,6 +372,93 @@ class DParam(DData):
     isparam = True
     islist = isdata = isdict = istype = False
 
+
+class DParser(object):
+    """
+layout: [preamble] {dict_item}* ;
+preamble: ["<" | ">" | "|"] struct_def ;
+dict_item: SYMBOL (data_param | list_def | struct_def | "/" | address_align)
+           | "/" | ".." | "&" data_item | error ;
+data_param: SYMBOL ("=" data_item | ":" param_value) ;
+data_item: (primitive | SYMBOL | struct_def) [shape] [filter] [placement] ;
+param_value: INTEGER | primitive [placement] ;
+primitive: ["<" | ">" | "|"] PRIMTYPE ;
+shape: "[" dimension {"," dimension}* "]" ;
+dimension: INTEGER | SYMBOL [PLUSSES | MINUSES] | error ;
+filter: ("->" | "<-") SYMBOL ["(" (INTEGER | FLOATING | error) ")"] ;
+placement: ("@" | "%") INTEGER ;
+list_def: "[" [list_item {"," list_item}*] "]" ;
+list_item: data_item | list_def | "/" {dict_item}* | error ;
+struct_def: "{" ["%" INTEGER struct_item] {struct_item}* "}" ;
+struct_item: data_param | error ;
+    """
+    def __init__(layout):
+        self.layout = layout
+
+    def __call__(stream):
+        # yacc error recovery:
+        # 1. discards previous tokens until error is acceptable
+        # 2. discards subsequent tokens until an error production matches
+        # 3. resumes parse from that point
+        # 4. no new errors until 3 tokens pushed successfully
+        self.tokens = tokens = DTokenizer(stream)
+        self.state = []
+        self.errors = []
+        root = getattr(layout, "root")
+        if root is None:
+            layout.root = root = DGroup(layout)
+            self.preamble()
+        containers = [root]  # container stack: DDict, DList, DType objects
+
+        # shift: push token as item, goto new state
+        # reduce: pop n tokens, push item from rule, goto new state
+
+    # reliable reduction rules are ones which accept error:
+    # dict_item, list_item, struct_item, dimension, filter_args
+    #   these always reduce to something and any backtracking is internal?
+
+    def preamble(self):  # ["<" | ">" | "|"] struct_def
+        layout, tokens = self.layout, self.tokens
+        token = tokens.peek()
+        if token[0] in "<>|":
+            layout.default_order = token[0]
+            tokens.next()
+            token = tokens.peek()
+        self.process_comments()
+        if token[0] == "{":
+            self.struct_def()
+            layout.copy_preamble_to_root()
+
+    def dict_item(self):
+        layout, tokens = self.layout, self.tokens
+        token = tokens.peek()
+        if token[0] in ("symbol", "quoted"):
+            name = tokens.next()[1]
+            token = tokens.peek()
+            if token[0] == "=":
+                tokens.next()
+                self.data_item()
+            elif token[0] == ":":
+                self.param_def()
+            elif token[0] == "[":
+                self.list_def()
+            elif token[0] == "/":
+                self.push_container(name)
+            elif token[0] == "{":
+                self.struct_def()
+            else:
+                self.error(token, "expecting one of =:[/{")
+        elif token[0] == "..":
+            self.pop_container()
+        elif token[0] == "/":
+            self.top_container(False)
+        elif token[0] == ",":
+            self.top_container(True)
+        elif token[0] == "&":
+            tokens.next()[1]
+            self.data_item()
+        else:
+            self.error(token, "expecting item name or ")
 
 #    tokens (terminals of grammar):
 # symbol
@@ -603,3 +663,124 @@ class DTokenizer(object):
             return None, pos, "expecting fixed, quoted, or float attrib value"
         else:
             return None, pos, "attribute array elements not all same type"
+
+"""BNF Grammar rules
+
+    0 $accept: layout $end
+
+    1 layout: dict_items
+    2       | preamble dict_items
+    3       | preamble
+    4       | <empty>
+
+    5 dict_items: dict_item
+    6           | dict_items dict_item
+
+    7 dict_item: data_param
+    8          | SYMBOL SLASH       {cntr push cntr.open_dict(SYMBOL)}
+    9          | SYMBOL list_def    {cntr push cntr.open_list(SYMBOL)}
+   10          | SYMBOL struct_def  {cntr push type_def(SYMBOL)}
+   11          | SYMBOL at_or_pcnt  {cntr.SYMBOL.duplicate_last(place)}
+   12          | SLASH   {cntr pop to root or non-dict}
+   13          | DOTDOT  {cntr pop}
+   14          | AMP data_item      {append_ref(data_item)}
+   15          | error              <====
+
+   16 data_param: SYMBOL EQ data_item         {cntr += (SYMBOL, data_item)}
+   17           | SYMBOL COLON INTEGER        {cntr += (SYMBOL, param)}
+   18           | SYMBOL COLON primitive placement  {cntr += (SYMBOL, param)}
+
+   19 data_item: primitive shape filter placement   {cntr.add(...)}
+   20          | SYMBOL shape filter placement      {cntr.add(...)}
+   21          | struct_def shape filter placement  {cntr.add(...)}
+
+   22 primitive: order PRIMTYPE  {DType(...)}
+   23          | PRIMTYPE        {DType(...)}
+
+   24 shape: LBRACK dimensions RBRACK
+   25      | <empty>
+
+   26 dimensions: dimension
+   27           | dimensions COMMA dimension
+   28           | error          <====
+
+   29 dimension: INTEGER
+   30          | SYMBOL
+   31          | SYMBOL PLUSSES
+   32          | SYMBOL MINUSES
+
+   33 placement: at_or_pcnt
+   34          | <empty>
+
+   35 at_or_pcnt: AT INTEGER
+   36           | PCNT INTEGER
+
+   37 list_def: LBRACK list_items RBRACK
+
+   38 list_items: list_item
+   39           | list_items COMMA list_item
+   40           | <empty>
+
+   41 list_item: data_item
+   42          | list_def
+   43          | SLASH dict_items
+   44          | error        <====
+
+   45 struct_def: LCURLY struct_items RCURLY
+
+   46 struct_items: struct_item
+   47             | PCNT INTEGER struct_item
+   48             | struct_items struct_item
+
+   49 struct_item: data_param
+   50            | error        <====
+
+   51 order: LT
+   52      | GT
+   53      | PIPE
+
+   54 preamble: order
+   55         | order struct_def
+   56         | struct_def
+
+   57 filter: filterop SYMBOL
+   58       | filterop SYMBOL LPAREN filterarg RPAREN
+   59       | <empty>
+
+   60 filterop: LARROW
+   61         | RARROW
+
+   62 filterarg: INTEGER
+   63          | FLOATING
+   64          | error       <====
+
+--------------
+Informal EBNF grammar ([...] optional, {...}* zero or more repeats):
+
+layout: [preamble] {dict_item}* ;
+preamble: ["<" | ">" | "|"] struct_def ;
+dict_item: SYMBOL (data_param | list_def | struct_def | "/" | address_align)
+           | "/" | ".." | "&" data_item | error ;
+data_param: SYMBOL ("=" data_item | ":" param_value) ;
+data_item: (primitive | SYMBOL | struct_def) [shape] [filter] [placement] ;
+param_value: INTEGER | primitive [placement] ;
+primitive: ["<" | ">" | "|"] PRIMTYPE ;
+shape: "[" dimension {"," dimension}* "]" ;
+dimension: INTEGER | SYMBOL [PLUSSES | MINUSES] | error ;
+filter: ("->" | "<-") SYMBOL ["(" (INTEGER | FLOATING | error) ")"] ;
+placement: ("@" | "%") INTEGER ;
+list_def: "[" [list_item {"," list_item}*] "]" ;
+list_item: data_item | list_def | "/" {dict_item}* | error ;
+struct_def: "{" ["%" INTEGER | error] struct_item {struct_item}* "}" ;
+struct_item: data_param | error ;
+
+---------------
+Informal EBNF attribute grammar:
+
+attributes: [attribute] {[","] attribute}* ;
+attribute: SYMBOL "=" (INTEGER | FLOATING | QUOTED | array_value) | error ;
+array_value: "[" INTEGER {"," INTEGER}* "]"
+           | "[" FLOATING {"," FLOATING}* "]"
+           | "[" QUOTED {"," QUOTED}* "]"
+           | "[" error "]"
+"""
