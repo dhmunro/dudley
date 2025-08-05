@@ -1,4 +1,11 @@
-/* Dudley grammar */
+/* Dudley grammar
+  27 terminals
+  23 non-terminals
+  64 rules
+  92 states
+
+  Does not include grammar for attribute comments (or document comments).
+ */
 
 %union{
   char *str;
@@ -13,8 +20,8 @@
 %token<realnum> FLOATING
 %token EQ COLON SLASH DOTDOT LBRACK RBRACK COMMA AT PCNT LCURLY RCURLY
 /*     =    :     /     ..      [      ]     ,   @   %     {      }   */
-%token LT GT PIPE LARROW RARROW LPAREN RPAREN
-/*     <  >   |     <-     ->     (      )   */
+%token LT GT PIPE LARROW RARROW LPAREN RPAREN AMP
+/*     <  >   |     <-     ->     (      )     & */
 %token<num> PLUSSES MINUSES
 /*             +       -   */
 
@@ -27,53 +34,27 @@ layout:
 |
 ;
 
-order:
-  LT
-| GT
-| PIPE
-;
-
-preamble:
-  order
-| order struct_def
-| struct_def
-;
-
-primitive:
-  order PRIMTYPE
-| PRIMTYPE
-;
-
-data_or_param:
-  SYMBOL EQ data_item
-| SYMBOL COLON INTEGER
-| SYMBOL COLON primitive
-;
-
-at_or_pcnt:
-  AT INTEGER
-| PCNT INTEGER
-;
-
-placement:
-  at_or_pcnt
-|
-;
-
-dict_item:
-  data_or_param
-| SYMBOL SLASH
-| SYMBOL list_def
-| SYMBOL struct_def
-| SYMBOL at_or_pcnt
-| SLASH
-| DOTDOT
-| error
-;
-
 dict_items:
   dict_item
 | dict_items dict_item
+;
+
+dict_item:
+  data_param
+| SYMBOL SLASH
+| SYMBOL list_def
+| SYMBOL struct_def
+| SYMBOL address_align
+| SLASH
+| DOTDOT
+| AMP data_item
+| error
+;
+
+data_param:
+  SYMBOL EQ data_item
+| SYMBOL COLON INTEGER
+| SYMBOL COLON primitive placement
 ;
 
 data_item:
@@ -82,17 +63,9 @@ data_item:
 | struct_def shape filter placement
 ;
 
-dimension:
-  INTEGER
-| SYMBOL
-| SYMBOL PLUSSES
-| SYMBOL MINUSES
-;
-
-dimensions:
-  dimension
-| dimensions COMMA dimension
-| error
+primitive:
+  order PRIMTYPE
+| PRIMTYPE
 ;
 
 shape:
@@ -100,21 +73,27 @@ shape:
 |
 ;
 
-filterop:
-  LARROW
-| RARROW
+dimensions:
+  dimension
+| dimensions COMMA dimension
 ;
 
-filterarg:
+dimension:
   INTEGER
-| FLOATING
+| SYMBOL
+| SYMBOL PLUSSES
+| SYMBOL MINUSES
 | error
 ;
 
-filter:
-  filterop SYMBOL
-| filterop SYMBOL LPAREN filterarg RPAREN
+placement:
+  address_align
 |
+;
+
+address_align:
+  AT INTEGER
+| PCNT INTEGER
 ;
 
 list_def:
@@ -139,12 +118,41 @@ struct_def:
 ;
 
 struct_items:
-  struct_item
-| PCNT INTEGER struct_item
+  PCNT INTEGER struct_item
 | struct_items struct_item
+|
 ;
 
 struct_item:
-  data_or_param
+  data_param
+| error
+;
+
+order:
+  LT
+| GT
+| PIPE
+;
+
+preamble:
+  order
+| order struct_def
+| struct_def
+;
+
+filter:
+  filterop SYMBOL
+| filterop SYMBOL LPAREN filterarg RPAREN
+|
+;
+
+filterop:
+  LARROW
+| RARROW
+;
+
+filterarg:
+  INTEGER
+| FLOATING
 | error
 ;

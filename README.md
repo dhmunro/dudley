@@ -82,27 +82,29 @@ backward compatibility with PDB and HDF formats.)
 ## Data arrays
 
 A multidimensional array of data is described by a datatype plus optional
-shape (that is, dimensions), an optional filter, and an optional address in
+shape (that is, dimension list), an optional filter, and an optional address in
 the data stream:
 
     datatype shape filter address
 
 If present, the shape is a comma delimited list of dimensions.  Each dimension
 may be either an integer or the name of a previously declared parameter.  For
-example, if parameters IMAX and JMAX have been defined, an array of 2D velocity
+example, if parameters IMAX and JMAX have been defined, an array of 3D velocity
 vectors might be described like this:
 
-    f8[IMAX, JMAX, 2]
+    f8[IMAX, JMAX, 3]
 
 Here f8 is the datatype, meaning 8 byte IEEE-754 floating point numbers.  The
 dimensions are listed slowest varying to fastest varying, also called row-major
-or C order, which is the default shape ordering in numpy.  Dudley intentionally
+or C order, which is also the default shape ordering in numpy.  For example,
+`i4[3, 2]` means three pairs (never 2 triples!) of 32-bit integers.  Dudley
 does not provide any way to reverse this shape ordering, so it cannot be the
-source of any confusion about the meaning of an array shape.  An array datatype
-need not be a primitive type name; you can create compound data types like C
-structs or numpy records as described later.
+source of any confusion about the order of an array shape.
 
-IMAX and JMAX must have previously been declared like this:
+An array datatype need not be a primitive type; you can create compound data
+types like C structs or numpy records as described later.
+
+IMAX and JMAX must have previously been declared as parameters, for example:
 
     IMAX: 7   # A parameter may have a fixed integer value,
     JMAX: i4  # or its value may be stored in the data stream
@@ -112,12 +114,32 @@ first case, while JMAX is part of the data stream itself.  When a parameter
 is declared with a datatype (so it is stored in the data stream), it may have
 an optional address just like a data array, but no shape or filter:
 
-    param_name : datatype address
+    param_name : datatype address  # general form for an in-stream parameter
 
 The datatype is restricted to an integer (i1, i2, i4, or i8) for parameters.
 Dudley will also accept unsigned integer datatypes for parameters (u1, u2, u4,
-or u8), but you should be aware that Dudley implicity converts all parameter
-values to i8 internally.
+or u8), but keep in mind that Dudley implicity converts all parameter values
+to i8 internally.
+
+Often, two arrays in a layout will have array dimensions differeing by one.
+For example, in a hydrodynamics simulation using a quadrilaterial mesh, an
+array of positions or velocities will have values at the corners of each
+zone, while arrays of density or temperature will have values at the zone
+center.  Hence the density array `rho` will have one fewer value along each
+axis than the `x` or `y` coordinate array.  To avoid requiring two parameters
+to define these arrays, Dudley recognizes one or more `+` or `-` suffixes
+after a parameter name in a dimension list:
+
+    x = f8[IPOINTS, JPOINTS]
+    rho = f8[IPOINTS-, JPOINTS-]  # one fewer value on each axis
+
+or, equivalently:
+
+      x = f8[IZONES+, JZONES+]  # one more value on each axis
+      rho = f8[IZONES, JZONES]
+
+Similary, you can use `IZONES++` to mean two more than `IZONES`, `IZONES+++`
+for three more, and so on.
 
 Dudley assumes data will be written to the stream in the order declared in
 the layout.  Unless the data array (or parameter) has an explicit address, its
@@ -137,7 +159,7 @@ compound type defaults to the largest alignment of any of its members.
 The optional address field in any array or parameter declaration may take one
 of two forms:
 
-    datatype shape filter @byte_address  # give absolute position
+    datatype shape filter @byte_address  # specify absolute position
     datatype shape filter %alignment     # override default datatype alignment
 
 The `@byte_address` form overrides the default datatype alignment as well.
@@ -197,7 +219,7 @@ To add items to a dict container, do one of these:
     ..  # return to parent (original) dict, like cd .. in a filesystem
     another_array = datatype[3, 3]  # goes in original dict
 
-Generally, Duduley palce almost no restrictions on the characters in any name,
+Generally, Dudley places almost no restrictions on the characters in any name,
 whether a dict item name, a parameter name, or a data type name.  The only
 exception is that type names other than primitives may not begin with an
 order character "<", ">", or "|".  However, if you want a name which would be
@@ -371,9 +393,81 @@ Finally, Dudley permits a special version of the compound type declaration
 to declare variables with a value of None in python or null in javascript -
 just use a compound type with no members:
 
-    var_name = {}  # gives None or null on read, expects None or null on write
+    var = {}  # gives None or null on read, expects None or null on write
     NoneType{}  # If you prefer, you can define a type for None, then use:
-    var_name = NoneType  # But there is no real advantage to this.
+    var = NoneType  # - but there is no real advantage to this.
+
+
+## Filters
+
+Dudley supports two kinds of filters.  *Compression* filters convert an array
+declared in the usual way into a (hopefully shorter) byte string:
+
+    f8[1000, 100, 100] -> zfp  # compress 1000x100x100 array using zfp
+
+what actually is written to the data stream is `{NBYTES:i8 ""=u1[NBYTES]}`,
+which the zfp filter will decompress to the `f8[1000, 100, 100]` array of the
+declaration.  The zfp filter uses a lossy compression scheme, so the
+1000x100x100 array you read back will not be precisely the same as what you
+wrote.  ZFP has many tuning options, but the default Dudley zfp filter
+simplifies its various options to just a single optional parameter.  If you
+want to pass a non-default parameter value to a filter, you write the filter
+like a function call:
+
+    f8[1000, 100, 100] -> zfp(1.e-6)  # compress with tolerance 1.e-6
+
+Dudley implements four compression filters by default, but you can define and
+register your own custom filters if you wish.  The default filters are all
+simplified versions of popular open source compressors:
+
+- *zfp(level)* **[ZFP](https://zfp.io)** is a lossy compression library.
+  The Dudley `level` parameter is the ZFP *tolerance*, which is the acceptable
+  absolute error for the array values if `level>0`.  If `level<0`, then
+  `-level` is the ZFP *precision*, which is roughly the number of bits of
+  mantissa that will be preserved, a rough way to specify the acceptable
+  relative error for array values.  Finally, `level=0` specifies the ZFP
+  lossless compression option.  The default is `level=-15`, which produces
+  a bit better than part per thousand relative accuracy.  Only works on
+  arrays of numbers (best for floats) with up to four dimensions.
+- *gzip(level)* **[zlib](https://zlib.net)** is a lossless compression library.
+  The `level` parameter can be 0-9 or -1, with the same meanings as the gzip
+  utility.  However, Dudley makes the default `level=9` on the assumption that
+  you will usually want maximum compression.  The zlib compression is not
+  really designed for binary data, but it can work well on integers and text.
+- *jpeg(quality)* **[png](https://libpng.org/pub/png)** is a lossy image
+  compression format.  Accepts only `u1[NX, NY]` data (grayscale image),
+  `u1[NX, NY, 3]` data (RGB image), or `u1[NX, NY, 4]` data (CMYK image).
+  The `quality` is 0-95, with `quality=75` the default.
+- *png(level)* **[png](https://libpng.org/pub/png)** is a lossless image
+  compression format.  Accepts only `u?[NX, NY]` data (grayscale image),
+  `u?[NX, NY, 3]` data (RGB image), where `u?` is either `u1` or `u2`.
+  The `level` is 0-9, with `level=9` the default.
+
+The second kind of filter, a *reference* filter is completely different.
+Instead of converting an array of declared type and shape to an unknown
+number of bytes in the file like a compression filter, a *reference* filter
+convert an array of unknown type and shape into a reference to that object
+where each such reference has a know datatype (usually an integer).  This
+reference is roughly equivalent to declaring a `void *` in C:
+
+    datatype shape <- ref  # this array holds references to unknown objects
+
+Now the objects which are referenced obviously must be declared *somewhere* in
+the layout - otherwise there would be no way to read them back.  Therefore,
+at the end of the layout, after all other data arrays, dicts, and lists have
+been declared, Dudley expects to find a sequence of special declarations of the
+form:
+
+    &datatype shape filter address
+    &datatype shape filter address
+    &...
+
+Unlike everything else in the layout, these really aren't expected to be
+produced by a human; instead the `ref` filter is expected to generate them
+when it discovers the unknown objects when writing them, or more usually,
+by a translation program which is creating the layout from a PDB or HDF file.
+The reference ilter is responsible for converting between the datatype in
+the `<- ref` declaration and an index into this list of anonymous objects.
 
 
 ### Attribute comments
