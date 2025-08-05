@@ -11,12 +11,12 @@ https://silo.readthedocs.io/files.html).
 
 However, unlike netCDF, HDF5, or PDB metadata, a Dudley layout may
 contain parameters stored in the stream, so that a single layout may describe
-many different files or data streams - a design feature more like XDR than
-the self-describing file formats.  For scientific computing, this can
-drastically reduce the amount of time required to parse metadata in
-order to locate individual arrays of numbers in large families of
-files, when you want to read back only a small fraction of what has
-been written.
+many different files or data streams.  This is a major design feature of XDR
+not found (or not emphasized in the case of HDF) in the self-describing file
+formats.  For scientific computing, sharing a common layout has the potential
+to greatly reduce the amount of time required to parse metadata in
+order to locate individual arrays of numbers in large families of files,
+when you want to read back only a small fraction of what has been written.
 
 Perhaps even more significantly, you can design a single Dudley layout
 describing every restart file a physics simulation code can produce -
@@ -25,24 +25,24 @@ the simulation.  Since a Dudley layout is human-readable, comments in the
 layout can document the meaning of every variable in the problem state,
 making it a quick reference guide for code users as well as developers.
 Often, thinking about how to store a problem state most concisely and
-efficiently feeds back and improves code data structure designs.
+efficiently feeds back and improves code data structure designs.  This feature
+is also useful for informal sharing of data sets among collaborators.
 
 Dudley features:
 
-  * Very simple data model consists of multidimensional arrays and
-    containers that are either dicts of named members or lists of
-    anonymous members (like JSON objects and arrays).
-  * Human readable layout description encourages you to think
-    carefully about how you store your data.  By adding comments
-    a layout file you can document your data.
-  * Libraries are very lightweight compared to HDF5 or PDB.
-  * Fully compatible with numpy/scipy.
-  * Array dimensions can be parameters stored in the data stream
-    so that a single layout can describe many different datasets.
-    You can easily design and describe small datasets to exchange
-    information with collaborators.
-  * Support for data compression and arrays of references to data or
-    containers.
+* Very simple data model consists of multidimensional arrays and
+  containers that are either dicts of named members or lists of
+  anonymous members (like JSON objects and arrays).
+* Human readable layout description encourages you to think
+  carefully about how you store your data.  By adding comments
+  a layout file you can document your data.
+* Libraries are very lightweight compared to HDF5 or PDB.
+* Fully compatible with numpy/scipy.
+* Array dimensions can be parameters stored in the data stream
+  so that a single layout can describe many different datasets.
+  You can easily design and describe small datasets to exchange
+  information with collaborators.
+* Support for data compression.
 
 
 ## Data model overview
@@ -81,7 +81,7 @@ backward compatibility with PDB and HDF formats.)
 
 ## Data arrays
 
-A multidimensional array of data is described by a datatype plus optional
+Dudley describes a multidimensional array of data by a datatype with optional
 shape (that is, dimension list), an optional filter, and an optional address in
 the data stream:
 
@@ -98,16 +98,16 @@ Here f8 is the datatype, meaning 8 byte IEEE-754 floating point numbers.  The
 dimensions are listed slowest varying to fastest varying, also called row-major
 or C order, which is also the default shape ordering in numpy.  For example,
 `i4[3, 2]` means three pairs (never 2 triples!) of 32-bit integers.  Dudley
-does not provide any way to reverse this shape ordering, so it cannot be the
-source of any confusion about the order of an array shape.
+intentionally does not provide any way to reverse this shape ordering.
 
 An array datatype need not be a primitive type; you can create compound data
-types like C structs or numpy records as described later.
+types like C structs or numpy records as described later, and you may define
+names for types you use frequently.
 
 IMAX and JMAX must have previously been declared as parameters, for example:
 
     IMAX: 7   # A parameter may have a fixed integer value,
-    JMAX: i4  # or its value may be stored in the data stream
+    JMAX: i4  #   or its value may be stored in the data stream
 
 The difference is that IMAX is part of the Dudley layout - metadata - in the
 first case, while JMAX is part of the data stream itself.  When a parameter
@@ -121,7 +121,7 @@ Dudley will also accept unsigned integer datatypes for parameters (u1, u2, u4,
 or u8), but keep in mind that Dudley implicity converts all parameter values
 to i8 internally.
 
-Often, two arrays in a layout will have array dimensions differeing by one.
+Often, two arrays in a layout will have array dimensions differing by one.
 For example, in a hydrodynamics simulation using a quadrilaterial mesh, an
 array of positions or velocities will have values at the corners of each
 zone, while arrays of density or temperature will have values at the zone
@@ -163,6 +163,9 @@ of two forms:
     datatype shape filter %alignment     # override default datatype alignment
 
 The `@byte_address` form overrides the default datatype alignment as well.
+As a special case, `%0` is a no-op - an explicit address field which means the
+same thing as omitting the address field, namely that the array will have its
+default alignment.
 
 The optional filter field will be described later.
 
@@ -171,8 +174,8 @@ The optional filter field will be described later.
 
 Ultimately, the only widely portable kinds of data are numbers, either fixed or
 floating point, and text strings, either as bytes or unicode.  Dudley supports
-the most commonly used binary formats for these objects (at least in this
-millenium so far).  Dudley primitive data type names are a subset of the numpy
+the most commonly used binary formats for these objects (at least so far in
+this millenium).  Dudley primitive data type names are a subset of the numpy
 array interface protocol.  The Dudley interpretation of the text types S and U
 is slightly different than numpy, but otherwise these type names are all
 recognized by the dtype class constructor:
@@ -229,7 +232,7 @@ either with single or double quotes '...' or "...".  Backslash escape sequences
 are recognized inside the quotes  For example,
 
     "lisp-like-variable" = f4[3]
-    "Sentence with \"spaces\" and punctuation, too!" = i8
+    "Variable name with \"spaces\" and punctuation, too!" = i8
 
 Needless to say, you should very much prefer names which are legal variable
 names in python or C or javascript.
@@ -443,40 +446,76 @@ simplified versions of popular open source compressors:
   `u?[NX, NY, 3]` data (RGB image), where `u?` is either `u1` or `u2`.
   The `level` is 0-9, with `level=9` the default.
 
-The second kind of filter, a *reference* filter is completely different.
+The second kind of filter, a *reference* filter, is completely different.
 Instead of converting an array of declared type and shape to an unknown
 number of bytes in the file like a compression filter, a *reference* filter
-convert an array of unknown type and shape into a reference to that object
-where each such reference has a know datatype (usually an integer).  This
+converts an array of unknown type and shape into a reference to that object
+where each such reference has a known datatype (usually an integer).  This
 reference is roughly equivalent to declaring a `void *` in C:
 
     datatype shape <- ref  # this array holds references to unknown objects
 
 Now the objects which are referenced obviously must be declared *somewhere* in
 the layout - otherwise there would be no way to read them back.  Therefore,
-at the end of the layout, after all other data arrays, dicts, and lists have
-been declared, Dudley expects to find a sequence of special declarations of the
-form:
+Dudley expects to find a sequence of special declarations of the form:
 
     &datatype shape filter address
-    &datatype shape filter address
-    &...
+
+These can appear anywhere a named dict item is expected, but, like named data
+types, these reference declarations are kept outside of the dict-list container
+tree as a simple list in the order they appear in the layout.
 
 Unlike everything else in the layout, these really aren't expected to be
 produced by a human; instead the `ref` filter is expected to generate them
 when it discovers the unknown objects when writing them, or more usually,
 by a translation program which is creating the layout from a PDB or HDF file.
-The reference ilter is responsible for converting between the datatype in
+The reference filter is responsible for converting between the datatype in
 the `<- ref` declaration and an index into this list of anonymous objects.
 
 
-### Attribute comments
+## Document and attribute comments
+
+As implied in some of the examples, Dudley treats anything between a "#"
+character and the next end-of-line as a comment, that is, as it it were
+whitespace.  However, the Dudley parser can collect two special types of
+comments, which can be associated with the dict or list item, or with the
+named struct member where those comments appeared.
+
+Simplest is the document comment, which begins with "##".  This should
+briefly describe the meaning of the item - perhaps its units and relationship
+to other items in the layout.  Multiple lines of document comments may be
+associated with an item; Dudley keeps a list of the comment lines of text
+after the "##" and up to the end of the line:
+
+    te = f8[IMAX, JMAX]  ## (eV) electron temperature
+                         ## ei_coupling determines how rapidly te and ti relax
+
+Document comments are completely free-form.  Dudley also recognizes attribute
+comments beginning with `#:`, which are also associated with the item where
+they appear.  Again, an item may have multiple lines of attribute comments.
+Document, attribute, and ordinary ignored comments may be intermixed freely
+for any item, but Dudley keeps a single list of document comment lines, and
+a single dict of all the attributes defined in attribute comment lines.
+The format of an attribute comment is rigidly defined:
+
+    #: attr1_name=value1 attr2_name=value2 ...
+
+where each attribute value can be an integer, a floating point number, a
+quoted text string, or a 1D homogeneous array of any of these three types
+specified as a comma delimited list enclosed in `[...]`.  The attribute names
+are the keys of the attribute dict Dudley will associate with the dict or list
+item or struct member where the `#:` comment appears.  As a concrete example:
+
+    #: offsets=[0, 1, -1] units="mJ/cm2/s/ster" f_stop=5.6
+
+As for other names in Dudley, attribute names may be quoted text; Dudley
+imposes no restrictions on legal attribute names.
 
 Dudley defines meanings for a few attributes of the root dict:
 
     #: dudley_template = filename
 
-Searched for on DUDLEY_PATH if not an absolute filename.
+(Filename searched for on DUDLEY_PATH if not an absolute path.)
 
     #: created = "YYYY-MM-DD HH:MM:SS+00:00" (iso) or integer unix timestamp
     #: modified = "YYYY-MM-DD HH:MM:SS+00:00" (iso) or integer unix timestamp
@@ -485,8 +524,52 @@ Searched for on DUDLEY_PATH if not an absolute filename.
     #: copyright = "date and owner"
     #: license = "short name of license covering this data"
 
-    from datetime import datetime, timezone
-    time = datetime.now(timezone.utc).isoformat(" ", "seconds")
+[//]: # "from datetime import datetime, timezone"
+
+[//]: # "time = datetime.now(timezone.utc).isoformat(' ', 'seconds'"
+
+
+## Dudley use cases
+
+
+## Layout preamble
+
+
+## File signatures
+
+The recommended extension for a Dudley layout is .dud, and for binary files
+natively describe for such a layout .bd (for "binary data").  However, the
+Dudley layout may also be appended to the end of the binary file to produce
+a single self-describing file.  Of course, a Dudley layout may also be
+generated for a non-native binary file such as an HDF or PDB file, in which
+case the separate layout .dud file is recommended.
+
+A native Dudley binary file begins with one of two eight byte signatures:
+
+    8d < B D 0d 0a 1a 0a   (8d 3c 42 44 0d 0a 1a 0a)
+    8d > B D 0d 0a 1a 0a   (8d 3e 42 44 0d 0a 1a 0a)
+
+The < variant makes the default byte order little endian (least significant
+byte first) while the > variant make the default byte order big endian.  This
+may be overridden by an explicit > or < prefix for a summary block in the
+layout itself, so that the < or > may merely indicate the byte order of the
+machine writing the file rather than any contents.  The first byte of the
+signature is address zero in the corresponding layout.
+
+Furthermore, the second eight bytes of a native file are either all zero, or
+the address of the layout appended to the end of the binary file, in the byte
+order specified by the < or > character in the first eight bytes.  This will
+also become the first byte of any data appended to the file if it is
+subsequently extended.
+
+This was inspired by the PNG header.  The rationale is that non-binary FTP
+file transfers will corrupt either the 0d 0a sequence or the 0a character,
+while the 1a character stops terminal output on MSDOS (and maybe Windows).
+Here the 8d character is chosen because it is illegal as the first character
+of a UTF-8 stream and it is not defined in the CP-1252 character encoding,
+nor in the latin-1 encoding (it is the C1 control character RI there), and as
+for the leading character of the PNG signature, any file transfer which resets
+the top bit to zero will corrupt it.
 
 
 ===========================================
@@ -786,43 +869,6 @@ summary block, it should contain no explicit @address specifiers (except perhaps
 in struct definitions) nor any indeterminate length struct instances.  In
 other words, a layout which begins with a summary block can serve as a
 template for a family or indeed a whole category of files.
-
-
-## File signatures
-
-The recommended extension for a Dudley layout is .dud, and for binary files
-natively describe for such a layout .bd (for "binary data").  However, the
-Dudley layout may also be appended to the end of the binary file to produce
-a single self-describing file.  Of course, a Dudley layout may also be
-generated for a non-native binary file such as an HDF or PDB file, in which
-case the separate layout .dud file is recommended.
-
-A native Dudley binary file begins with one of two eight byte signatures:
-
-    8d < B D 0d 0a 1a 0a   (8d 3c 42 44 0d 0a 1a 0a)
-    8d > B D 0d 0a 1a 0a   (8d 3e 42 44 0d 0a 1a 0a)
-
-The < variant makes the default byte order little endian (least significant
-byte first) while the > variant make the default byte order big endian.  This
-may be overridden by an explicit > or < prefix for a summary block in the
-layout itself, so that the < or > may merely indicate the byte order of the
-machine writing the file rather than any contents.  The first byte of the
-signature is address zero in the corresponding layout.
-
-Furthermore, the second eight bytes of a native file are either all zero, or
-the address of the layout appended to the end of the binary file, in the byte
-order specified by the < or > character in the first eight bytes.  This will
-also become the first byte of any data appended to the file if it is
-subsequently extended.
-
-This was inspired by the PNG header.  The rationale is that non-binary FTP
-file transfers will corrupt either the 0d 0a sequence or the 0a character,
-while the 1a character stops terminal output on MSDOS (and maybe Windows).
-Here the 8d character is chosen because it is illegal as the first character
-of a UTF-8 stream and it is not defined in the CP-1252 character encoding,
-nor in the latin-1 encoding (it is the C1 control character RI there), and as
-for the leading character of the PNG signature, any file transfer which resets
-the top bit to zero will corrupt it.
 
 
 ## Filters
