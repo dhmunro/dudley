@@ -531,8 +531,51 @@ Dudley defines meanings for a few attributes of the root dict:
 
 ## Dudley use cases
 
+There are two independent distinctions that can be drawn for descriptions of
+binary data: First is serial versus random access - does the description allow
+you to locate and retrieve random items in the stream (assuming the stream is
+seekable), or do you only learn locations of data arrays in the description
+once you have read previously declared arrays?  For non-seekable streams (the
+intended use of XDR), this distinction is moot, since you must read the
+whole stream serially anyway.  Second is whether the description is specific
+to a single data stream (like PDB or HDF metadata), or is intended to describe
+any one of a family of different streams (like XDR).  Dudley layouts can
+handle any of the four possible use cases immplied by these two dichotomies.
 
-## Layout preamble
+First, a Dudley layout with no address specifications (or only alignment
+specifications) is a reasonably compact description of a stream which you
+know you will read back in exactly the same sequence as you wrote it.  (A
+simulation restart dump might be an example use case.)  As long as you will
+read back the file in exactly the same order you wrote it, you can use all
+of the constructs Dudley provides freely, including compression or reference
+filters and parameters that are part of struct instances.  If you have used
+parameters written to the stream for your array dimensions, there is a good
+chance that this Dudley layout can be used to describe multiple data streams.
+This is the use case for XDR - a Dudley layout can also be used to describe a
+serial binary data stream.
+
+By adding explicit address specifications for every item in your dict-list
+container tree, you will be able to read (or write) your file randomly, rather
+than being forced to read it back serially.  The price you pay is that even
+with array shape parameters written to your data stream, it is unlikely
+that this kind of Dudley layout can be used to describe more than one specific
+binary file.  This is the only use case supported for PDB or HDF files.  For
+many applications, such as casually saving the state of an interactive
+session, this is not an important limitation.  Once again, you can use the
+full set of Dudley features, including compression and reference filters and
+parameters in struct instances.
+
+The new use case a Dudley layout makes possible is random access to multiple
+different files described by a single layout.  This is only possible if you
+avoid compression or reference filters and structs containing parameters, as
+well as any explicit address specifications (apart from alignment).  In this
+case, from the shape parameters, Dudley can calculate the address of every
+item in the layout.  If you can design a layout meeting these criteria, you
+will have a Dudley template that describes a whole collection of possible
+data files, each an instance of this single layout.  Thinking deeply about
+how you can structure your data to make this possible, or identifying
+precisely why such a structure cannot meet your needs will teach you a great
+deal about the problem you are trying to solve.
 
 
 ## File signatures
@@ -570,6 +613,26 @@ of a UTF-8 stream and it is not defined in the CP-1252 character encoding,
 nor in the latin-1 encoding (it is the C1 control character RI there), and as
 for the leading character of the PNG signature, any file transfer which resets
 the top bit to zero will corrupt it.
+
+
+## Layout preamble
+
+If the first non-comment character in a Dudley layout is `<` or `>`, that will
+set the default byte order for all primitive types in the file, overriding
+the file signature, or any other attempt to specy a default byte order.  For
+example, if you are writing a Dudley layout to describe a netCDF file or an
+XDR data stream, the first character of the layout should be `>`, since both
+those formats always encode the data stream in big-endian or "network" order.
+
+If the first non-comment character, or the second after a `<` or `>` is a
+`{` character beginning a struct data type that contains every parameter that
+will be used in the layout, then Dudley will treat that struct as a
+template block, as well as automatically writing those parameters at the
+beginning of the file as if the `{...}` brackets were not present.  A file
+containing such a template block is assumed to be intended as a layout
+template, and Dudley will throw an error if the layout contains any explicit
+addresses or any other data descriptions which are not consistent with that
+use case.
 
 
 +++
