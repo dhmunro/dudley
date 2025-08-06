@@ -1,8 +1,8 @@
 /* Dudley grammar
   27 terminals
   23 non-terminals
-  64 rules
-  92 states
+  68 rules
+  101 states
 
   Does not include grammar for attribute comments (or document comments).
  */
@@ -53,7 +53,11 @@ dict_item:
 
 data_param:
   SYMBOL EQ data_item
-| SYMBOL COLON INTEGER
+| param_def
+;
+
+param_def:
+  SYMBOL COLON INTEGER
 | SYMBOL COLON primitive placement
 ;
 
@@ -136,8 +140,14 @@ order:
 
 preamble:
   order
-| order struct_def
-| struct_def
+| order LCURLY template_params RCURLY
+| LCURLY template_params RCURLY
+;
+
+template_params:
+  param_def
+| template_params param_def
+| error
 ;
 
 filter:

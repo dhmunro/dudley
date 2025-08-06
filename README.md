@@ -513,10 +513,6 @@ imposes no restrictions on legal attribute names.
 
 Dudley defines meanings for a few attributes of the root dict:
 
-    #: dudley_template = filename
-
-(Filename searched for on DUDLEY_PATH if not an absolute path.)
-
     #: created = "YYYY-MM-DD HH:MM:SS+00:00" (iso) or integer unix timestamp
     #: modified = "YYYY-MM-DD HH:MM:SS+00:00" (iso) or integer unix timestamp
     #: creator = "code that wrote this file"
@@ -527,6 +523,15 @@ Dudley defines meanings for a few attributes of the root dict:
 [//]: # "from datetime import datetime, timezone"
 
 [//]: # "time = datetime.now(timezone.utc).isoformat(' ', 'seconds'"
+
+    #: dudley_template = filename
+
+As an attribute of the root dict, `dudley_template` means that template
+layout file should be inserted into this layout here.  As an attribute of a
+struct data type, `dudley_template` means that this struct is an exact match
+for the template struct in the specified template layout.  (Filename searched
+for on DUDLEY_PATH if not an absolute path.)  See layout preamble section below
+for more information.
 
 
 ## Dudley use cases
@@ -624,74 +629,61 @@ example, if you are writing a Dudley layout to describe a netCDF file or an
 XDR data stream, the first character of the layout should be `>`, since both
 those formats always encode the data stream in big-endian or "network" order.
 
-If the first non-comment character, or the second after a `<` or `>` is a
+If the first non-comment character, or the second after a `<` or `>`, is a
 `{` character beginning a struct data type that contains every parameter that
 will be used in the layout, then Dudley will treat that struct as a
-template block, as well as automatically writing those parameters at the
+template type, as well as automatically writing those parameters at the
 beginning of the file as if the `{...}` brackets were not present.  A file
-containing such a template block is assumed to be intended as a layout
+containing such a template type is assumed to be intended as a layout
 template, and Dudley will throw an error if the layout contains any explicit
 addresses or any other data descriptions which are not consistent with that
-use case.
+use case.  A file described by such a template layout need not include any
+other metadata - the parameters written at the beginning of any binary file
+described by such a template layout completely determine the addresses of all
+the variables in the file.
 
-
-+++
-
-## Summary block
-
-Optionally, before any other declarations, the layout stream may begin with a
-single summary block in curly braces, which contains the various parameters and
-variables required to find the data stream and compute any variable addresses
-which are not explicitly declared in the layout:
-
-    {
-        param1 : pvalue  ##  documentation comment
-        param2 : pvalue
-        time : f8  # time is a typical example of a variable summary value
-    }
-
-This summary block is a part of the layout, as if the {} were not present.
-However, it may be used as a struct datatype in a separate summary data stream
-describing a family of files using this layout, so that someone reading this
-summary datastream will be able to compute the exact location of any variable
-in the whole family - which file as well as what address within the file -
-from the data in the summary stream alone.  Thus, when a layout begins with a
-summary block, it should contain no explicit @address specifiers (except perhaps
-in struct definitions) nor any indeterminate length struct instances.  In
-other words, a layout which begins with a summary block can serve as a
-template for a family or indeed a whole category of files.
+Furthermore, you can store arrays of this template type in a separate catalog
+file, so that the catalog plus the template layout completely determine the
+location of variables in a large collection of files covered by the catalog.
+Each individual file still begins with its own parameters (duplicated in its
+entry in the catalog), so it is still decipherable even if it becomes
+detached from the other files in the collection.  The higher level structure of
+such a catalog is flexible and not a part of Dudley itself - a Dudley template
+layout is simply a hook for designing such a catalog.  (The catalog itself
+is expected to have its own separate Dudley layout, but the details of the
+connection between the two layouts are left to the designer.)
 
 
 ## Examples
 
 State template for a very simple 1D or 2D radhydro simulation:
 
-    {
-      IMAX := i8    ## leading dimension of mesh arrays
-      JMAX := i8    ## second dimension of mesh arrays
-      NGROUP := i8  ## number of photon energy groups
-      time = f8     ## (ns) simulation time
-    }  # summary completely specifies any file described by this layout
+    {  # template type completely specifies any file described by this layout
+      IMAX : i8    ## leading dimension of mesh arrays
+      JMAX : i8    ## second dimension of mesh arrays
+      NGROUP : i8  ## number of photon energy groups (zero if no radiation)
+    }
+    gb = f8[NGROUP+]    ## (eV) group boundaries (also no data if NGROUP zero)
+    time = f8           ## (ns) simulation time
     r = f8[JMAX, IMAX]  ## (um) radial node coordinates
     z = f8[JMAX, IMAX]  ## (um) axial node coordinates
     u = f8[JMAX, IMAX]  ## (um/ns) radial node velocity component
     v = f8[JMAX, IMAX]  ## (um/ns) axial node velocity component
     rho = f8[JMAX-, IMAX-]  ## (g/cc) zonal mass density
     te = f8[JMAX-, IMAX-]   ## (eV) zonal temperature
-    gb = f8[NGROUP+]  ## (eV) group boundaries (also no data if NGROUP zero)
     unu = f8[NGROUP, JMAX-, IMAX-]  ## (GJ/cc/eV) zonal radiation density
 
 A set of time history records for this same simulation can be structured
 in many different ways:
 
-netCDF-like, with gb a non-record variable and the rest rescord
-variables:
+Here is a netCDF-like version, with gb a non-record variable and the rest
+rescord variables:
 
     {
-      NREC := i8    # number of records in this file
-      IMAX := i8
-      JMAX := i8
-      NGROUP := i8
+      NREC : i8    # number of records in this file
+      IMAX : i8
+      JMAX : i8
+      NGROUP : i8
     }
     gb = f8[NGROUP+]  # group boundaries do not change
     "" = {  # empty instance name effectively puts these at root level
@@ -705,14 +697,15 @@ variables:
       unu = f8[NGROUP, IMAX-, JMAX-]
     }[NREC]
 
-HDF5 or PDB-like, with each record variable a homogeneous list - the
-list index corresponding to the UNLIMITED dimension:
+Here is an HDF5 or PDB-like version, with each record variable a homogeneous
+list - the list index corresponding to the UNLIMITED dimension.  Note that this
+is no longer a template:
 
-    IMAX := i8
-    JMAX := i8
-    NGROUP := i8
+    IMAX : i8
+    JMAX : i8
+    NGROUP : i8
     gb = f8[NGROUP+]  # group boundaries do not change
-    time = [f8]
+    time = [f8]  # All time varying arrays are presented as lists.
     r = [f8[JMAX, IMAX]]
     z = [f8[JMAX, IMAX]]
     u = [f8[JMAX, IMAX]]
@@ -726,4 +719,3 @@ list index corresponding to the UNLIMITED dimension:
     time%0  r%0  z%0  u%0  v%0  rho%0  te%0  unu%0 
     time%0  r%0  z%0  u%0  v%0  rho%0  te%0  unu%0 
     # ... and so on
-    # Thus, this layout could not be used as a template.
