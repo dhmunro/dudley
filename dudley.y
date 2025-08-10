@@ -1,8 +1,8 @@
 /* Dudley grammar
   27 terminals
   23 non-terminals
-  67 rules
-  103 states
+  66 rules
+  101 states
 
   Does not include grammar for attribute comments (or document comments).
  */
@@ -20,8 +20,8 @@
 %token<realnum> FLOATING
 %token EQ COLON SLASH DOTDOT LBRACK RBRACK COMMA AT PCNT LCURLY RCURLY
 /*     =    :     /     ..      [      ]     ,   @   %     {      }   */
-%token LT GT PIPE LARROW RARROW LPAREN RPAREN AMP
-/*     <  >   |     <-     ->     (      )     & */
+%token LT GT LARROW RARROW LPAREN RPAREN AMP
+/*     <  >    <-     ->     (      )     & */
 %token<num> PLUSSES MINUSES
 /*             +       -   */
 
@@ -44,7 +44,7 @@ dict_item:
 | SYMBOL SLASH
 | SYMBOL list_def
 | SYMBOL struct_def
-| SYMBOL address_align
+| SYMBOL list_extend
 | SLASH
 | DOTDOT
 | AMP data_item
@@ -54,18 +54,13 @@ dict_item:
 data_param:
   SYMBOL EQ data_item
 | SYMBOL COLON INTEGER
-| SYMBOL COLON primitive placement
+| SYMBOL COLON PRIMTYPE placement
 ;
 
 data_item:
-  primitive shape filter placement
+  PRIMTYPE shape filter placement
 | SYMBOL shape filter placement
 | struct_def shape filter placement
-;
-
-primitive:
-  order PRIMTYPE
-| PRIMTYPE
 ;
 
 shape:
@@ -113,6 +108,11 @@ list_item:
 | error
 ;
 
+list_extend:
+  address_align
+| list_extend address_align
+;
+
 struct_def:
   LCURLY struct_items RCURLY
 ;
@@ -131,7 +131,6 @@ struct_item:
 order:
   LT
 | GT
-| PIPE
 ;
 
 preamble:
@@ -141,8 +140,8 @@ preamble:
 ;
 
 template_params:
-  SYMBOL COLON primitive
-| template_params SYMBOL COLON primitive
+  SYMBOL COLON PRIMTYPE
+| template_params SYMBOL COLON PRIMTYPE
 | error
 ;
 

@@ -373,25 +373,15 @@ class DParam(DData):
     islist = isdata = isdict = istype = False
 
 
+class DudleySyntax(Exception):
+    def __init__(self, message):
+        self.message = message
+
+    def __str__(self):
+        return self.message
+
+
 class DParser(object):
-    """
-layout: [preamble] {dict_item}* ;
-preamble: ["<" | ">" | "|"] struct_def ;
-dict_item: SYMBOL (data_param | list_def | struct_def | "/" | address_align)
-           | "/" | ".." | "&" data_item | error ;
-data_param: SYMBOL ("=" data_item | ":" param_value) ;
-data_item: (primitive | SYMBOL | struct_def) [shape] [filter] [placement] ;
-param_value: INTEGER | primitive [placement] ;
-primitive: ["<" | ">" | "|"] PRIMTYPE ;
-shape: "[" dimension {"," dimension}* "]" ;
-dimension: INTEGER | SYMBOL [PLUSSES | MINUSES] | error ;
-filter: ("->" | "<-") SYMBOL ["(" (INTEGER | FLOATING | error) ")"] ;
-placement: ("@" | "%") INTEGER ;
-list_def: "[" [list_item {"," list_item}*] "]" ;
-list_item: data_item | list_def | "/" {dict_item}* | error ;
-struct_def: "{" ["%" INTEGER struct_item] {struct_item}* "}" ;
-struct_item: data_param | error ;
-    """
     def __init__(layout):
         self.layout = layout
 
@@ -401,6 +391,17 @@ struct_item: data_param | error ;
         # 2. discards subsequent tokens until an error production matches
         # 3. resumes parse from that point
         # 4. no new errors until 3 tokens pushed successfully
+        """
+        0 $accept: layout $end
+
+        1 layout: dict_items
+        2       | preamble dict_items
+        3       | preamble
+        4       | <empty>
+
+        5 dict_items: dict_item
+        6           | dict_items dict_item
+        """
         self.tokens = tokens = DTokenizer(stream)
         self.state = []
         self.errors = []
@@ -409,6 +410,15 @@ struct_item: data_param | error ;
             layout.root = root = DGroup(layout)
             self.preamble()
         containers = [root]  # container stack: DDict, DList, DType objects
+        token = tokens.peek()
+        while token[0] != "eof":
+            current = containers[-1]
+            if current.isdict:
+                self.dict_item()
+            elif current.islist:
+                self.list_item()
+            elif current.istype:
+                self.struct_item()
 
         # shift: push token as item, goto new state
         # reduce: pop n tokens, push item from rule, goto new state
@@ -418,47 +428,285 @@ struct_item: data_param | error ;
     #   these always reduce to something and any backtracking is internal?
 
     def preamble(self):  # ["<" | ">" | "|"] struct_def
+        """
+        51 order: LT
+        52      | GT
+
+        53 preamble: order
+        54         | order LCURLY template_params RCURLY
+        55         | LCURLY template_params RCURLY
+
+        56 template_params: SYMBOL COLON PRIMTYPE
+        57                | template_params SYMBOL COLON PRIMTYPE
+        58                | error
+        """
         layout, tokens = self.layout, self.tokens
         token = tokens.peek()
-        if token[0] in "<>|":
+        if token[0] in "<>":
             layout.default_order = token[0]
             tokens.next()
             token = tokens.peek()
-        self.process_comments()
+        self.process_comments(root)
         if token[0] == "{":
-            self.struct_def()
-            layout.copy_preamble_to_root()
+            symb_quot_prim = self.symb_quot_prim
+            root = layout.root
+            layout.template = template = DType(layout)
+            param = None
+            token = symb_quot_prim(tokens.next())
+            recovering = False
+            while token[0] != "}":
+                try:
+                    self.process_comments(param if param else root)
+                    if token[0] in ("symbol", "quoted"):
+                        name = token[1]
+                    else:
+                        if token[0] in "@%":
+                            raise DudleySyntax("explicit address illegal"
+                                               " in template")
+                        else:
+                            raise DudleySyntax("expecting parameter name"
+                                               " in template")
+                    token = tokens.next()
+                    if token[0] != ":":
+                        raise DudleySyntax("expecting : after {} in template"
+                                           "".format(name))
+                    token = tokens.next()
+                    prim = token[0] if prim == "primtype" else None
+                    if prim:
+                        prim = token[1]
+                        i = 1 if prim[0] in "<>|" else 0
+                        if prim[i] not in "iu":
+                            prim = None
+                    if not prim:
+                        raise DudleySyntax("{} must be i or u primtype"
+                                           " in template".format(name))
+                    param = root.param_def(name, token[1])
+                    template.param_def(name, token[1])
+                    token = symb_quot_prim(tokens.next())
+                    recovering = False
+                except (DudleySyntax, ValueError) as e:
+                    if not recovering:
+                        recovering = True
+                        self.report_error(str(e))
+                    token = symb_quot_prim(tokens.next())
+            tokens.peek()  # process any comments after }
+            self.process_comments(template)
+
+    @staticmethod
+    def symb_quot(token):
+        return ("symbol", token[1]) if token[0] == "quoted" else token
+
+    @staticmethod
+    def symb_quot_prim(token):
+        t0 = token[0]
+        if t0 == "quoted" or (t0 == "primtype" and token[1][0] not in "<>|"):
+            return "symbol", token[1]
+        return token
 
     def dict_item(self):
-        layout, tokens = self.layout, self.tokens
-        token = tokens.peek()
-        if token[0] in ("symbol", "quoted"):
-            name = tokens.next()[1]
-            token = tokens.peek()
-            if token[0] == "=":
+        """
+         7 dict_item: data_param
+         8          | SYMBOL SLASH
+         9          | SYMBOL list_def
+        10          | SYMBOL struct_def
+        11          | SYMBOL list_extend
+        12          | SLASH
+        13          | DOTDOT
+        14          | AMP data_item
+        15          | error
+
+        16 data_param: SYMBOL EQ data_item
+        17           | SYMBOL COLON INTEGER
+        18           | SYMBOL COLON PRIMTYPE placement
+        """
+        layout, tokens, containers = self.layout, self.tokens, self.containers
+        symb_quot_prim, symb_quot = self.symb_quot_prim, self.sym_quot
+        current = containers[-1]  # guaranteed to be a dict
+        try:
+            token = symb_quot_prim(tokens.peek())
+            if token[0] == "symbol":
+                name = tokens.next()[1]
+                token = tokens.peek()
+                if token[0] == "=":
+                    tokens.next()
+                    current.add(name, *self.data_item())
+                elif token[0] == ":":
+                    tokens.next()
+                    current.add_param(name, *self.param_def())
+                elif token[0] == "[":
+                    tokens.next()
+                    containers.append(current.open_list(name))
+                elif token[0] == "/":
+                    tokens.next()
+                    containers.append(current.open_dict(name))
+                elif token[0] == "{":
+                    tokens.next()
+                    containers.append(layout.open_type(name))
+                elif token[0] in "@%":
+                    addrs = self.list_extend()
+                    item = current.get(name)
+                    if item is None or not item.islist or not len(item):
+                        raise DudleySyntax("{} must be existing non-empty"
+                                           " list".format(name))
+                    while addr in addrs:
+                        item.duplicate_last(addr)
+                    self.process_comments(item)
+                else:
+                    raise DudleySyntax("one of =:[/{{@% must follow name {}"
+                                       "".format(name))
+            elif token[0] == "..":
+                tokens.next()
+                containers.pop()
+                if not containers or not containers[-1].isdict:
+                    containers.append(current)
+                    raise DudleySyntax("cannot .. from top level dict")
+                return
+            elif token[0] == "/":
+                tokens.next()
+                while len(containers) > 1 and containers[-1].isdict:
+                    containers.pop()
+            elif token[0] == ",":
+                while len(containers) > 1 and containers[-1].isdict:
+                    containers.pop()
+                if len(containers) > 1 and containers[-2].islist:
+                    containers.pop()
+                else:
+                    raise DudleySyntax("comma separator not allowed in a dict")
+            elif token[0] == "&":
                 tokens.next()
                 self.data_item()
-            elif token[0] == ":":
-                self.param_def()
-            elif token[0] == "[":
-                self.list_def()
-            elif token[0] == "/":
-                self.push_container(name)
-            elif token[0] == "{":
-                self.struct_def()
             else:
-                self.error(token, "expecting one of =:[/{")
-        elif token[0] == "..":
-            self.pop_container()
-        elif token[0] == "/":
-            self.top_container(False)
-        elif token[0] == ",":
-            self.top_container(True)
-        elif token[0] == "&":
-            tokens.next()[1]
-            self.data_item()
+                raise DudleySyntax("expecting dict item name or"
+                                   " cd-like command")
+        except (DudleySyntax, ValueError) as e:
+            self.report_error(str(e))
+
+    def data_item(self):
+        """
+        19 data_item: PRIMTYPE shape filter placement
+        20          | SYMBOL shape filter placement
+        21          | struct_def shape filter placement
+
+        22 shape: LBRACK dimensions RBRACK
+        23      | <empty>
+
+        24 dimensions: dimension
+        25           | dimensions COMMA dimension
+
+        26 dimension: INTEGER
+        27          | SYMBOL
+        28          | SYMBOL PLUSSES
+        29          | SYMBOL MINUSES
+        30          | error
+
+        31 placement: address_align
+        32          | <empty>
+        """
+        layout, tokens = self.layout, self.tokens
+        token = tokens.next()
+        if token[0] in ("primtype", "symbol", "quoted"):
+            dtype = layout.lookup_type(token[1])
+        elif token[0] == "{":
+            dtype = layout.open_type()  # anonymous type
+            containers.append(dtype)
+            n = len(containers)
+            while len(containers) == n and tokens.peek()[0] != "eof":
+                self.struct_item()
         else:
-            self.error(token, "expecting item name or ")
+            raise DudleySyntax("expecting type name or anonymous struct")
+        shape = filt = addr = None
+        token = tokens.peek()
+        if token[0] == "[":
+            symb_quot = self.symb_quot
+            tokens.next()
+            shape = []
+            nerrs = 0
+            while True:
+                token = symb_quot(tokens.next(token))
+                if token[0] == "int":
+                    shape.append(token[1])
+                elif token[0] == "symbol":
+                    param = token[1]
+                    token = tokens.peek()
+                    if token[0] in "+-":
+                        tokens.next()
+                        param = (param, token[1])
+                    shape.append(param)
+                else:
+                    nerrs += 1
+                    if token[0] == "]":
+                        break
+                token = token.next()
+                if token[0] == "]":
+                    break
+                if token[0] != ",":
+                    nerrs += 1
+            if nerrs:
+                raise DudleySyntax("shape must be [dim1, dim2, ...]")
+        token = tokens.peek()
+        if token[0] in ("->", "<-"):
+            filt = self.filter()
+        token = tokens.peek()
+        if token[0] in "@%":
+            addr = self.address_align()
+
+    def address_align(self):
+        """
+        33 address_align: AT INTEGER
+        34              | PCNT INTEGER
+        """
+        # Assume @ or % was result of previous tokens.peek()
+        tokens = self.tokens
+        atype = tokens.next()[0]  # guaranteed to be @ or %
+        align = atype == "%"
+        value = tokens.next()
+        if value[0] != "int" or value[1] < 0:
+            raise DudleySyntax("expecting integer>=0 after {}".format(atype))
+        value = value[1]
+        if align:
+            if value == 0:
+                return None  # no address argument
+            value = -value
+        return value  # address/alignment argument
+
+    def list_extend(self):
+        """
+        43 list_extend: address_align
+        44            | list_extend address_align
+        """
+        # Assume @ or % was result of previous tokens.peek()
+        tokens = self.tokens
+        addrs = []
+        while True:
+            addrs.append(self.address_align())
+            if tokens.peek()[0] not in "@%":
+                break
+        return addrs
+
+    def filter(self):
+        """
+        59 filter: filterop SYMBOL
+        60       | filterop SYMBOL LPAREN filterarg RPAREN
+        61       | <empty>
+
+        62 filterop: LARROW
+        63         | RARROW
+
+        64 filterarg: INTEGER
+        65          | FLOATING
+        66          | error
+        """
+        # Assume -> or <- was result of previous tokens.peek()
+        tokens = self.tokens
+        ftype = tokens.next()[0]
+        token = symb_quot(tokens.next())
+        if token[0] != "symbol":
+            raise DudleySyntax("missing {} filter name".format(ftype))
+        name = token[1]
+        token = tokens.peek()
+        if token[0] != "(":
+            return  # no arguments
+
 
 #    tokens (terminals of grammar):
 # symbol
@@ -472,7 +720,7 @@ re_quoted = re.compile(r'(?:"(?:\\.|[^"\\])*"'
 re_fixed = re.compile(r"[+-]?([1-9]\d*|0x[[a-fA-F0-9]+|0o[0-7]+|0b[01]+|0+)")
 re_floating = re.compile(r"[+-]?(?:\d+\.\d*|\.\d+"
                          r"|(?:\d+|\d+\.\d*|\.\d+)[eE][+-]?\d+)")
-re_punctuation = re.compile(r"(?:<-|->|\.\.|[][}{=:,+\-*@%><|])")
+re_punctuation = re.compile(r"(?:<-|->|\.\.|[][}{=:,+\-*@%><])")
 re_comment = re.compile(r"#.*$", re.M)
 re_spaces = re.compile(r"\s+")
 
@@ -677,82 +925,85 @@ class DTokenizer(object):
     6           | dict_items dict_item
 
     7 dict_item: data_param
-    8          | SYMBOL SLASH       {cntr push cntr.open_dict(SYMBOL)}
-    9          | SYMBOL list_def    {cntr push cntr.open_list(SYMBOL)}
-   10          | SYMBOL struct_def  {cntr push type_def(SYMBOL)}
-   11          | SYMBOL at_or_pcnt  {cntr.SYMBOL.duplicate_last(place)}
-   12          | SLASH   {cntr pop to root or non-dict}
-   13          | DOTDOT  {cntr pop}
-   14          | AMP data_item      {append_ref(data_item)}
-   15          | error              <====
+    8          | SYMBOL SLASH
+    9          | SYMBOL list_def
+   10          | SYMBOL struct_def
+   11          | SYMBOL list_extend
+   12          | SLASH
+   13          | DOTDOT
+   14          | AMP data_item
+   15          | error
 
-   16 data_param: SYMBOL EQ data_item         {cntr += (SYMBOL, data_item)}
-   17           | SYMBOL COLON INTEGER        {cntr += (SYMBOL, param)}
-   18           | SYMBOL COLON primitive placement  {cntr += (SYMBOL, param)}
+   16 data_param: SYMBOL EQ data_item
+   17           | SYMBOL COLON INTEGER
+   18           | SYMBOL COLON PRIMTYPE placement
 
-   19 data_item: primitive shape filter placement   {cntr.add(...)}
-   20          | SYMBOL shape filter placement      {cntr.add(...)}
-   21          | struct_def shape filter placement  {cntr.add(...)}
+   19 data_item: PRIMTYPE shape filter placement
+   20          | SYMBOL shape filter placement
+   21          | struct_def shape filter placement
 
-   22 primitive: order PRIMTYPE  {DType(...)}
-   23          | PRIMTYPE        {DType(...)}
+   22 shape: LBRACK dimensions RBRACK
+   23      | <empty>
 
-   24 shape: LBRACK dimensions RBRACK
-   25      | <empty>
+   24 dimensions: dimension
+   25           | dimensions COMMA dimension
 
-   26 dimensions: dimension
-   27           | dimensions COMMA dimension
-   28           | error          <====
+   26 dimension: INTEGER
+   27          | SYMBOL
+   28          | SYMBOL PLUSSES
+   29          | SYMBOL MINUSES
+   30          | error
 
-   29 dimension: INTEGER
-   30          | SYMBOL
-   31          | SYMBOL PLUSSES
-   32          | SYMBOL MINUSES
+   31 placement: address_align
+   32          | <empty>
 
-   33 placement: at_or_pcnt
-   34          | <empty>
+   33 address_align: AT INTEGER
+   34              | PCNT INTEGER
 
-   35 at_or_pcnt: AT INTEGER
-   36           | PCNT INTEGER
+   35 list_def: LBRACK list_items RBRACK
 
-   37 list_def: LBRACK list_items RBRACK
+   36 list_items: list_item
+   37           | list_items COMMA list_item
+   38           | <empty>
 
-   38 list_items: list_item
-   39           | list_items COMMA list_item
-   40           | <empty>
+   39 list_item: data_item
+   40          | list_def
+   41          | SLASH dict_items
+   42          | error
 
-   41 list_item: data_item
-   42          | list_def
-   43          | SLASH dict_items
-   44          | error        <====
+   43 list_extend: address_align
+   44            | list_extend address_align
 
    45 struct_def: LCURLY struct_items RCURLY
 
-   46 struct_items: struct_item
-   47             | PCNT INTEGER struct_item
-   48             | struct_items struct_item
+   46 struct_items: PCNT INTEGER struct_item
+   47             | struct_items struct_item
+   48             | <empty>
 
    49 struct_item: data_param
-   50            | error        <====
+   50            | error
 
    51 order: LT
    52      | GT
-   53      | PIPE
 
-   54 preamble: order
-   55         | order struct_def
-   56         | struct_def
+   53 preamble: order
+   54         | order LCURLY template_params RCURLY
+   55         | LCURLY template_params RCURLY
 
-   57 filter: filterop SYMBOL
-   58       | filterop SYMBOL LPAREN filterarg RPAREN
-   59       | <empty>
+   56 template_params: SYMBOL COLON PRIMTYPE
+   57                | template_params SYMBOL COLON PRIMTYPE
+   58                | error
 
-   60 filterop: LARROW
-   61         | RARROW
+   59 filter: filterop SYMBOL
+   60       | filterop SYMBOL LPAREN filterarg RPAREN
+   61       | <empty>
 
-   62 filterarg: INTEGER
-   63          | FLOATING
-   64          | error       <====
+   62 filterop: LARROW
+   63         | RARROW
+
+   64 filterarg: INTEGER
+   65          | FLOATING
+   66          | error
 
 --------------
 Informal EBNF grammar ([...] optional, {...}* zero or more repeats):

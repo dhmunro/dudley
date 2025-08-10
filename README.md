@@ -545,9 +545,9 @@ intended use of XDR), this distinction is moot, since you must read the
 whole stream serially anyway.  Second is whether the description is specific
 to a single data stream (like PDB or HDF metadata), or is intended to describe
 any one of a family of different streams (like XDR).  Dudley layouts can
-handle any of the four possible use cases immplied by these two dichotomies.
+handle any of the four possible use cases implied by these two dichotomies.
 
-First, a Dudley layout with no address specifications (or only alignment
+First, any Dudley layout with no address specifications (or only alignment
 specifications) is a reasonably compact description of a stream which you
 know you will read back in exactly the same sequence as you wrote it.  (A
 simulation restart dump might be an example use case.)  As long as you will
@@ -586,7 +586,7 @@ deal about the problem you are trying to solve.
 ## File signatures
 
 The recommended extension for a Dudley layout is .dud, and for binary files
-natively describe for such a layout .bd (for "binary data").  However, the
+natively described by such a layout .bd (for "binary data").  However, the
 Dudley layout may also be appended to the end of the binary file to produce
 a single self-describing file.  Of course, a Dudley layout may also be
 generated for a non-native binary file such as an HDF or PDB file, in which
