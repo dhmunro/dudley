@@ -598,7 +598,7 @@ A native Dudley binary file begins with one of two eight byte signatures:
     8d > B D 0d 0a 1a 0a   (8d 3e 42 44 0d 0a 1a 0a)
 
 The < variant makes the default byte order little endian (least significant
-byte first) while the > variant make the default byte order big endian.  This
+byte first) while the > variant makes the default byte order big endian.  This
 may be overridden by an explicit > or < prefix for a summary block in the
 layout itself, so that the < or > may merely indicate the byte order of the
 machine writing the file rather than any contents.  The first byte of the
@@ -613,11 +613,10 @@ subsequently extended.
 This was inspired by the PNG header.  The rationale is that non-binary FTP
 file transfers will corrupt either the 0d 0a sequence or the 0a character,
 while the 1a character stops terminal output on MSDOS (and maybe Windows).
-Here the 8d character is chosen because it is illegal as the first character
-of a UTF-8 stream and it is not defined in the CP-1252 character encoding,
-nor in the latin-1 encoding (it is the C1 control character RI there), and as
-for the leading character of the PNG signature, any file transfer which resets
-the top bit to zero will corrupt it.
+The 8d character is chosen because it is illegal as the first character
+of a UTF-8 stream, it is not defined in the CP-1252 character encoding,
+not printable in the latin-1 encoding, and finally any file transfer which
+resets the top bit to zero will corrupt it.
 
 
 ## Layout preamble

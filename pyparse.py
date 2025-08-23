@@ -1,26 +1,83 @@
 """Parse a Dudley layout from a file, stream, or str
+
+Because the data in any of these streams is serialized, at the lowest level the
+layout must be a sequence of type-shape pairs describing how to decode the
+bytes of the stream (into ndarrays).  (However, there may be gaps due to data
+alignment or simply parts of the stream which have no meaning.  For example, a
+gap might contain metadata for an alternative description (e.g.- HDF) of the
+meaningful data in the stream.)  The fastest way to read back all the data in
+the stream is in this low level order.
+
+Additionally, the layout groups the ndarrays in this sequence into two
+types of containers analogous to python dicts and lists.  The dict containers
+map text names to items, while the list containers are indexed sequences of
+items (with order unrelated to the low level sequence, at least in principle).
+In addition to items in the stream, items in a list or a dict may also be
+lists or dicts, as long as each container belongs to only a single parent
+container, so the whole organization is a simple tree.
+
+Although these containers are not a part of the data stream - that is, they take
+no space in the data stream - the layout gives them an index in the main list,
+at the place where they were declared.  In fact, type definitions also get an
+index in this list, as do fixed value parameters, both at their point of
+declaration in the layout, so that all objects in the layout (data arrays,
+parameters, dicts, lists, and typedefs) can be referenced by an integer index
+into this main list.  Note that unprefixed primitive types are included just
+before first use.  Similarly, for anonymous typedefs, each member data array or
+parameter takes a place in the master list immediately following the place for
+the type itself, and immediately preceding the data array using it.
+
+Notice that the only differences between a dict container and a typedef
+container is that the former may include dict or list items, while the latter
+is restricted to data arrays and parameters - and of course, only the latter
+may be used as the data type of an array.
+
+Every data array, parameter, dict, or list (that is, any item in a container)
+has three properties: me (master index of itself), parent (master index of the
+parent container) and namex (name in dict parent or index in list parent).
+Typedefs have me and namex (None if anonymous) but no parent, while their
+members (data arrays or parameters) have all three.
+
+Since every item is self-aware through its me index, a dict consists of
+nothing more than a python dict whose values are me, and a list may simply be
+a python list of me values.  Actually, since parameters are owned by dicts,
+a dict (or a typedef) should consist of a pair of dicts, one containing arrays
+and the other parameters.
+
+20 primitive data types:
+i1 i2 i4 i8    signed integers (1, 2, 4, or 8 byte)
+u1 u2 u4 u8    unsigned integers (1, 2, 4, or 8 byte)
+b1             boolean (1 byte)
+   f2 f4 f8    IEEE 754 floats (2, 4, or 8 byte)
+S1             CP1252, Latin1, or ASCII character (1 byte)
+   c4 c8 c16   IEEE 754 complex (2, 4, or 8 byte re,im pairs)
+U1 U2 U4       UTF-8, UTF-16, or UTF-32 character (1, 2, or 4 byte)
+         V0    ? NoneType (0 byte)
+Byte order prefixes: < (1) > (2) | (3)
+
+
 """
 from __future__ import absolute_import
 
 import sys
-from collections import OrderedDict
 from weakref import proxy
 from io import StringIO
 
 PY2 = sys.version_info < (3,)
 if PY2:
-    dict = OrderedDict
+    from collections import OrderedDict as dict
 
 # import ast    ast.literal_eval(text_in_quotes)  repr is inverse
 # JSON.parse, JSON.stringify in javascript
 from ast import literal_eval
 
 
-class DLayout(object):
+class DLayout(list):
     def __init__(self, filename=None, stream=None, text=None, ignore=0):
+        super(DLayout, self).__init__()
         self.filename = filename
-        self.root = DGroup()
-        self.types = {}  # types which have been used or explicitly declared
+        root = DDict(self)
+        self.typedefs = {}  # types which have been used or explicitly declared
         self.default_order = "|"  # initialliy just native order
         self.ignore = 0  # 1 bit ignore attributes, 2 bit ignore doc comments
         if filename is not None:
@@ -184,193 +241,120 @@ class DLayout(object):
 
 
 class DDict(dict):
-    isdict = True
+    isdict = True  # test flag for each of the five object types
     islist = isdata = istype = isparam = False
 
-    def __init__(self, parent):
-        self.parent = proxy(parent)
-        self.doc = self.attrs = None
-        if self.istype:
-            self.align = 0  # default is largest of member alignments
-
-    @property
-    def me(self):  # so a proxy can get back a strong reference
-        return self
-
-    @property
-    def layout(self):
-        parent = self.parent
-        return parent.layout if hasattr(parent, "parent") else parent.me
-
-    @property
-    def amroot(self):
-        return isinstance(self.parent.me, DLayout)
-
-    @property
-    def indict(self):
-        return isinstance(self.parent.me, DDict)
-
-    @property
-    def inlist(self):
-        return isinstance(self.parent.me, DList)
-
-    def parse(self, layout, tokens):
-        amtype = self.istype
-        preamble = True
-        while True:
-            token = tokens.next()
-            if amtype and preamble:
-                preamble = False
-                if token[0] != "{":
-                    return ("error", tokens.nline, tokens.pos,
-                            "type definition must begin with {")
-                token = tokens.peek()
-                if token[0] == "%":
-                    token.next()
-                    token = token.next()
-                    if token[0] != "int":
-                        return ("error", tokens.nline, tokens.pos,
-                                "expecting integer alignment after %")
-                    self.align = token[1]
-            if token[0] == "symbol":
-                name = token[1]
-                token = tokens.peek()
-                if token == ("=",):
-                    tokens.next()
-                    self[name] = value = DData(self)
-                    value.parse(layout, tokens)
-                elif token == (":",):
-                    tokens.next()
-                    token = tokens.peek()
-                    if token[0] == "int":
-                        tokens.next()
-                        value = token[1]
-                    else:
-                        value = DData(self)
-                        value.parse(layout, tokens)
-                        attrs = value.attrs
-                        if attrs.shape or attrs.stype.kind != "i":
-                            layout.syntax_error(
-                                "syntax error parameter {} not a scalar int"
-                                "".format(name))
-                    # how to store parameters?
-                elif token == ("/",):  # declare or continue dict
-                    tokens.next()
-                    value = self.get(name)
-                    if value is None:
-                        value = DDict(self)
-                        self[name] = value
-                    elif not isinstance(value, DDict):
-                        layout.syntax_error(
-                            "syntax error expecting {} to be a dict"
-                            "".format(name))
-                    closing = value.parse(layout, tokens)
-                    if closing in (("/",), ("..",)):
-                        if hasattr(self.parent, "parent"):
-                            return closing
-                        if closing == ("..",):
-                            layout.syntax_error(
-                                "syntax error .. illegal at root level")
-
-                elif token == ("[",):  # declare or continue list
-                    value = self.get(name)
-                    if value is None:
-                        value = DList(self)
-                        self[name] = value
-                    elif not isinstance(value, DList):
-                        layout.syntax_error(
-                            "syntax error expecting {} to be a list"
-                            "".format(name))
-                    value.parse(layout, tokens)
-                elif token == ("{",):  # declare type, always at global level
-                    value = DType(layout, name)
-                    value.parse(layout, tokens)
-                elif token == ("@",) or token == ("%",):
-                    addr = tokens.next()
-                    if addr[0] == "int":
-                        item = self.get(name)
-                        if item and item.islist and len(item):
-                            item._duplicate_last(addr[1], token == ("%",))
-                        else:
-                            layout.syntax_error(
-                                "{} is not non-empty list, cannot extend with"
-                                " @ or %".format(name))
-                    else:
-                        layout.syntax_error(
-                            "syntax error expecting int after @ or %")
-                else:
-                    layout.syntax_error(
-                        "syntax error declaring {}".format(name))
-                    continue
-                self[name] = value
-            elif token in (("/",), ("..",), (",",)):
-                return token
-            elif token in (("-",), ("eof",)):
-                return ("eof",)  # EOF
+    def __init__(self, layout, parent=None, name=None):
+        super(DDict, self).__init__()
+        self.layout = layout
+        self.me = len(layout)
+        layout.append(self)
+        self.parent = parent
+        if parent:
+            parent = layout[parent]
+            if parent.islist:
+                namex = len(parent)
+                parent.append(self.me)
+            elif parent.isdict:
+                namex = name
+                if name in parent:
+                    raise ValueError("{} already declared".format(name))
+                parent[name] = self.me
             else:
-                layout.syntax_error("syntax error expecting name to declare")
+                raise ValueError("DDict parent must be DDict or DList")
+        self.namex = namex
+        self.doc = self.attrs = self.params = None
 
-    def describe(self, stream, prefix=""):
-        pass
+    @property
+    def isroot(self):
+        return self.isdict and self.parent is None
 
 
 class DType(DDict):
     istype = True
     islist = isdata = isdict = isparam = False
 
-    def __init__(self, layout, primitive=name):
-        if hasattr(layout, "parent"):
-            raise TypeError("parent of DType must be a DLayout instance")
-        super(DType, self).__init__(layout)
+    def __init__(self, layout, name=None, primitive=None):
+        super(DType, self).__init__(layout, None, name)
+        self.primitive = primitive
+        self.align = 0  # default is largest of member alignments
+        if name is not None:
+            layout.typedefs[name] = self.me
 
 
 class DList(list):
     islist = True
     isdict = isdata = istype = isparam = False
 
-    def __init__(self, parent, name):
-        self.parent = proxy(parent)
+    def __init__(self, layout, parent, name=None):
+        super(DList, self).__init__()
+        self.layout = layout
+        self.me = len(layout)
+        layout.append(self)
+        self.parent = parent
+        parent = layout[parent]
+        if parent.islist:
+            namex = len(parent)
+            parent.append(self.me)
+        elif parent.isdict:
+            namex = name
+            if name in parent:
+                raise ValueError("{} already declared".format(name))
+            parent[name] = self.me
+        else:
+            raise ValueError("DList parent must be DDict or DList")
+        self.namex = namex
         self.doc = self.attrs = None
-
-    @property
-    def me(self):  # so a proxy can get back a strong reference
-        return self
-
-    @property
-    def layout(self):
-        parent = self.parent
-        return parent.layout if hasattr(parent, "parent") else parent.me
-
-    def parse(self, layout, tokens):
-        pass
-
-    def describe(self, stream, prefix=""):
-        pass
 
 
 class DData(object):
     isdata = True
     islist = isdict = istype = isparam = False
 
-    def __init__(self, parent):
-        self.parent = proxy(parent)
+    def __init__(self, layout, parent, name, dtype, shape=None, addr=None,
+                 filt=None):
+        self.layout = layout
+        self.me = len(layout)
+        layout.append(self)
+        self.parent = parent
+        parent = layout[parent]
+        if parent.islist and self.isdata:
+            namex = len(parent)
+            parent.append(self.me)
+        elif parent.isdict or parent.istype:
+            namex = name
+            defs = parent if self.isdata else parent.params
+            if name in defs:
+                raise ValueError("{} already declared".format(name))
+            defs[name] = self.me
+        else:
+            raise ValueError("illegal parent for DData or DParam")
+        self.namex = namex
+        if dtype >= 0:
+            if not layout[dtype].istype:
+                raise ValueError("illegal data type for DData or DParam")
+        self.dtype = dtype
+        self.shape = shape
+        self.addr = addr
+        self.filt = filt
         self.doc = self.attrs = None
-
-    @property
-    def layout(self):
-        parent = self.parent
-        return parent.layout if hasattr(parent, "parent") else parent.me
-
-    def parse(self, layout, tokens):
-        pass
-
-    def describe(self, stream, prefix=""):
-        pass
 
 
 class DParam(DData):
     isparam = True
     islist = isdata = isdict = istype = False
+
+    def __init__(self, layout, parent, name, dtype, addr=None):
+        super(DParam, self).__init__(layout, parent, name, dtype, None, addr)
+        dtype = self.dtype
+        if dtype >= 0:
+            dtype = layout[dtype]
+            dtype = dtype.primitive if dtype.istype else 32
+        else:
+            dtype = -dtype
+        order = dtype & 3
+        if dtype >> 2 > 7:
+            raise ValueError("DParam must have integer data type")
 
 
 class DudleySyntax(Exception):
@@ -503,6 +487,24 @@ class DParser(object):
             return "symbol", token[1]
         return token
 
+    def param_def(self):
+        tokens = self.tokens
+        dtype = addr = None
+        token = tokens.next()
+        if token[0] == "int":
+            dtype = token[1]  # an int value rather than a string primtype
+        elif token[0] == "primtype":
+            dtype = token[1]
+            i = 1 if dtype[0] in "<>|" else 0
+            token = tokens.peek()
+            if token[0] in "@%":
+                addr = self.address_align()
+            if dtype[i] not in  "iu" or token[0] == "[":
+                raise DudleySyntax("parameter must be scalar i or u type")
+        else:
+            raise DudleySyntax("expecting int parameter value or primtype")
+        return dtype, addr
+
     def dict_item(self):
         """
          7 dict_item: data_param
@@ -521,7 +523,7 @@ class DParser(object):
         """
         layout, tokens, containers = self.layout, self.tokens, self.containers
         symb_quot_prim, symb_quot = self.symb_quot_prim, self.sym_quot
-        current = containers[-1]  # guaranteed to be a dict
+        current = containers[-1]  # guaranteed to be a DDict
         try:
             token = symb_quot_prim(tokens.peek())
             if token[0] == "symbol":
@@ -649,6 +651,7 @@ class DParser(object):
         token = tokens.peek()
         if token[0] in "@%":
             addr = self.address_align()
+        return dtype, shape, addr, filt
 
     def address_align(self):
         """
@@ -669,6 +672,39 @@ class DParser(object):
             value = -value
         return value  # address/alignment argument
 
+    def list_item(self):
+        """
+        35 list_def: LBRACK list_items RBRACK
+    
+        36 list_items: list_item
+        37           | list_items COMMA list_item
+        38           | <empty>
+    
+        39 list_item: data_item
+        40          | list_def
+        41          | SLASH dict_items
+        42          | error
+        """
+        tokens = self.tokens
+        token = tokens.peek()
+        current = containers[-1]  # guaranteed to be a DList
+        try:
+            if token[0] == "[":
+                tokens.next()
+                containers.append(current.open_list())
+            elif token[0] == "/":
+                tokens.next()
+                containers.append(current.open_dict())
+            else:
+                current.add(*self.dict_item())
+            token = tokens.next()
+            if token[0] == "]":
+                containers.pop()
+            elif token[0] != ",":
+                raise DudleySyntax("expecting , or ] after list item")
+        except (DudleySyntax, ValueError) as e:
+            self.report_error(str(e))
+
     def list_extend(self):
         """
         43 list_extend: address_align
@@ -682,6 +718,44 @@ class DParser(object):
             if tokens.peek()[0] not in "@%":
                 break
         return addrs
+
+    def struct_item(self):
+        """
+        45 struct_def: LCURLY struct_items RCURLY
+
+        46 struct_items: PCNT INTEGER struct_item
+        47             | struct_items struct_item
+        48             | <empty>
+
+        49 struct_item: data_param
+        50            | error
+        """
+        tokens = self.tokens
+        token = tokens.peek()
+        current = containers[-1]  # guaranteed to be a DType
+        try:
+            token = symb_quot_prim(tokens.peek())
+            if token[0] == "symbol":
+                name = tokens.next()
+                token = tokens.peek()
+                if token[0] == "=":
+                    tokens.next()
+                    current.add(name, *self.data_item())
+                elif token[0] == ":":
+                    tokens.next()
+                    current.add_param(name, *self.param_def())
+                else:
+                    raise DudleySyntax("expecting = or : after item name {}"
+                                       "".format(name))
+            elif token[0] == "%":
+                if len(current):
+                    raise DudleySyntax("alignment must precede struct items")
+                current.align = self.address_align()
+            else:
+                raise DudleySyntax("expecting struct item name")
+        except (DudleySyntax, ValueError) as e:
+            self.report_error(str(e))
+
 
     def filter(self):
         """
@@ -705,7 +779,22 @@ class DParser(object):
         name = token[1]
         token = tokens.peek()
         if token[0] != "(":
-            return  # no arguments
+            return name, None  # no arguments
+        tokens.next()
+        args = []
+        nerrs = 0
+        while True:
+            token = tokens.next()
+            if token[0] in ("int", "float"):
+                args.append(token[1])
+            token = tokens.next()
+            if token[0] == ")":
+                break
+            if token[0] != ",":
+                nerrs += 1
+        if nerrs:
+            raise DudleySyntax("misformatted filter argument list")
+        return name, args
 
 
 #    tokens (terminals of grammar):
@@ -763,6 +852,10 @@ class DTokenizer(object):
         if match:
             self.pos = match.end()
             return "symbol", literal_eval(match.group())
+        match = re_floating.match(line, pos)
+        if match:
+            self.pos = match.end()
+            return "float", float(match.group())
         # cannot find a legal token
         self.pos = pos + 1
         return "error", pos
