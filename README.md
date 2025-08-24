@@ -1,48 +1,47 @@
 # The Dudley Layout Language
 
-Dudley is a data description language, that is, a way to specify
-exactly where and how binary data is stored in a file or byte stream -
-the *layout* of the data.  Dudley is inspired by XDR
-(https://www.rfc-editor.org/info/rfc4506) and netCDF (particularly
-"classic" netCDF-3, https://www.unidata.ucar.edu/software/netcdf).
-Used as metadata for a single data stream, Dudley has roughly the same
-scope as HDF5 (https://portal.hdfgroup.org/documentation) or PDB (see
-https://silo.readthedocs.io/files.html).
+Dudley is a binary data description language, that is, a tool for describing
+how data is encoded in a stream of bytes.  A Dudley description, or *layout*,
+specifies the contents of a binary data file, with roughly the same scope and
+use cases as [HDF5](https://www.hdfgroup.org/solutions/hdf5/) and similar
+self-describing binary file formats.  However, a single Dudley layout may also
+describe many different files or byte streams, so it can also be used like
+the [XDR standard](https://www.rfc-editor.org/rfc/rfc4506) to exchange
+multiple similar data sets among programs built around a common layout.  What
+makes Dudley unique is its ability to handle the combined HDF5/XDR use case:
+describing a whole collection of binary files with a single layout.  This can
+potentially greatly reduce the cost of locating individual data arrays in the
+large collections of files produced by parallel simulations.
 
-However, unlike netCDF, HDF5, or PDB metadata, a Dudley layout may
-contain parameters stored in the stream, so that a single layout may describe
-many different files or data streams.  This is a major design feature of XDR
-not found (or not emphasized in the case of HDF) in the self-describing file
-formats.  For scientific computing, sharing a common layout has the potential
-to greatly reduce the amount of time required to parse metadata in
-order to locate individual arrays of numbers in large families of files,
-when you want to read back only a small fraction of what has been written.
+Like HDF5 but not XDR, Dudley is specialized for describing scientific data.
+Specifically, Dudley is modeled after numpy, where n-dimensional arrays are
+first class objects, typically organized using python's dict and/or list
+containers.  Thus, a Dudley layout organizes data in exactly the same way as
+[JASON](https://json.org), except that the elements in the container tree
+are binary numpy ndarrays instead of numbers or text strings.  Of course, a
+Dudley layout also maps naturally to most scipy programs.
 
-Perhaps even more significantly, you can design a single Dudley layout
-describing every restart file a physics simulation code can produce -
-the layout describes all of the variables required to specify the state of
-the simulation.  Since a Dudley layout is human-readable, comments in the
-layout can document the meaning of every variable in the problem state,
-making it a quick reference guide for code users as well as developers.
-Often, thinking about how to store a problem state most concisely and
-efficiently feeds back and improves code data structure designs.  This feature
-is also useful for informal sharing of data sets among collaborators.
+In addition to HDF5, XDR, and JASON, Dudley attempts to encorporate the most
+useful features of [netCDF-3](https://www.unidata.ucar.edu/software/netcdf)
+and the less well known [PDB format](https://silo.readthedocs.io/files.html).
+All of these formats were designed in the mid-1990s or earlier, when
+scientific computing was very different than it is today.  The main impetus for
+Dudley is to make a fresh start applying lessons learned from earlier days.
 
 Dudley features:
 
-* Very simple data model consists of multidimensional arrays and
-  containers that are either dicts of named members or lists of
-  anonymous members (like JSON objects and arrays).
+* Very simple data model consists of multi-dimensional arrays belonging to
+  containers that are either dicts (JASON objects) or lists (JASON arrays).
 * Human readable layout description encourages you to think
-  carefully about how you store your data.  By adding comments
-  a layout file you can document your data.
-* Libraries are very lightweight compared to HDF5 or PDB.
+  carefully about how you store your data.  By adding comments to
+  a layout file you can document your data.  In other words, you can work
+  directly with Dudley layouts, rather than relying on a separate library API.
+* A single Dudley layout can describe many binary files or streams.  Thus,
+  you can easily design and document simple formats for casual exchange of
+  scientific data with collaborators.
 * Fully compatible with numpy/scipy.
-* Array dimensions can be parameters stored in the data stream
-  so that a single layout can describe many different datasets.
-  You can easily design and describe small datasets to exchange
-  information with collaborators.
-* Support for data compression.
+* Supports data compression.
+* Libraries are lightweight compared to HDF5 or PDB.
 
 
 ## Data model overview
