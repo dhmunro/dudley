@@ -44,360 +44,269 @@ Dudley features:
 * Libraries are lightweight compared to HDF5 or PDB.
 
 
-## Data model overview
+## Layout basics
 
 Data arrays are multidimensional arrays of numbers, boolean values, or
-text characters (ASCII or Unicode).  You can specify byte order and
-size in bytes of numbers, but floating point numbers are assumed to be
+text characters (ASCII or Unicode).  You can specify byte size and
+order of numbers, but floating point numbers are assumed to be
 in one of the IEEE-754 standard formats, and integers are assumed to
 be two's complement.  Dudley data types can also be compounds built
 from these primitive types, like numpy record dtypes or C structs.
 
-Data arrays may be collected in two types of containers: dicts map variable
-names to data arrays or containers, while lists are sequences of anonymous
-data arrays or containers.  The analogy with python dicts and lists is as
-close as possible, except Dudley dicts can only have text keys, which
-often map to variable names in simulation or processing codes that wrote the
-data.  This dict-list pair of containers is also very close to JSON object and
-array containers.
+You specify a numeric data type as a letter indicating the type, followed by a
+digit (or two digits) representing the byte size, so `i4` is a 4-byte signed
+integer, `u2` is a 2-byte unsigned integer, and `f8` is an 8-byte floating
+point number.  Dudley recognizes a total of 19 primitive data types:
 
-It is possible to create a Dudley layout describing all or most of the
-contents of binary files written in many other formats, such as netCDF, HDF,
-or PDB.  However, unlike any of those formats, Dudley offers parametrized
-array dimensions where the dimension lengths may be written as part of the data
-stream.  This allows a single Dudley layout the possibility to describe many
-different instances of data streams, like XDR.
+    i1 i2 i4 i8   signed integers
+    u1 u2 u4 u8   unsigned integers
+    b1            boolean (==0 for false, !=0 for true)
+       f2 f4 f8   floating point numbers
+       c4 c8 c16  complex numbers as (re, im) pairs of floats
+    S1            CP1252 or Latin1 or ASCII characters
+       U1 U2 U4   UTF8, UTF16, or UTF32 Unicode characters
 
-Dudley also supports features beyond the simple array-dict-list model
-described above in the form of filters that can be applied to data items.
-Compression filters convert an array of known type and shape into a stream
-of bytes whose length is stored as a prefix.  Reference filters, on the other
-hand, convert data arrays whose type and shape are not described in the
-original layout into integer reference numbers of known size.  This allows
-Dudley to store arrays pointers to data.  (This feature is mostly included for
-backward compatibility with PDB and HDF formats.)
+Any of these 19 types may optionally be prefixed by `<` or `>` to indicate
+little-endian (least significant byte first) or big-endian (most significant
+byte first) byte order, respectively, or by `|` to indicate that the byte order
+is not specified in the layout (it may be specified in the byte stream itself,
+for example).  Hence `<f8` is a little-endian 8-byte IEEE-754 floating point
+number.  (By default, a primitive data type prefixed by `|` is the same as the
+unprefixed type, but you can change that as detailed below.)
 
+Note that the numeric type names follow the numpy array interface protocol, but
+the Dudley character data types (`S` and `U`) do not.  In Dudley, the digit
+suffix refers to the (minimum) size of a single character, so that in Dudley,
+the length of a text string is the (fastest varying) dimension length in the
+shape - a string of text must have a shape.  (Note that the dimension length
+is not necessarily the character count for `U1` and `U2`.)
 
-## Data arrays
+You specify a multi-dimensional array in a Dudley layout as:
 
-Dudley describes a multidimensional array of data by a datatype with optional
-shape (that is, dimension list), an optional filter, and an optional address in
-the data stream:
+    dtype shape filter address
 
-    datatype shape filter address
+Only the `dtype` is required; the other three fields are optional.  If no shape
+is specified, the "array" is just a scalar value of the given `dtype`.  The
+filter is only required if you want the array to be compressed in the stream,
+and should be avoided unless you have a real need - after all, the binary
+number formats are already much smaller than a text representation, and
+floating point numbers usually do not compress very well.
 
-If present, the shape is a comma delimited list of dimensions.  Each dimension
-may be either an integer or the name of a previously declared parameter.  For
-example, if parameters IMAX and JMAX have been defined, an array of 3D velocity
-vectors might be described like this:
+The optional address is the byte address of the beginning of the array in the
+data stream; if not provided, it will be computed from the sizes and addresses
+of previously declared arrays.  In other words, by default a Dudley layout
+serializes a group of multi-dimensional arrays of data.  Explicit addresses,
+while supported, generally restrict a Dudley layout to apply to only a single
+file, like HDF5 or PDB metadata, as described more fully below.
 
-    f8[IMAX, JMAX, 3]
+If present, the shape is a comma delimited list of dimension lengths in square
+brackets:
 
-Here f8 is the datatype, meaning 8 byte IEEE-754 floating point numbers.  The
-dimensions are listed slowest varying to fastest varying, also called row-major
-or C order, which is also the default shape ordering in numpy.  For example,
-`i4[3, 2]` means three pairs (never 2 triples!) of 32-bit integers.  Dudley
-intentionally does not provide any way to reverse this shape ordering.
+    f8[3, 2]  # a 3x2 array of six 8-byte floating point numbers
 
-An array datatype need not be a primitive type; you can create compound data
-types like C structs or numpy records as described later, and you may define
-names for types you use frequently.
+Always list the slowest varying dimension first (Dudley arrays are
+row-major), so that `x[3, 2]` in Dudley is like `x[3][2]` in C - namely
+three pairs (**not** two triples).  This is also the default order of array
+shapes in numpy.  Since Dudley is merely a data description language, you
+never refer to individual array elements in a layout, so this dimension order
+only relates to how correct readers must interpret Dudley array declarations.
 
-IMAX and JMAX must have previously been declared as parameters, for example:
+Data arrays may be collected in two types of containers: dicts and lists.  The
+difference is that items in a dict have names, while items in a list are
+anonymous.  An array in a dict usually represents the values of a variable of
+the same name in some program:
 
-    IMAX: 7   # A parameter may have a fixed integer value,
-    JMAX: i4  #   or its value may be stored in the data stream
+    rho = f8[100, 200]  # density of cells in a 100x200 mesh, perhaps
+    xy = f8[101, 201, 2]  # coordinates of the cell corners, perhaps
 
-The difference is that IMAX is part of the Dudley layout - the metadata,
-while JMAX is part of the data stream itself.  When a parameter is
-declared with a datatype (so it is stored in the data stream), it may have
-an optional address just like a data array, but no shape or filter:
+The `rho` and `xy` are the names of the arrays in the dict; every Dudley layout
+has a root dict as its outmost container.  The `=` sign indicates that these
+names correspond to data arrays, as opposed to another container.  No other
+punctuation is permitted, but a `#` begins a comment, causing the remainder of
+the input line to be ignored.  Whitespace (including newlines and comments) is
+optional, unless required to separate two names:
 
-    param_name : datatype address  # general form for an in-stream parameter
+    m=i8 n=i8  # declares scalar integers m and n
 
-The datatype is restricted to an integer (i1, i2, i4, or i8) for parameters.
-Dudley will also accept unsigned integer datatypes for parameters (u1, u2, u4,
-or u8), but keep in mind that Dudley implicity converts all parameter values
-to i8 internally.
+whereas `m=i8n=i8` would be a syntax error.
 
-Often, two arrays in a layout will have array dimensions differing by one.
-For example, in a hydrodynamics simulation using a quadrilaterial mesh, an
-array of positions or velocities will have values at the corners of each
-zone, while arrays of density or temperature will have values at the zone
-center.  Hence the density array `rho` will have one fewer value along each
-axis than the `x` or `y` coordinate array.  To avoid requiring two parameters
-to define these arrays, Dudley recognizes one or more `+` or `-` suffixes
-after a parameter name in a dimension list:
+In addition to data arrays, dicts may contain dicts and lists:
 
-    x = f8[IPOINTS, JPOINTS]
-    rho = f8[IPOINTS-, JPOINTS-]  # one fewer value on each axis
-
-or, equivalently:
-
-      x = f8[IZONES+, JZONES+]  # one more value on each axis
-      rho = f8[IZONES, JZONES]
-
-Similary, you can use `IZONES++` to mean two more than `IZONES`, `IZONES+++`
-for three more, and so on.
-
-Dudley assumes data will be written to the stream in the order declared in
-the layout.  Unless the data array (or parameter) has an explicit address, its
-address will be taken from the end of the previous array to be declared.
-(The first array in the layout will go at either address 0 or, if a Dudley
-file signature was found at address 0, at address 16, immediately after the
-signature.)
-
-Actually, each datatype has an alignment, which you can specify as any power
-of two.  If the byte following the previous array is not a multiple of this
-alignment, a few padding bytes are added so that the array address is a
-multiple of its alignment.  Initially, the alignment of all the primitive data
-types is their size in bytes, except for the complex types, which have the
-same alignment as their floating point components.  The alignment of any
-compound type defaults to the largest alignment of any of its members.
-
-The optional address field in any array or parameter declaration may take one
-of two forms:
-
-    datatype shape filter @byte_address  # specify absolute position
-    datatype shape filter %alignment     # override default datatype alignment
-
-The `@byte_address` form overrides the default datatype alignment as well.
-As a special case, `%0` is a no-op - an explicit address field which means the
-same thing as omitting the address field, namely that the array will have its
-default alignment.
-
-The optional filter field will be described later.
-
-
-## Primitive data types
-
-Ultimately, the only widely portable kinds of data are numbers, either fixed or
-floating point, and text strings, either as bytes or unicode.  Dudley supports
-the most commonly used binary formats for these objects (at least so far in
-this millenium).  Dudley primitive data type names are a subset of the numpy
-array interface protocol.  The Dudley interpretation of the text types S and U
-is slightly different than numpy, but otherwise these type names are all
-recognized by the dtype class constructor:
-
-    i1 i2 i4 i8            1, 2, 4, or 8 byte signed integer
-    u1 u2 u4 u8            1, 2, 4, or 8 byte unsigned integer
-    b1                     1 byte Boolean (0 False, anything else True)
-       f2 f4 f8            2, 4, or 8 byte floating point (IEEE-754)
-          c4 c8 c16        complex (re, im) from f2, f4, or f8 pairs
-    S1                     ASCII or CP-1252 or Latin-1 text
-    U1 U2 U4               UTF-8, UTF-16, or UTF-32 Unicode text
-
-These type names may optionally be preceded by a single character representing
-the byte order (ignored for the 1 byte types): "<" for little endian (least
-significant byte first), ">" for big endian (most significant byte first), or
-"|" for native order of the machine generating the data stream.  If no order
-character is present, "|" is assumed (and that native order must be gotten
-some other way, for example in the file signature described below).
-
-
-## Dict and list containers
-
-A Dudley dict maps names to items.  An item in a dict may be one of four
-things: a data array, a parameter, a dict (that is, a sub-dict), or a list
-of unnamed items, to be described later.  A Dudley layout is a tree, with
-dicts and lists as the branches and data arrays as the leaves.  Every branch
-or leaf in this tree has exactly one parent, which is either a dict or a list.
-As you read the Dudley layout, there is always a current container, either a
-dict or a list, to which you are adding items, like a current working
-directory or folder in a file system.  Initially, the current container is the
-root dict for the entire layout, which is created implicitly.
-
-To add items to a dict container, do one of these:
-
-    array_name = datatype shape filter address  # add data array
-    list_name = [  # add a list container, or open an existing list
-      item1,  # until the close bracket, the list is the current container
-      item2,
-      ...
-    ]
-    dict_name/  # add a dict container, or open an existing dict
-      # "dict_name" becomes the current container, so any following items...
-      array_name = datatype shape filter address  # ...go in "dict_name"
-    ..  # return to parent (original) dict, like cd .. in a filesystem
-    another_array = datatype[3, 3]  # goes in original dict
-
-Generally, Dudley places almost no restrictions on the characters in any name,
-whether a dict item name, a parameter name, or a data type name.  The only
-exception is that type names other than primitives may not begin with an
-order character "<", ">", or "|".  However, if you want a name which would be
-an illegal variable name in python, C, or javascript (alphanumeric plus
-underscore, with the first character not a digit), then you must quote it,
-either with single or double quotes '...' or "...".  Backslash escape sequences
-are recognized inside the quotes  For example,
-
-    "lisp-like-variable" = f4[3]
-    "Variable name with \"spaces\" and punctuation, too!" = i8
-
-Needless to say, you should very much prefer names which are legal variable
-names in python or C or javascript.
-
-To recap, you declare items in a dict by writing the item name, followed
-by "=" if the item is a data array, "[" if the item is a list container, or
-"/" if the item is a dict container.  The latter acts as a "change directory"
-command as well.  Notice that items in a list are comma separated, while no
-punctuation (other than whitespace) separates items in a dict.
-
-A ".." (as opposed to an item name) goes up the dict tree, just as "subdict/"
-goes down.  To avoid having to keep count of how many levels you have descended,
-Dudley also recognizes the character "/" when expecting the next item in a dict,
-which means to go back to the top level of the current directory tree.  This
-is either the root dict, or, if the current dict tree is an item of a list,
-the top level dict whose parent is the list.
-
-You have had a preview of how to add anonymous items to a list; adding data
-arrays or (sub)lists looks exactly as you might expect.  However, it isn't
-obvious how to add a dict to a list: If the first character in a list item is
-a slash "/", followed by named dict items, that does the trick:
-
-    list_name = [
-      datatype shape filter address,  # add data array
-      [  # add (sub) list
-        datatype shape filter address,  # add data array to sublist
-        ...
-      ],
-      /  # add dict
-        array_name = datatype shape filter address
-        dict_name/  # add dict to dict item
-          array_name = datatype shape filter address
-        ..  # return to previous dict level (or / for top level inside list)
-        dict_name2/  # add dict to dict item
-          array_name = datatype shape filter address
-      ,  # comma exits any number of dict levels, resuming list items
-      datatype shape filter address,  # add another data array
+    x = f8[3, 2]        # x is a 3x2 array of 8-byte floats
+    mydict/             # mydict is a dict container
+      x = i4[8]         # mydict/x is an array of 8 4-byte ints
+      y = f4[42]        # mydict/y is an array of 42 4-byte floats
+    ..                  # return to the parent of mydict
+    y = i8[4, 3]        # y is a 4x3 array of 8-byte ints
+    mydict/             # reopen mydict
+      subsub/           # mydict/subsub is a dict container
+        a = i2[20, 50]  # mydict/subsub/a is a 20x50 array of 2-byte ints
+    /                   # return to top level dict
+    z = f4[6]           # z is an array of 6 4-byte floats
+    mylist [            # mylist is a list
+      i4[3],            # first mylist item is array of 3 4-byte ints
+      f8,               # next mylist item is 8-byte float, comma delimited
+      [f4, i4]          # next mylist item is a two element list
+    ]                   # return to the parent of mylist
+    w = i4              # w is a 4-byte int
+    mylist [            # reopen mylist
+      i2,               # fourth mylist item is 2-byte int
+      /                 # fifth mylist item is a dict consisting of...
+        x = f8[5]       # ... x, an array of 5 8-byte floats
+        y = i4[2]       # ... y, an array of 2 4-byte ints
+      ,                 # , or ] closes the dict definition
+      f4                # sixth mylist item is 4-byte float
     ]
 
-Within a single dict, no two items may have the same name.  For data arrays,
-Dudley reports an error if you attempt to add an item with the same name.
-However, for dict and list items in a dict, specifying the name of an existing
-dict or list reopens the old one and appends any new items you specify to that
-existing container.  (Of course, you must reopen a dict as a dict and a list
-as a list, not vice-versa!)  Dudley does not provide any way to reopen a
-dict or a list whose parent is a list - only containers which are named dict
-items may be reopened.
+The `..` and `/` symbols navigate the Dudley dict tree as they would for the
+`cd` command in a UNIX shell.  The "top level" dict for the `/` directive is
+either the root dict, or the nearest ancestor dict whose parent is a list.
+Note that unlike items in a dict, the items in a list are `,` delimited.
+(If dict items were comma delimited or list items were not, it would be
+harder to recognize the close of a dict item in a list.)
 
-As a special shorthand, you may also reopen an existing list and append a
-duplicate(s) of its last element using this special syntax (assuming
-the current container is a dict):
+Although you can reopen a dict or list in a dict by reusing its name, you
+cannot reopen a list or a dict which is an element of a list - list items are
+anonymous and Dudley provides no means to refer to previous elements of a list.
 
-    list_name address [address2 address3 ...]
 
-where the address(es) may be either `@byte_address` or `%alignment`.  For
-example:
+## Parameters
 
-    list_name [f8[20], S1[12], f4[IMAX, JMAX, 3]]
-    ...
-    list_name %0 %0 %0  # alignment=0 means to use default alignment
-    # previous line does the same thing as:
-    list_name [f4[IMAX, JMAX, 3], f4[IMAX, JMAX, 3], f4[IMAX, JMAX, 3]]
+In scientific data sets, at least, many different arrays share dimensions in
+common.  Indeed, the only structural difference among simulations is often
+simply the dimensions of the arrays associated with physical quantities like
+pressure or temperature - you might run many simulations with low resolution
+arrays having small dimension lengths, more with medium resolution, and a few
+with high resolution and correspondingly large dimension lengths.  The same is
+true for collections of experimentally measured values.  Dudley, like netCDF,
+allows you to give symbolic names to dimension lengths.  Unlike netCDF, named
+dimensions in Dudley are optional, and far more importantly they may be written
+as part of the data stream.  Thus, a Dudley layout may be parametrized so that
+it can describe a whole collection of binary files.
+
+Since parameters are named, syntactically you may define them anywhere you
+could define a named data array.  However, parameter declarations differ from
+array declarations in several ways.  There are two types of parameters: Fixed
+value parameters simply have a definite integer value (like netCDF dimension
+names).  Dynamic value parameters are written into the data stream like data
+arrays.  The declarations look like this:
+
+    FIXED_PARAM : 42  # dtype[FIXED_PARAM, 3] is the same as dtype[42, 3]
+    DYNAM_PARAM : i4  # dtype[DYNAM_PARAM, 3] has variable leading dimension
+
+The `:` character instead of the `=` distinguishes parameter declarations from
+data array declarations in the case of a dynamic parameter.  The dtype of a
+dynamic parameter must be one of the `i` or `u` integer primitive types.  A
+dynamic parameter may not have a shape (Dudley parameters are scalar integer
+values) nor a filter (why compress a scalar integer?), but it may have an
+explicit address like a data array declaration.
+
+The parameter declaration must precede its first use in a data array shape in
+the layout.  A parameter name can be used in any data array shape for an array
+declared in the dict where the parameter is declared, or in any descendant
+container, but not outside that subtree.  A parameter declaration will shadow
+any parameter of the same name declared in an ancestor dict.  Best practice is
+to declare all parameters at the beginning of a dict, but Dudley does not
+require this placement.  Although parameters, like named data arrays, belong to
+a dict, they occupy separate name spaces.  In other words, a parameter name may
+be the same as an array name without confusion, although again this is bad
+practice since that makes the layout harder for a human reader to understand.
+
+As an example, consider a simple statistical experiment consisting of some
+number of runs, each of which involves many trials, where in each trial several
+values are measured, say `x`, `y`, and `z`.  The results could be collected
+in a Dudley dict like this:
+
+    results/
+      NRUNS: i4
+      NTRIALS: i4
+      x = f4[NRUNS, NTRIALS]
+      y = f4[NRUNS, NTRIALS]
+      z = f4[NRUNS, NTRIALS]
+
+If `NRUNS` and `NTRIALS` were fixed parameters, this Dudley dict would only
+describe a specific experiment, but by storing `NRUNS` and `NTRIALS` in the
+data stream, one description can apply to many different streams - perhaps one
+file for each student in a class.
+
+Effectively, a dynamic parameter is storing part of the metadata describing the
+stream in the stream itself.  This mixing of data and metadata can rapidly get
+out of hand, so Dudley deliberately limits metadata to this single case of
+scalar parameter values as array dimensions.  This limitation of Dudley in no
+way prevents you from inventing your own schemes for storing what amounts to
+metadata mixed into your data.  For example, a data structure as simple as a
+doubly linked list does not directly map to a Dudley layout, because dict and
+list containers are restricted to be a simple tree.  However, it is easy to
+store arrays of integers which you will interpret as indices into Dudley lists
+or arrays in order to reconstruct more complex data structures.  These extra
+integer arrays amount to metadata describing your structure, even though
+Dudley itself does not "understand" how you will interpret what is stored.
 
 
 ## Compound and named data types
 
-In addition to a type name, the datatype in an array declaration may also be a
-compound datatype enclosed in curly braces:
+In addition to a (possibly prefixed) primitive type name, the `dtype`` in any
+array declaration may also be a compound datatype enclosed in curly braces:
 
-    array_name = {
-      member1_name = datatype1 shape1 filter1 address1
-        # If @byte_address specified, it is relative to start of the instance.
-      param_name : datatypeP addressP  # Instances may contain parameters...
-      member2_name = datatype2[param_name]  # ... used as member dimensions.
-    } shape filter address  # the {...} can describe each element of an array
+    position = {  # the dtype for position is the compound in {}
+      lon = f4
+      lat = f4
+      elev = f4
+    }[NLON, NLAT]  # each element of the position array is three f4s
 
 In other words, the body of the compound type, or struct, has the same syntax
 as the body of a dict, except that a compound type member cannot be a dict or
-a list.  However, a member of a compound type can have members which themselves
-have compound types.
+a list.  (But a member of a compound type can have members which themselves
+have compound types.)  Each member of the compound type may have the optional
+shape, filter, or address fields, although the address within a compound type
+represents the address relative to the beginning of each instance of the type,
+rather than relative to the start of the stream as it would mean in a dict.
 
-This example used an anonymous compound data type.  You can also give a
-compound data type a name like this:
+This example used an anonymous compound data type.  You can also give the
+compound data type a name, so that you can use for other array declarations:
 
-    type_name {
-      member1_name = datatype1 shape1 filter1 address1
-      param_name : datatypeP addressP
-      member2_name = datatype2[param_name]
+    GeoLocation {  # declare GeoLocation to be a dtype
+      lon = f4   # The members of this dtype are all scalar values,
+      lat = f4   #   but dtype members may have shapes,
+      elev = f4  #   including parametrized shapes.
     }
+    position = GeoLocation[NLON, NLAT]  # same position array as before
+    place = GeoLocation  # a scalar instance of GeoLocation
+    paths = [  # a list of GeoLocation arrays
+      GeoLocation[75],
+      GeoLocation[200]
+    ]
 
-With this definition of `type_name`, the previous array declaration is simply
+A member of a compound type may have an address field, but any addresses are
+relative to the beginning of the instance of the type rather than absolute
+addresses in the stream.
 
-    array_name = type_name shape filter address
+Like a parameter declaration, a data type declaration may appear only when
+the current container is a dict.  The point of parameters and custom data types
+is to give the value or type a name, which is the job of a dict, not a list.
+However, a bit inconsistently, each dict keeps three separate name spaces:
+one for data types, one for parameters, and the third for data arrays and
+their containers.  The scope for a data type name is the same as for a
+parameter - you may use it in any descendant dict or list as well as in the
+dict where it was declared.  Also like parameters, data types must be declared
+before their first use.
 
-In other words, you can use `type_name` just as you would use a primitive name.
+A compound data type may have no members, which maps to the None object in
+python or null in javascript.  This special case is not useful if you are
+designing the layout for a stream, but if you are using Dudley to capture the
+state of a scipy calculation, it is inconvenient not to be able to capture
+variables whose value happens to be None:
 
-This definition of the datatype `type_name` can only appear when the current
-container is a dict.  There is no way to define a named data type from within
-a list or another datatype.  Although this makes it appear that the new
-`type_name` can only be used within the current dict, all such type definitions
-are actually at the global level, so `type_name` can be used anywhere in the
-layout after the point where you define it.  The `type_name` must be unique
-for the whole layout; Dudley type defintions are outside of the dict-list
-container tree.
+    mydata = {}  # produces mydata == None when read by scipy
 
-In fact, in Dudley type names and dict item names (arrays, parameters, lists,
-or subdicts) have comletely separate name spaces.  Hence, Dudley allows you to
-have a data array named i4, say, since in the Dudley grammar there is
-never any question of whether a name refers to a type or to a dict item.
-Similarly, a dict item name can be the same as a type name without any conflict.
+Dudley also provides a special syntax for a "compound" data type with a single
+member, which you can use to define shaped arrays as types or define aliases
+for primitive types - applications where it would be confusing and unnecessary
+to invent a name for the single member:
 
-Less obviously, you can even redefine any of the plain primitive type names
-(unadorned by an explicit "<>|" order) with your own custom type, as long as
-you have not previously used that undecorated primitive.  This is because
-Dudley implicitly declares an undecorated primitive type at its first use,
-so "i4" comes to mean "|i4" only when you first declare a variable or parameter
-to have the type "i4".  Although legal, this is obviously a bad idea with one
-arguable exception: You may have reason for the default alignment of a
-primitive type to be different from Dudley's default of the size.
-
-Dudley provides some special quirks to make adjustments like this.  First,
-you can change the default alignment of a compound data type by placing an
-aligment specifier before its first member or parameter:
-
-    { %alignment  # This becomes the default alignment for the type as a whole.
-      member1 = ...
-    }
-
-Second, if the compound type has just a single member whose name is "", the
-empty string (Dudley places no restrictions on valid names!), then the type
-becomes just a shorthand for the type of that single member.  This is true
-even if the compound includes parameters, for example:
-
-    mesh_type {
-      IMAX: i8  JMAX: i8
-      "" = f8[IMAX, JMAX]
-    }
-    var = mesh_type
-
-This `var` will be presented to a user reading or writing the stream as if it
-were declared "var = f8[IMAX, JMAX]", even though IMAX and JMAX values are
-actually present in the stream before the array.  This comes at a steep cost,
-since this mesh_type has a size unknown at the time the layout is parsed.
-Types like this are similar to counted data types in XDR or HDF.  In practice,
-a type declaration like:
-
-    mesh_type {
-      "" = f8[IMAX, JMAX]
-    }
-
-is much preferred, since IMAX and JMAX will now be shared across potentially
-many more mesh_type instances, and `var` really behaves exactly as if it were
-declared `var = f8[IMAX, JMAX]`.
-
-Combining these two special rules, here is how you would change the default
-alignment of the primitive i8 to 4 bytes:
-
-    i8 {%4 ""=|i8}
-
-Finally, Dudley permits a special version of the compound type declaration
-to declare variables with a value of None in python or null in javascript -
-just use a compound type with no members:
-
-    var = {}  # gives None or null on read, expects None or null on write
-    NoneType{}  # If you prefer, you can define a type for None, then use:
-    var = NoneType  # - but there is no real advantage to this.
+    float { = f4}  # you may prefer  the C name "float" to the Dudley "f4"
+    Mesh {=float[IMAX, JMAX]}  # "Mesh" becomes an alias for "f4[IMaX, JMAX]"
+    xy = Mesh[2]  # same as xy = f4[2, IMAX, JMAX] (_not_ f4[IMAX, JMAX, 2]!)
 
 
 ## Filters
@@ -407,9 +316,8 @@ declared in the usual way into a (hopefully shorter) byte string:
 
     f8[1000, 100, 100] -> zfp  # compress 1000x100x100 array using zfp
 
-what actually is written to the data stream is `{NBYTES:i8 ""=u1[NBYTES]}`,
-which the zfp filter will decompress to the `f8[1000, 100, 100]` array of the
-declaration.  The zfp filter uses a lossy compression scheme, so the
+what actually is written to the data stream is the result of compressing the
+array using zfp.  The zfp filter uses a lossy compression scheme, so the
 1000x100x100 array you read back will not be precisely the same as what you
 wrote.  ZFP has many tuning options, but the default Dudley zfp filter
 simplifies its various options to just a single optional parameter.  If you
@@ -419,7 +327,10 @@ like a function call:
     f8[1000, 100, 100] -> zfp(1.e-6)  # compress with tolerance 1.e-6
 
 Dudley implements four compression filters by default, but you can define and
-register your own custom filters if you wish.  The default filters are all
+register your own custom filters if you wish.  Unlike an unfiltered array, you
+do not know in advance how many bytes of the stream will be occupied by the
+compressed array, so using any filters at all restricts a Dudley layout to
+a particualr individual byte stream.  The default filters are all
 simplified versions of popular open source compressors:
 
 - *zfp(level)* **[ZFP](https://zfp.io)** is a lossy compression library.
@@ -458,18 +369,15 @@ Now the objects which are referenced obviously must be declared *somewhere* in
 the layout - otherwise there would be no way to read them back.  Therefore,
 Dudley expects to find a sequence of special declarations of the form:
 
-    &datatype shape filter address
+    = datatype shape filter address
 
-These can appear anywhere a named dict item is expected, but, like named data
-types, these reference declarations are kept outside of the dict-list container
-tree as a simple list in the order they appear in the layout.
-
-Unlike everything else in the layout, these really aren't expected to be
-produced by a human; instead the `ref` filter is expected to generate them
-when it discovers the unknown objects when writing them, or more usually,
-by a translation program which is creating the layout from a PDB or HDF file.
-The reference filter is responsible for converting between the datatype in
-the `<- ref` declaration and an index into this list of anonymous objects.
+These can appear anywhere a named dict item is expected, but these reference
+declarations are kept outside of the dict-list container tree.  The `ref`
+filter is responsible for associating these special declarations with the
+item containing the `<- ref` marker.  HDF5 and PDB files each have their own
+`ref` filter, but these are intended to be generated only by software
+translators that produce Dudley layouts describing the HDF5 or PDB binary
+files.  There is no other good reason to use reference filters.
 
 
 ## Document and attribute comments
