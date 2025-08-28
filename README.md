@@ -39,8 +39,8 @@ Dudley features:
 * A single Dudley layout can describe many binary files or streams.  Thus,
   you can easily design and document simple formats for casual exchange of
   scientific data with collaborators.
+* Supports data compression, though that defeats the previous feature.
 * Fully compatible with numpy/scipy.
-* Supports data compression.
 * Libraries are lightweight compared to HDF5 or PDB.
 
 
