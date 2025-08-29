@@ -309,6 +309,85 @@ to invent a name for the single member:
     xy = Mesh[2]  # same as xy = f4[2, IMAX, JMAX] (_not_ f4[IMAX, JMAX, 2]!)
 
 
+## Document and attribute comments
+
+As noted earlier, Dudley treats anything between a `#` character and the next
+end-of-line as a comment, that is, as it it were whitespace.  However, the
+Dudley parser can collect two special types of comments, which can be
+associated with the dict or list item, or with the named struct member where
+those comments appeared.
+
+Simplest is the document comment, which begins with `##`.  This should
+briefly describe the meaning of the item - perhaps its units and relationship
+to other items in the layout.  Multiple lines of document comments may be
+associated with an item; Dudley keeps a list of the comment lines of text
+after the "##" and up to the end of the line:
+
+    te = f8[IMAX, JMAX]  ## (eV) electron temperature
+                         ## ei_coupling determines how rapidly te and ti relax
+
+Document comments are completely free-form.  Dudley also recognizes attribute
+comments beginning with `#:`, which are also associated with the item where
+they appear.  Again, an item may have multiple lines of attribute comments.
+Document, attribute, and ordinary ignored comments may be intermixed freely
+for any item, but Dudley keeps a single list of document comment lines, and
+a single dict of all the attributes defined in attribute comment lines.
+The format of an attribute comment is rigidly defined:
+
+    #: attr1_name=value1 attr2_name=value2 ...
+
+where each attribute value can be an integer, a floating point number, a
+quoted text string, or a 1D homogeneous array of any of these three types
+specified as a comma delimited list enclosed in `[...]`.  The attribute names
+are the keys of the attribute dict Dudley will associate with the dict or list
+item or struct member where the `#:` comment appears.  As a concrete example:
+
+    #: offsets=[0, 1, -1] units="mJ/cm2/s/ster" f_stop=5.6
+
+As for other names in Dudley, attribute names may be quoted text; Dudley
+imposes no restrictions on legal attribute names.
+
+A few attributes of the root dict have standard meanings and formats defined
+here:
+
+    #: created = "YYYY-MM-DD HH:MM:SS+00:00" (iso) or integer unix timestamp
+    #: modified = "YYYY-MM-DD HH:MM:SS+00:00" (iso) or integer unix timestamp
+    #: creator = "code that wrote this file"
+    #: author = "name of person responsible for this data"
+    #: copyright = "date and owner"
+    #: license = "short name of license covering this data"
+
+[//]: # "from datetime import datetime, timezone"
+
+[//]: # "time = datetime.now(timezone.utc).isoformat(' ', 'seconds'"
+
+    #: dudley = "layout filename"
+
+As an attribute of the root dict, `dudley` means the named layout file should
+be inserted into this layout here.  This would usually be the only line in a
+Dudley layout that is appended to the end of a binary file, save for the other
+standard attribute comments mentioned here.
+
+Another appropriate use for attributes is partially standardized here: any
+data array item may have a checksum attribute.  Most of these values should be
+a quoted string of hex digits (like the output of the `sha1sum` command line
+utility), but the simple crc32 checksum should be an unsigned integer value:
+
+    x = f8[200, 500]  #: crc32 = 907394167
+    y = f8[200, 500]  #: sha1 = "dccad2f69992d3478cf3c46030f7abd254189473"
+
+The "standard" attribute name should be lower case with `-` characters removed
+as in these examples.  The checksum applies to the value of the data in the
+stream, which may have opposite byte order from the data presented to your
+program after reading.  Dudley itself only provides hooks to compute checksums
+on write or check them on read, so there is no universal list of supported
+algorithms.  However, crc32 is likely the best choice for an
+individual array checksum, because it is overwhelmingly likely to detect
+randomly corrupted bits in your stream.  If you need cryptographic security,
+you almost certainly want to checksum the entire stream rather than merely
+individual arrays.
+
+
 ## Filters
 
 Dudley supports two kinds of filters.  *Compression* filters convert an array
@@ -380,65 +459,49 @@ translators that produce Dudley layouts describing the HDF5 or PDB binary
 files.  There is no other good reason to use reference filters.
 
 
-## Document and attribute comments
+## Explicit address fields
 
-As implied in some of the examples, Dudley treats anything between a "#"
-character and the next end-of-line as a comment, that is, as it it were
-whitespace.  However, the Dudley parser can collect two special types of
-comments, which can be associated with the dict or list item, or with the
-named struct member where those comments appeared.
+Dudley supports two kinds of explict address fields for data array items in
+dicts, lists, or structs: You may specify either the absolute address of the
+item (in the file for dict or list items, in the instance for struct items) as
+`@integer_value`, or you may specify a byte alignment for the item as
+`%integer_value`.  An alignment must be a (small) power of two; if the next
+available address in the stream (or instance) is not a multiple of this
+alignment, it will be rounded up to such a multiple, leaving a few undefined
+padding bytes in the stream.
 
-Simplest is the document comment, which begins with "##".  This should
-briefly describe the meaning of the item - perhaps its units and relationship
-to other items in the layout.  Multiple lines of document comments may be
-associated with an item; Dudley keeps a list of the comment lines of text
-after the "##" and up to the end of the line:
+The `@value` specifier is primarily intended for software generated Dudley
+layouts, for example to describe existing HDF5 or PDB files by a separate
+Dudley layout.  The items in a Dudley layout ordinarily appear in the stream
+in the order they are declared in the layout, but that need no be true if the
+layout has explicit address specifications.
 
-    te = f8[IMAX, JMAX]  ## (eV) electron temperature
-                         ## ei_coupling determines how rapidly te and ti relax
+By default, the primitive types all have an alignment equal to their size.
+The alignment for a compound data type is always the largest alignment among
+its members - which may individually be decreased by `%value` fields if needed.
+You may also use the special single member syntax for compounds to globally
+change the alignment of any unprefixed primitive type, as long as this
+declaration is at the global level and precedes the first use of that primitive:
 
-Document comments are completely free-form.  Dudley also recognizes attribute
-comments beginning with `#:`, which are also associated with the item where
-they appear.  Again, an item may have multiple lines of attribute comments.
-Document, attribute, and ordinary ignored comments may be intermixed freely
-for any item, but Dudley keeps a single list of document comment lines, and
-a single dict of all the attributes defined in attribute comment lines.
-The format of an attribute comment is rigidly defined:
+    f8 { = |f8 %4 }  # change f8 alignment from 8 bytes to 4 bytes
 
-    #: attr1_name=value1 attr2_name=value2 ...
+Dudley recognizes one special case alignment field: `%0` means to place the
+item according to its usual alignment as if there had been no address field at
+all.  This is only useful for the special shorthand list extension syntax:
 
-where each attribute value can be an integer, a floating point number, a
-quoted text string, or a 1D homogeneous array of any of these three types
-specified as a comma delimited list enclosed in `[...]`.  The attribute names
-are the keys of the attribute dict Dudley will associate with the dict or list
-item or struct member where the `#:` comment appears.  As a concrete example:
+    list_name [item1, item2, itemN]
+    list_name address1 address2 address3 ...
 
-    #: offsets=[0, 1, -1] units="mJ/cm2/s/ster" f_stop=5.6
+is a shorthand for duplicating the last declared element (itemN) of the list
+at each of the specified addresses, so the second line is the same as:
 
-As for other names in Dudley, attribute names may be quoted text; Dudley
-imposes no restrictions on legal attribute names.
+    list_name [itemN address1, itemN address2, itemN address3, ...]
 
-Dudley defines meanings for a few attributes of the root dict:
+The `%0` special alignment makes it possible to use the shorthand syntax to
+append a series of list items as if the new items had no explicit address
+field:
 
-    #: created = "YYYY-MM-DD HH:MM:SS+00:00" (iso) or integer unix timestamp
-    #: modified = "YYYY-MM-DD HH:MM:SS+00:00" (iso) or integer unix timestamp
-    #: creator = "code that wrote this file"
-    #: author = "name of person responsible for this data"
-    #: copyright = "date and owner"
-    #: license = "short name of license covering this data"
-
-[//]: # "from datetime import datetime, timezone"
-
-[//]: # "time = datetime.now(timezone.utc).isoformat(' ', 'seconds'"
-
-    #: dudley_template = filename
-
-As an attribute of the root dict, `dudley_template` means that template
-layout file should be inserted into this layout here.  As an attribute of a
-struct data type, `dudley_template` means that this struct is an exact match
-for the template struct in the specified template layout.  (Filename searched
-for on DUDLEY_PATH if not an absolute path.)  See layout preamble section below
-for more information.
+    list_name%0%0%0  # same as list_name[itemN, itemN, itemN]
 
 
 ## Dudley use cases
@@ -508,7 +571,7 @@ The < variant makes the default byte order little endian (least significant
 byte first) while the > variant makes the default byte order big endian.  This
 may be overridden by an explicit > or < prefix for a summary block in the
 layout itself, so that the < or > may merely indicate the byte order of the
-machine writing the file rather than any contents.  The first byte of the
+machine writing the file rather than any contents.  The first byte following
 signature is address zero in the corresponding layout.
 
 Furthermore, the second eight bytes of a native file are either all zero, or
