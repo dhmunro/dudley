@@ -523,7 +523,7 @@ know you will read back in exactly the same sequence as you wrote it.  (A
 simulation restart dump might be an example use case.)  As long as you will
 read back the file in exactly the same order you wrote it, you can use all
 of the constructs Dudley provides freely, including compression or reference
-filters and parameters that are part of struct instances.  If you have used
+filters.  If you have used
 parameters written to the stream for your array dimensions, there is a good
 chance that this Dudley layout can be used to describe multiple data streams.
 This is the use case for XDR - a Dudley layout can also be used to describe a
@@ -534,15 +534,14 @@ container tree, you will be able to read (or write) your file randomly, rather
 than being forced to read it back serially.  The price you pay is that even
 with array shape parameters written to your data stream, it is unlikely
 that this kind of Dudley layout can be used to describe more than one specific
-binary file.  This is the only use case supported for PDB or HDF files.  For
+binary file.  This is the only use case supported for PDB or HDF5 files.  For
 many applications, such as casually saving the state of an interactive
 session, this is not an important limitation.  Once again, you can use the
-full set of Dudley features, including compression and reference filters and
-parameters in struct instances.
+full set of Dudley features, including compression and reference filters.
 
 The new use case a Dudley layout makes possible is random access to multiple
 different files described by a single layout.  This is only possible if you
-avoid compression or reference filters and structs containing parameters, as
+avoid compression or reference filters, as
 well as any explicit address specifications (apart from alignment).  In this
 case, from the shape parameters, Dudley can calculate the address of every
 item in the layout.  If you can design a layout meeting these criteria, you
@@ -587,40 +586,6 @@ The 8d character is chosen because it is illegal as the first character
 of a UTF-8 stream, it is not defined in the CP-1252 character encoding,
 not printable in the latin-1 encoding, and finally any file transfer which
 resets the top bit to zero will corrupt it.
-
-
-## Layout preamble
-
-If the first non-comment character in a Dudley layout is `<` or `>`, that will
-set the default byte order for all primitive types in the file, overriding
-the file signature, or any other attempt to specy a default byte order.  For
-example, if you are writing a Dudley layout to describe a netCDF file or an
-XDR data stream, the first character of the layout should be `>`, since both
-those formats always encode the data stream in big-endian or "network" order.
-
-If the first non-comment character, or the second after a `<` or `>`, is a
-`{` character beginning a struct data type that contains every parameter that
-will be used in the layout, then Dudley will treat that struct as a
-template type, as well as automatically writing those parameters at the
-beginning of the file as if the `{...}` brackets were not present.  A file
-containing such a template type is assumed to be intended as a layout
-template, and Dudley will throw an error if the layout contains any explicit
-addresses or any other data descriptions which are not consistent with that
-use case.  A file described by such a template layout need not include any
-other metadata - the parameters written at the beginning of any binary file
-described by such a template layout completely determine the addresses of all
-the variables in the file.
-
-Furthermore, you can store arrays of this template type in a separate catalog
-file, so that the catalog plus the template layout completely determine the
-location of variables in a large collection of files covered by the catalog.
-Each individual file still begins with its own parameters (duplicated in its
-entry in the catalog), so it is still decipherable even if it becomes
-detached from the other files in the collection.  The higher level structure of
-such a catalog is flexible and not a part of Dudley itself - a Dudley template
-layout is simply a hook for designing such a catalog.  (The catalog itself
-is expected to have its own separate Dudley layout, but the details of the
-connection between the two layouts are left to the designer.)
 
 
 ## Examples
