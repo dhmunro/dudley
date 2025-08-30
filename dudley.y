@@ -1,10 +1,11 @@
 /* Dudley grammar
-  27 terminals
-  23 non-terminals
-  66 rules
-  101 states
+  23 terminals
+  21 non-terminals
+  57 rules
+  84 states
 
-  Does not include grammar for attribute comments (or document comments).
+  Does not include mini-grammar for attribute comments (or document comments)
+  - expect to handler those in lexer.
  */
 
 %union{
@@ -20,8 +21,8 @@
 %token<realnum> FLOATING
 %token EQ COLON SLASH DOTDOT LBRACK RBRACK COMMA AT PCNT LCURLY RCURLY
 /*     =    :     /     ..      [      ]     ,   @   %     {      }   */
-%token LT GT LARROW RARROW LPAREN RPAREN AMP
-/*     <  >    <-     ->     (      )     & */
+%token LARROW RARROW LPAREN RPAREN
+/*       <-     ->     (      )   */
 %token<num> PLUSSES MINUSES
 /*             +       -   */
 
@@ -29,8 +30,6 @@
 
 layout:
   dict_items
-| preamble dict_items
-| preamble
 |
 ;
 
@@ -40,21 +39,17 @@ dict_items:
 ;
 
 dict_item:
-  data_param
+  SYMBOL EQ data_item
+| SYMBOL COLON INTEGER
+| SYMBOL COLON PRIMTYPE placement
 | SYMBOL SLASH
 | SYMBOL list_def
 | SYMBOL struct_def
 | SYMBOL list_extend
 | SLASH
 | DOTDOT
-| AMP data_item
+| EQ data_item
 | error
-;
-
-data_param:
-  SYMBOL EQ data_item
-| SYMBOL COLON INTEGER
-| SYMBOL COLON PRIMTYPE placement
 ;
 
 data_item:
@@ -115,45 +110,33 @@ list_extend:
 
 struct_def:
   LCURLY struct_items RCURLY
+| LCURLY EQ data_item RCURLY
 ;
 
 struct_items:
-  PCNT INTEGER struct_item
-| struct_items struct_item
+  struct_items struct_item
 |
 ;
 
 struct_item:
-  data_param
-| error
-;
-
-order:
-  LT
-| GT
-;
-
-preamble:
-  order
-| order LCURLY template_params RCURLY
-| LCURLY template_params RCURLY
-;
-
-template_params:
-  SYMBOL COLON PRIMTYPE
-| template_params SYMBOL COLON PRIMTYPE
+  data_item
 | error
 ;
 
 filter:
   filterop SYMBOL
-| filterop SYMBOL LPAREN filterarg RPAREN
+| filterop SYMBOL LPAREN filterargs RPAREN
 |
 ;
 
 filterop:
   LARROW
 | RARROW
+;
+
+filterargs:
+  filterarg
+| filterargs COMMA filterarg
 ;
 
 filterarg:
