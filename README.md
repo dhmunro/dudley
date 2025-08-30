@@ -592,11 +592,9 @@ resets the top bit to zero will corrupt it.
 
 State template for a very simple 1D or 2D radhydro simulation:
 
-    {  # template type completely specifies any file described by this layout
-      IMAX : i8    ## leading dimension of mesh arrays
-      JMAX : i8    ## second dimension of mesh arrays
-      NGROUP : i8  ## number of photon energy groups (zero if no radiation)
-    }
+    IMAX : i8    ## leading dimension of mesh arrays
+    JMAX : i8    ## second dimension of mesh arrays
+    NGROUP : i8  ## number of photon energy groups (zero if no radiation)
     gb = f8[NGROUP+]    ## (eV) group boundaries (also no data if NGROUP zero)
     time = f8           ## (ns) simulation time
     r = f8[JMAX, IMAX]  ## (um) radial node coordinates
@@ -613,12 +611,10 @@ in many different ways:
 Here is a netCDF-like version, with gb a non-record variable and the rest
 rescord variables:
 
-    {
-      NREC : i8    # number of records in this file
-      IMAX : i8
-      JMAX : i8
-      NGROUP : i8
-    }
+    NREC : i8    # number of records in this file
+    IMAX : i8
+    JMAX : i8
+    NGROUP : i8
     gb = f8[NGROUP+]  # group boundaries do not change
     "" = {  # empty instance name effectively puts these at root level
       time = f8
@@ -633,7 +629,7 @@ rescord variables:
 
 Here is an HDF5 or PDB-like version, with each record variable a homogeneous
 list - the list index corresponding to the UNLIMITED dimension.  Note that this
-is no longer a template:
+is no longer a general template - it applies only to files with three records:
 
     IMAX : i8
     JMAX : i8
