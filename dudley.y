@@ -2,7 +2,7 @@
   23 terminals
   21 non-terminals
   57 rules
-  84 states
+  86 states
 
   Does not include mini-grammar for attribute comments (or document comments)
   - expect to handler those in lexer.
@@ -119,7 +119,7 @@ struct_items:
 ;
 
 struct_item:
-  data_item
+  SYMBOL EQ data_item
 | error
 ;
 
