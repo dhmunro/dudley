@@ -242,6 +242,34 @@ or arrays in order to reconstruct more complex data structures.  These extra
 integer arrays amount to metadata describing your structure, even though
 Dudley itself does not "understand" how you will interpret what is stored.
 
+Often, two arrays will have lengths that, while both variable, always differ
+by one or two elements.  For example, in a simple quadrilateral mesh, vertex
+centered arrays have one more value along each dimension than zone centered
+arrays.  For one dimensional arrays, there is always one more bin boundary than
+bin, no matter how the number of bins may vary.  To avoid having to declare
+two different parameters whose values always differ by one, you can declare
+a dimension length as a parameter name followed by a `+` or `-` suffix:
+
+    NGAPS: i4
+    gaps = f8[NGAPS]
+    pickets = f8[NGAPS+]  # a fence always has one more picket than gap
+
+You can use multiple `+` or `-` suffixes, so `NGAPS++` would be two more than
+`NGAPS`, and so on.
+
+Finally, Dudley recognizes two special dimension lengths: First, a dimension
+may have zero length.  If any array dimension is zero, the array has no data
+and takes no space in the file.  More obscurely, Dudley treats a dimension
+"length" of `-1` to mean that the dimension should be removed from the shape.
+In other words, the size of the array is the same as if the dimension had been
+`+1`, but that unit length dimension is to be squeezed out of the shape.  You
+can use this special value to create optional arrays in your stream:
+
+    HAS_FEATURE: i1  # -1 for true, 0 for false
+    x = f8[HAS_FEATURE, 3, 3]  # x[3, 3] if HAS_FEATURE=-1, else no data
+
+Any `+` or `-` suffix is ignored if the parameter value is either 0 or -1.
+
 
 ## Compound and named data types
 
