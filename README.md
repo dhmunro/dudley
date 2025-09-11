@@ -235,7 +235,9 @@ Unlike named data arrays, parameter names may be reused within a single dict.
 That is, in addition to shadowing parameters of the same name in an ancestor
 dict, a parameter may shadow a previously declared parameter of the same name
 in its own dict.  Thus, parameters behave like a variable in a function in
-a C or Python function - their value may change as the function executes:
+a C or Python function - their value may change as the function executes.  The
+primary reason for this is to prevent having to invent many different parameter
+names to describe streams that have counted arrays:
 
     COUNT: i4  # could also be a fixed integer value
     x = f4[COUNT]  # dimension of x written into stream before x
