@@ -8,78 +8,92 @@ gap might contain metadata for an alternative description (e.g.- HDF) of the
 meaningful data in the stream.)  The fastest way to read back all the data in
 the stream is in this low level order.
 
-Additionally, the layout groups the ndarrays in this sequence into two
-types of containers analogous to python dicts and lists.  The dict containers
-map text names to items, while the list containers are indexed sequences of
-items (with order unrelated to the low level sequence, at least in principle).
-In addition to items in the stream, items in a list or a dict may also be
-lists or dicts, as long as each container belongs to only a single parent
-container, so the whole organization is a simple tree.
+In addition to data stored in the stream, the low level list also contains all
+the structural information in the text layout, in the order specified in the
+text layout, including dict and list declarations, named type declarations,
+and struct member declarations, even though these occupy no space in the
+data stream.  Thus, the low level list is really just a binary version of the
+Dudley layout - the layout itself is a series of declarations - which will be
+called the "spine" of the layout.
 
-Although these containers are not a part of the data stream - that is, they take
-no space in the data stream - the layout gives them an index in the main list,
-at the place where they were declared.  In fact, type definitions also get an
-index in this list, as do fixed value parameters, both at their point of
-declaration in the layout, so that all objects in the layout (data arrays,
-parameters, dicts, lists, and typedefs) can be referenced by an integer index
-into this main list.  Note that unprefixed primitive types are included just
-before first use.  Similarly, for anonymous typedefs, each member data array or
-parameter takes a place in the master list immediately following the place for
-the type itself, and immediately preceding the data array using it.
+The spline is simply a list; each item in this list is one of five things:
+a data array, a parameter, a dict, a list, or a type.  The latter three are
+containers.  A dict may contain any of the five sorts of items.  A list may
+contain data arrays, dicts, or lists, but not parameters or types.  A type may
+only contain data arrays (struct members).  The root dict is always the first
+item in the spine, with index 0.  Every other object has a index greater
+than zero which serves as its identifier.  The exceptions are the prefixed
+primitive types, which are given unique negative pseudo-indices as described
+below - they are the only undefined objects in a Dudley layout.
 
-Notice that the only differences between a dict container and a typedef
-container is that the former may include dict or list items, while the latter
-is restricted to data arrays and parameters - and of course, only the latter
-may be used as the data type of an array.
+Every object except the root dict has a parent (the primitive types, including
+implicitly declared unprefixed primitives, have the root dict as a parent).
+Data arrays additionally have a type (index), shape, and alignment (often
+inherited from their type), while parameters either have a fixed value or
+a type and alignment.  A dict has an item mapping which takes both spine index
+to item name and item name to spine index, as well as similar mappings for
+parameters and types for a total of three two-way name mappings.  A list has a
+list of spline indices - a one-way mapping providing no easy way to figure out
+an element's position in the list given its spline index.  A type has a single
+two-way mapping of member name to and from spline index.
 
-Every data array, parameter, dict, or list (that is, any item in a container)
-has three properties: me (master index of itself), parent (master index of the
-parent container) and namex (name in dict parent or index in list parent).
-Typedefs have me and namex (None if anonymous) but no parent, while their
-members (data arrays or parameters) have all three.
-
-Since every item is self-aware through its me index, a dict consists of
-nothing more than a python dict whose values are me, and a list may simply be
-a python list of me values.  Actually, since parameters are owned by dicts,
-a dict (or a typedef) should consist of a pair of dicts, one containing arrays
-and the other parameters.
-
-20 primitive data types:
-i1 i2 i4 i8    signed integers (1, 2, 4, or 8 byte)
+Dudley recognizes 19 primitive data types:
 u1 u2 u4 u8    unsigned integers (1, 2, 4, or 8 byte)
+i1 i2 i4 i8    signed integers (1, 2, 4, or 8 byte)
 b1             boolean (1 byte)
    f2 f4 f8    IEEE 754 floats (2, 4, or 8 byte)
 S1             CP1252, Latin1, or ASCII character (1 byte)
    c4 c8 c16   IEEE 754 complex (2, 4, or 8 byte re,im pairs)
 U1 U2 U4       UTF-8, UTF-16, or UTF-32 character (1, 2, or 4 byte)
-         V0    ? NoneType (0 byte)
-Byte order prefixes: < (1) > (2) | (3)
+In this order, the 19 non-ordered primitive types are numbered 0-18.
 
+Bigger floating point types - f12 or f16 - are not in this list because they
+may not be present or have a standard format for some numpy implementations.
+Note that the S and U suffixes are byte counts, unlike in the numpy array
+protocol - the number of characters in the string is the fastest varying
+dimension in Dudley.
 
+Byte order prefixes: < (32) > (64) | (96)
+  prefix is shifted right 5 bits and added to 0-18, primitve types are
+  32-50 (<), 64-82 (>), and 96-114 (|)
+The prefixed versions are negated when used as dtype indices, as mentioned.
+The special pseudo-primitive type number 128 is reserved for the empty typedef
+{}, which Dudley uses to represnt None, simply to avoid multiple instances of
+this singleton from appearing in the skeleton.
+
+Addresses are kept in a parallel list to the spine to allow multiple streams
+to share the layout.  Dynamic parameter values are also stored in a separate
+lists, as are document strings and item attributes.
+
+A higher level API relies on temporary objects which have both the spine and
+the object index.  These objects have the methods required to construct the
+low level spine and its items.
 """
 from __future__ import absolute_import
 
 import sys
-from weakref import proxy
 from io import StringIO
 
 PY2 = sys.version_info < (3,)
 if PY2:
     from collections import OrderedDict as dict
 
-# import ast    ast.literal_eval(text_in_quotes)  repr is inverse
 # JSON.parse, JSON.stringify in javascript
-from ast import literal_eval
+from ast import literal_eval  # literal_eval() is inverse of str.repr()
 
 
 class DLayout(list):
-    def __init__(self, filename=None, stream=None, text=None, ignore=0):
+    def __init__(self, filename=None, stream=None, text=None,
+                 ignore=0, order="|"):
         super(DLayout, self).__init__()
         self.filename = filename
-        root = DDict(self)
-        self.typedefs = {}  # types which have been used or explicitly declared
-        self.default_order = "|"  # initialliy just native order
-        self.ignore = 0  # 1 bit ignore attributes, 2 bit ignore doc comments
+        self.default_order = order  # default is native order
+        self.ignore = ignore  # 1 bit attributes, 2 bit doc comments
+        self.attrs = None if ignore & 1 else []
+        self.docs = None if ignore & 2 else []
+        self.addrs = None  # created only if layout has explicit addresses
+        self.skeleton = []
+        DDict(self)  # create root dict as skeleton[0]
         if filename is not None:
             with open(filename) as stream:
                 self.parse(stream)
@@ -93,13 +107,6 @@ class DLayout(list):
                             text = text.decode("latin1")
                 stream = StringIO(text)
             self.parse(stream)
-
-    @property
-    def me(self):  # so a proxy can get back a strong reference
-        return self
-    # Note on proxy references: proxy.any_bound_method.__self__ to get
-    # strong reference, but here provide a "me" property explicitly.
-    # This is not usually needed, except for introspection like isinstance.
 
     primitives = set("f2", "f4", "f8", "i1", "i2", "i4", "i8",
                      "u1", "u2", "u4", "u8", "S1", "U1", "U2", "U4",
@@ -140,103 +147,59 @@ class DLayout(list):
         containers = [layout.root]
         errors = []
 
-        def declare_data():
-            token = token_src.peek()
-            order = token_src.next()[0] if token[0] in "<>|" else None
-            token = token_src.next()
-            if token[0] in ("symbol", "quoted"):
-                typename = token[1]
-                primitive = DLayout.primitive_types.get(typename)
-                if order:
-                    if primitive is None:
-                        return token, "<>| byte order only for primitive types"
-                    dtype = DType(layout, order+typename)
-                else:
-                    dtype = Dlayout.named_types.get(typename)
-                    if dtype is None:
-                        if primitive:
-                            Dlayout.named_types[typename] = primitive
-                            dtype = primitive
-                        else:
-                            return (token, "type {} has not been declared"
-                                    "".format(typename))
-            elif token[0] == "{":
-                pass
+    def add(self, item, parent=None, name=None):
+        skeleton = self.skeleton
+        me = len(skeleton)
+        if parent is None:
+            if me:
+                raise ValueError("only root dict has no parent")
+            p = None
+        else:
+            p = skeleton[parent]
+            if not (p.isdict or p.islist):
+                raise ValueError("dict parent must be either dict or list")
+        item.me = me  # index into skeleton
+        skeleton.append(item)
+        item.parent = parent  # index into skeleton or None for root
+        if p and parent.islist:
+            if item.isparam or item.istype:
+                raise ValueError("parameter or type cannot be child of list")
+            name = len(p)
+            p.append(me)
+        elif p:
+            if p.isdict:
+                if name is None:
+                    raise ValueError("child of dict cannot be anonymous")
+            elif item.isparam or item.istype:
+                raise ValueError("parent of parameter or type must be dict")
+            elif p.istype:
+                if not item.isdata:
+                    raise ValueError("only data can be child of type")
+                if name is None and len(p):
+                    raise ValueError("child of type cannot be anonymous")
+                elif p.get(None):
+                    raise ValueError("typedef type cannot have named member")
             else:
-                return token, "expecting type name or struct definition"
+                raise ValueError("data or parameter cannot be parent")
+            p[name] = me
+        item.namex = name
 
-        def dict_item():
-            token = token_src.next()
-            if token[0] in ("symbol", "quoted"):
-                name = token[1]
-                token = token_src.next()
-                if token[0] == "=":  # DData item
-                    ddata = declare_data(False)
-                    if isinstance(ddata, tuple):
-                        return syntax_error(*ddata)
-                    containers[-1].add(name, ddata)
-                    return
-                if token[0] == ":":  # DParam item
-                    dparam = declare_data(True)
-                    if isinstance(dparam, tuple):
-                        return syntax_error(*dparam)
-                    containers[-1].add(name, dparam)
-                    return
-                elif token[0] == "/":
-                    containers.append(containers[-1].open_dict(name))
-                    return
-                elif token[0] == "{":
-                    containers.append(containers[-1].open_type(name))
-                    return
-                elif token[0] in "@%":
-                    align = token[0] == "%"
-                    item = containers[-1].get(name)
-                    if not isinstance(item, DList):
-                        return syntax_error(
-                            token, "{} is not a DList".format(name))
-                    token = token_src.next()
-                    if token[0] != "int" or token[1] < 0:
-                        return syntax_error(
-                            token, "expecting int address or alignment")
-                    addr = token[1]
-                    if align:
-                        addr = -addr if addr else None
-                    item.duplicate_last(addr)
-                    return
-                return syntax_error(
-                    token, "unknown designation for {}".format(name))
-            elif token[0] == "..":
-                if (len(containers) < 2 or
-                        not isinstance(containers[-2], DDict)):
-                    return syntax_error(token, "already at top dict level")
-                containers.pop()
-                return
-            elif token[0] in "/,":
-                comma = token[0] == ","
-                while (len(containers) > 1):
-                    if not isinstance(containers[-2], DDict):
-                        if comma:
-                            containers.pop()
-                        break
-                    containers.pop()
-                else:  # no break
-                    if comma:
-                        return syntax_error(token, "invalid comma separator")
-                return
-            else:
-                return syntax_error(token, "expecting dict item name")
+    def add_data(self, parent, name, dtype, shape=None, filt=None, addr=None):
+        pass
 
+    def open_dict(self, parent, name=None):
+        pass
 
+    def open_list(self, parent, name=None):
+        pass
 
+    def add_param(self, parent, name=None):
+        pass
 
-    def describe(self, stream, prefix=""):
-        if self.default_order:
-            stream.write(prefix + self.default_order + "\n")
-        if self.summary:
-            self.summary.describe(stream, prefix)
-        root.describe(stream, prefix)
+    def open_type(self, parent, name=None):
+        pass
 
-    def syntax_error(mesg):
+    def close_container(self, all=False):
         pass
 
 
@@ -246,40 +209,17 @@ class DDict(dict):
 
     def __init__(self, layout, parent=None, name=None):
         super(DDict, self).__init__()
-        self.layout = layout
-        self.me = len(layout)
-        layout.append(self)
-        self.parent = parent
-        if parent:
-            parent = layout[parent]
-            if parent.islist:
-                namex = len(parent)
-                parent.append(self.me)
-            elif parent.isdict:
-                namex = name
-                if name in parent:
-                    raise ValueError("{} already declared".format(name))
-                parent[name] = self.me
-            else:
-                raise ValueError("DDict parent must be DDict or DList")
-        self.namex = namex
-        self.doc = self.attrs = self.params = None
-
-    @property
-    def isroot(self):
-        return self.isdict and self.parent is None
+        layout.add(self, parent, name)  # sets me, parent, namex
+        self.types = self.params = None
 
 
-class DType(DDict):
+class DType(dict):
     istype = True
-    islist = isdata = isdict = isparam = False
+    isdict = islist = isdata = isparam = False
 
-    def __init__(self, layout, name=None, primitive=None):
-        super(DType, self).__init__(layout, None, name)
-        self.primitive = primitive
-        self.align = 0  # default is largest of member alignments
-        if name is not None:
-            layout.typedefs[name] = self.me
+    def __init__(self, layout, parent=None, name=None):
+        super(DType, self).__init__()
+        layout.add(self, parent, name)  # sets me, parent, namex
 
 
 class DList(list):

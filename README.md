@@ -207,10 +207,12 @@ declared in the dict where the parameter is declared, or in any descendant
 container, but not outside that subtree.  A parameter declaration will shadow
 any parameter of the same name declared in an ancestor dict.  Best practice is
 to declare all parameters at the beginning of a dict, but Dudley does not
-require this placement.  Although parameters, like named data arrays, belong to
-a dict, they occupy separate name spaces.  In other words, a parameter name may
-be the same as an array name without confusion, although again this is bad
-practice since that makes the layout harder for a human reader to understand.
+require this placement.
+
+Although parameters, like named data arrays, belong to a dict, they occupy a
+separate name space.  In other words, a parameter name may be the same as an
+array name without confusion, although again this is bad practice since that
+makes the layout harder for a human reader to understand.
 
 As an example, consider a simple statistical experiment consisting of some
 number of runs, each of which involves many trials, where in each trial several
@@ -228,6 +230,18 @@ If `NRUNS` and `NTRIALS` were fixed parameters, this Dudley dict would only
 describe a specific experiment, but by storing `NRUNS` and `NTRIALS` in the
 data stream, one description can apply to many different streams - perhaps one
 file for each student in a class.
+
+Unlike named data arrays, parameter names may be reused within a single dict.
+That is, in addition to shadowing parameters of the same name in an ancestor
+dict, a parameter may shadow a previously declared parameter of the same name
+in its own dict.  Thus, parameters behave like a variable in a function in
+a C or Python function - their value may change as the function executes:
+
+    COUNT: i4  # could also be a fixed integer value
+    x = f4[COUNT]  # dimension of x written into stream before x
+    COUNT: i4
+    y = f4[COUNT]  # dimension of y written into stream before y
+    z = f4[COUNT]  # dimension of z same as y, but may differ from x
 
 Effectively, a dynamic parameter is storing part of the metadata describing the
 stream in the stream itself.  This mixing of data and metadata can rapidly get
