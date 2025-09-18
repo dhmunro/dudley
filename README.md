@@ -16,10 +16,11 @@ large collections of files produced by parallel simulations.
 Like HDF5 but not XDR, Dudley is specialized for describing scientific data.
 Specifically, Dudley is modeled after numpy, where n-dimensional arrays are
 first class objects, typically organized using python's dict and/or list
-containers.  Thus, a Dudley layout organizes data in exactly the same way as
-[JASON](https://json.org), except that the elements in the container tree
-are binary numpy ndarrays instead of numbers or text strings.  Of course, a
-Dudley layout also maps naturally to most scipy programs.
+containers - the same simple containers found in [JASON](https://json.org),
+except in Dudley the leaves of the container tree are binary numpy ndarrays
+instead of just numbers or text strings.  With this design, a Dudley layout
+maps naturally to most scipy programs, as well as to many other simulation
+codes.
 
 In addition to HDF5, XDR, and JASON, Dudley attempts to encorporate the most
 useful features of [netCDF-3](https://www.unidata.ucar.edu/software/netcdf)
@@ -36,12 +37,12 @@ Dudley features:
   carefully about how you store your data.  By adding comments to
   a layout file you can document your data.  In other words, you can work
   directly with Dudley layouts, rather than relying on a separate library API.
-* A single Dudley layout can describe many binary files or streams.  Thus,
-  you can easily design and document simple formats for casual exchange of
-  scientific data with collaborators.
+* A single Dudley layout can describe many binary files or streams.
 * Supports data compression, though that defeats the previous feature.
 * Fully compatible with numpy/scipy.
 * Libraries are lightweight compared to HDF5 or PDB.
+* Supports a catalog files describing large collections of individual files
+  or streams.
 
 
 ## Layout basics
@@ -500,7 +501,58 @@ filter is responsible for associating these special declarations with the
 item containing the `<- ref` marker.  HDF5 and PDB files each have their own
 `ref` filter, but these are intended to be generated only by software
 translators that produce Dudley layouts describing the HDF5 or PDB binary
-files.  There is no other good reason to use reference filters.
+files.
+
+The HDF5 an PDB reference or pointer objects were primarily designed to support
+a kind of "object store" feature that, at least at first glance, maps to the
+way pointers are used in C/C++ data structures.  However, C/C++ pointers do
+not map very well to scipy programs, since they objects they point to (at least
+in scientific programs) are usually ndarrays, or to dict-like or list-like
+objects containing them, which are first-class objects in scipy or Dudley.
+
+
+## Catalogs
+
+Often one data array in a layout must be used to interpret the meaning of other
+arrays.  A typical example might be a sparse matrix, where the non-zero values
+might be stored as a 1D array, and the corresponding row and column indices in
+one or two separate integer arrays.  Dudley intentionally does not provide any
+standard way to describe such connections among arrays (although you are free
+to invent your own schemes using attributes) - with one major exception:
+
+A Dudley layout may be a catalog describing a collection of instances of
+another Dudley layout (or layouts).  In order to support this kind of layout,
+Dudley provides a native reference filter, `catalog`:
+
+    NBLOCKS = i4
+    blocks = i8[NBLOCKS, NPARAMS] <- catalog("layout_file.dud")
+    stream = i4[NBLOCKS]  # index if more than one block per stream
+    offsets = i8[NBLOCKS] <- catalog("blocks", "stream")
+
+With a single argument, `catalog` accepts the name of a layout file.
+The associated data array must be an integer with a trailing dimension that
+matches the number of dynamic parameters in the layout.  The `NPARAMS` items
+correspond to parameter values in the order the parameters were declared in
+the layout.  The filter is a no-op - you generally have to provide the
+parameters in order to create the collection in the first place - the filter
+establishes the relation between this variable and the individual streams.
+
+If there is one file per block (that is, stream described by the layout), no
+additional associations are needed.  However, often multiple streams will be
+packed into each file in the collection, and this requires the catalog layout
+to contain additional information in order to associate each stream with a
+file and a starting address (offset) in that file.  One can imagine several
+ways to do this; Dudley mandates two data arrays of with dimensions matching
+the leading dimension(s) of `blocks`, one holding a file index for the
+corresponding block and the other an offset (address) within that file.  The
+two argument `catalog` reference marks the offsets array.  Again, it is a
+no-op, merely marking the realtionship among the three arrays.
+
+Although these catalog filters are no-ops, the Dudley layout API provides
+methods for computing the total number of bytes in a layout given its
+dynamic parameters (which may raise an exception if that cannot be computed),
+and for computing the minimum `offsets` (addresses) for packing blocks into
+files according to a given `streams` association with files.
 
 
 ## Explicit address fields

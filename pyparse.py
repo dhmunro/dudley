@@ -10,32 +10,19 @@ the stream is in this low level order.
 
 In addition to data stored in the stream, the low level list also contains all
 the structural information in the text layout, in the order specified in the
-text layout, including dict and list declarations, named type declarations,
-and struct member declarations, even though these occupy no space in the
-data stream.  Thus, the low level list is really just a binary version of the
-Dudley layout - the layout itself is a series of declarations - which will be
-called the "spine" of the layout.
+text layout, including parameter declarations, dict and list declarations,
+named type declarations, and struct member declarations, even though these
+may occupy no space in the data stream.  Thus, the low level list is really
+just a binary version of the Dudley text layout.  Each element of this list is
+called an "item", and the index in the items list serves as a unique identifier
+for that object.
 
-The spline is simply a list; each item in this list is one of five things:
-a data array, a parameter, a dict, a list, or a type.  The latter three are
-containers.  A dict may contain any of the five sorts of items.  A list may
-contain data arrays, dicts, or lists, but not parameters or types.  A type may
-only contain data arrays (struct members).  The root dict is always the first
-item in the spine, with index 0.  Every other object has a index greater
-than zero which serves as its identifier.  The exceptions are the prefixed
-primitive types, which are given unique negative pseudo-indices as described
-below - they are the only undefined objects in a Dudley layout.
-
-Every object except the root dict has a parent (the primitive types, including
-implicitly declared unprefixed primitives, have the root dict as a parent).
-Data arrays additionally have a type (index), shape, and alignment (often
-inherited from their type), while parameters either have a fixed value or
-a type and alignment.  A dict has an item mapping which takes both spine index
-to item name and item name to spine index, as well as similar mappings for
-parameters and types for a total of three two-way name mappings.  A list has a
-list of spline indices - a one-way mapping providing no easy way to figure out
-an element's position in the list given its spline index.  A type has a single
-two-way mapping of member name to and from spline index.
+The root dict is always items[0], so every other object has an index greater
+than zero.  However, the prefixed primitive types do not appear in the items
+list, so they are given unique negative pseudo-indices as described
+below - they are the only undefined objects in a Dudley layout.  Every object
+except the root dict has a parent.  The primitive types have the root dict as
+a parent.
 
 Dudley recognizes 19 primitive data types:
 u1 u2 u4 u8    unsigned integers (1, 2, 4, or 8 byte)
@@ -56,18 +43,26 @@ dimension in Dudley.
 Byte order prefixes: < (32) > (64) | (96)
   prefix is shifted right 5 bits and added to 0-18, primitve types are
   32-50 (<), 64-82 (>), and 96-114 (|)
-The prefixed versions are negated when used as dtype indices, as mentioned.
+The prefixed versions are negated when used as identifiers, as mentioned above.
 The special pseudo-primitive type number 128 is reserved for the empty typedef
 {}, which Dudley uses to represnt None, simply to avoid multiple instances of
-this singleton from appearing in the skeleton.
+this singleton from appearing in the items list.
 
-Addresses are kept in a parallel list to the spine to allow multiple streams
+Addresses are kept in a parallel list to the items to allow multiple streams
 to share the layout.  Dynamic parameter values are also stored in a separate
-lists, as are document strings and item attributes.
+list, as are document strings and item attributes.
 
-A higher level API relies on temporary objects which have both the spine and
-the object index.  These objects have the methods required to construct the
-low level spine and its items.
+DDict: parent, itemid, paramid, typeid,      where map[name]->id
+               names[id]->name
+DData: parent, dtype id, align, shape    (address, if any, kept in parallel list)
+DParam: parent, None, value   (fixed)
+        parent, dtype id, align, pid=dynamic parameter index
+DList: parent, item_list[i]->id
+DType: parent, item_map[name]->id  or  dtype, align, shape
+       --> like DParam, two kinds: structs and typedefs
+
+A higher level API relies on temporary objects which have both the items list
+and the index into items.
 """
 from __future__ import absolute_import
 
@@ -80,6 +75,153 @@ if PY2:
 
 # JSON.parse, JSON.stringify in javascript
 from ast import literal_eval  # literal_eval() is inverse of str.repr()
+
+
+class DLayout(object):
+    def __init__(self, stream=None, ignore=0):
+        self.items = []  # items[id] -> item (data, param, dict, list, or type)
+        self.params = []  # params[pid] -> id of dynamic parameter pid
+        # Stream instances with this layout will have two lists of the same
+        # length as these: a list of addresses the same length as items, and
+        # a list of dynamic parameter values the same length as params.
+        # The layout itself may have a list of addresses, but that is created
+        # only on demand (e.g.- by explicit @address fields in the layout):
+        self.addrs = None  # The layout itself may have a list of addresses,
+                           # but that is created only if the layout itself has
+                           # explicit addreses (e.g.- @address fields).
+                           # struct member addrs[id] are offsets
+        # Optional lists the same length as items are also created if the
+        # layout contains any attributes or documentatation.
+        self.atts = None  # atts[id] -> {attributes of item}
+        self.docs = None  # docs[id] -> [docstrings for item]
+        root = DDict(self)  # create root dict as self.items[0]
+        self.current = root  # initially, root is the current container
+        if stream is not None:
+            self.parse(stream, ignore)
+
+        def resolve_dtype(self, idtype):
+            t = self.primitives[-idtype] if idtype < 0 else self.items[idtype]
+            return t
+
+        def resolve_shape(self, shape):
+            pass
+
+        def parse(self, stream, ignore):
+            pass
+
+
+D_DATA, DPARAM, D_DICT, D_LIST, D_TYPE = 0, 1, 2, 3, 4
+
+
+class DData(object):
+    __slots__ = "parent", "idtype", "align", "shape"
+    itype = D_DATA  # item type
+
+    def __init__(self, layout, parent, idtype, shape=None, align=0):
+        self.parent = parent
+        self.idtype = idtype
+        self.align = align or layout.resolve_dtype(idtype).align
+        self.shape = layout.resolve_shape(shape) if shape else None
+        layout.items.append(self)
+
+
+class DParam(object):
+    __slots__ = "parent", "idtype", "align", "pid"
+    itype = D_PARAM  # item type
+
+    def __init__(self, layout, parent, *args):
+        self.parent = parent
+        if len(args) == 1:  # args = [value] is fixed value parameter
+            self.idtype = self.align = None
+            self.pid = args[0]  # = value for fixed parameter case
+        else:  # args = [dtype, align] is dynamic parameter (align=0 if none)
+            self.idtype = args[0]
+            self.align = args[1] or layout.dtype_item(args[0]).align
+            pid = len(layout.items)
+            layout.params.append(pid)
+            self.pid = pid
+        layout.items.append(self)
+
+
+class DDict(object):
+    __slots__ = "parent", "itemid", "paramid", "typeid", "names"
+    itype = D_DICT  # item type
+
+    def __init__(self, parent):
+        self.parent = parent
+        self.itemid = {}
+        self.names = {}
+        self.paramid = self.typeid = None
+
+    def insert(self, layout, name, item):
+        itype = item.itype
+        id_ = len(layout.items)
+        if itype == D_TYPE:
+            if not self.typeid:
+                self.typeid = {}
+            if name in self.typeid:
+                raise ValueError("type {} previously declared".format(name))
+            self.typeid[name] = id_
+        elif itype == D_PARAM:
+            if not self.paramid:
+                self.paramid = {}
+            self.paramid[name] = id_  # possibly replaces previous declaration
+        else:
+            if name in self.itemid:
+                raise ValueError("item {} previously declared".format(name))
+            self.itemid[name] = id_
+        self.names[id_] = name
+        layout.items.append(item)
+
+
+class DList(object):
+    __slots__ = "parent", "itemid"
+    itype = D_LIST  # item type
+
+    def __init__(self, parent):
+        self.parent = parent
+        self.itemid = []
+
+    def insert(self, layout, item):
+        if item.itype in (1, 4):
+            raise ValueError("cannot insert param or dtype into DList")
+        self.itemid.append(len(layout.items))
+        layout.items.append(item)
+
+
+class DType(object):
+    __slots__ = "parent", "itemid", "align", "closed"
+    itype = D_TYPE  # item type
+
+    def __init__(self, parent):
+        self.parent = parent
+        self.itemid = None
+        self.align = 1
+        self.closed = False
+
+    def close(self):
+        self.closed = True
+
+    def insert(self, layout, name, item, offset=None):
+        if item.itype != D_DATA:
+            raise ValueError("can only insert data arrays into DType")
+        align = layout.resolve_dtype(item.idtype).align
+        id_ = len(layout.items)
+        if name is None:
+            if self.itemid is not None:
+                raise ValueError("anonymous DType member must be only member")
+            self.itemid = id_  # this DType is a typedef
+            self.align = align
+            self.closed = True
+        elif self.closed:
+            raise ValueError("cannot insert member in closed DType")
+        else:
+            if not self.itemid:
+                self.itemid = {}
+            self.itemid[name] = id_
+            if align > self.align:
+                self.align = align
+        layout.items.append(item)
 
 
 class DLayout(list):
