@@ -21,6 +21,8 @@ jobs:
     - name: Build HTML
       # uses: ammaraskar/sphinx-action@master
       run: |
+        pwd
+        ls -R
         cd docs
         make html
     - name: Upload artifacts
