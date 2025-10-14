@@ -16,7 +16,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         persist-credentials: false
-    - name Install furo sphinx theme
+    - name: Install furo sphinx theme
       run: pip install furo
     - name: Build HTML
       uses: ammaraskar/sphinx-action@master
