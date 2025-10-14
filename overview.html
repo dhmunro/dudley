@@ -1,0 +1,136 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Overview &#8212; Dudley 1.0 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Dudley Syntax" href="syntax.html" />
+    <link rel="prev" title="Dudley Data Description Language" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="overview">
+<h1>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h1>
+<p>Dudley is a data description language - a human-readable way to describe
+how data is encoded in a byte stream.  A Dudley description, or <em>layout</em>,
+specifies the contents of a binary data file, with roughly the same scope and
+use cases as <a class="reference external" href="https://www.hdfgroup.org/solutions/hdf5/">HDF5</a> and similar
+self-describing binary file formats.  However, a single Dudley layout may also
+describe many different files or byte streams, so it can also be used like
+the <a class="reference external" href="https://www.rfc-editor.org/rfc/rfc4506">XDR</a> standard to exchange
+multiple similar data sets among programs built around a common layout.  Like
+HDF5 (but not XDR), Dudley is specialized for describing scientific data.</p>
+<p>Specifically, Dudley is modeled after numpy, where n-dimensional arrays are
+first class objects, which are grouped using python’s dict and/or list
+containers.  Thus, a Dudley layout organizes data in exactly the same way as
+<a class="reference external" href="https://json.org">JASON</a>, except that the elements in the container tree
+are binary numpy ndarrays instead of textual numbers or strings.</p>
+<p>But one of Dudley’s most important features has no numpy equivalent: symbolic
+names for dimension lengths.  Very often a collection of data arrays share
+common dimension lengths, so this feature can show important relationships
+among the various arrays in a data set.  The
+<a class="reference external" href="https://www.unidata.ucar.edu/software/netcdf">netCDF</a> format also has this
+feature, but unlike netCDF, Dudley allows the dimension lengths to be stored
+in the stream as parameter values.  This extension permits a single Dudley
+layout to describe a large number of files or stream instances - potentially
+every restart dump file for even aphysics simulation code,</p>
+<p>Since physics simulations often require only a few dozen parameters to fix
+the dimensions of every array, a separate catalog file can store copies of all
+parameters for the very large numbers of individual data files which may be
+associated with large parallel simulations.  Dudley has only very low level
+support for this use case, but by using Dudley for the individual files in
+such collections, you are in a strong position to design efficient ways to
+access arbitrary data anywhere in the collection.</p>
+<p>A final remark is that by commenting a Dudley layout, you can document all the
+variables stored in the file in the same place you describe the layout of
+the file or data stream.  Thus, a layout can serve as a quick reference guide
+to the variables describing the state of a simulation or the results of an
+experiment or observation.</p>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">Dudley</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="syntax.html">Dudley Syntax</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">Dudley Data Description Language</a></li>
+      <li>Next: <a href="syntax.html" title="next chapter">Dudley Syntax</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2025, David Munro.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.4.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/overview.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
