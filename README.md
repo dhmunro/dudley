@@ -513,46 +513,16 @@ objects containing them, which are first-class objects in scipy or Dudley.
 
 ## Catalogs
 
-Often one data array in a layout must be used to interpret the meaning of other
-arrays.  A typical example might be a sparse matrix, where the non-zero values
-might be stored as a 1D array, and the corresponding row and column indices in
-one or two separate integer arrays.  Dudley intentionally does not provide any
-standard way to describe such connections among arrays (although you are free
-to invent your own schemes using attributes) - with one major exception:
+Although the Dudley file format has no direct support for creating and
+accessing collections of similar files, the DUdley API does support such
+collections.  Namely, Dudley defines a standard higher level stream that
+includes arrays of dynamic parameter values belonging to a whole collection
+of individual streams, which are embedded in a family of files.  The number
+of files may equal the number of individual streams, or multiple streams may
+be concatenated so that there are fewer files than streams in the collection.
 
-A Dudley layout may be a catalog describing a collection of instances of
-another Dudley layout (or layouts).  In order to support this kind of layout,
-Dudley provides a native reference filter, `catalog`:
-
-    NBLOCKS = i4
-    blocks = i8[NBLOCKS, NPARAMS] <- catalog("layout_file.dud")
-    stream = i4[NBLOCKS]  # index if more than one block per stream
-    offsets = i8[NBLOCKS] <- catalog("blocks", "stream")
-
-With a single argument, `catalog` accepts the name of a layout file.
-The associated data array must be an integer with a trailing dimension that
-matches the number of dynamic parameters in the layout.  The `NPARAMS` items
-correspond to parameter values in the order the parameters were declared in
-the layout.  The filter is a no-op - you generally have to provide the
-parameters in order to create the collection in the first place - the filter
-establishes the relation between this variable and the individual streams.
-
-If there is one file per block (that is, stream described by the layout), no
-additional associations are needed.  However, often multiple streams will be
-packed into each file in the collection, and this requires the catalog layout
-to contain additional information in order to associate each stream with a
-file and a starting address (offset) in that file.  One can imagine several
-ways to do this; Dudley mandates two data arrays of with dimensions matching
-the leading dimension(s) of `blocks`, one holding a file index for the
-corresponding block and the other an offset (address) within that file.  The
-two argument `catalog` reference marks the offsets array.  Again, it is a
-no-op, merely marking the realtionship among the three arrays.
-
-Although these catalog filters are no-ops, the Dudley layout API provides
-methods for computing the total number of bytes in a layout given its
-dynamic parameters (which may raise an exception if that cannot be computed),
-and for computing the minimum `offsets` (addresses) for packing blocks into
-files according to a given `streams` association with files.
+The higher level catalog file is also a binary file described by its own
+Dudley layout
 
 
 ## Explicit address fields

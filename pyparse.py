@@ -1,68 +1,87 @@
 """Parse a Dudley layout from a file, stream, or str
 
-Because the data in any of these streams is serialized, at the lowest level the
-layout must be a sequence of type-shape pairs describing how to decode the
-bytes of the stream (into ndarrays).  (However, there may be gaps due to data
-alignment or simply parts of the stream which have no meaning.  For example, a
-gap might contain metadata for an alternative description (e.g.- HDF) of the
-meaningful data in the stream.)  The fastest way to read back all the data in
-the stream is in this low level order.
+A file automatically serializes whatever it contains by address.  Hence at the
+lowest level, file or stream contents must be a sequence of type-shape pairs
+describing how to decode the bytes of the stream into n-dimensional arrays of
+numbers or strings of text.  The fastest way to read or write all the data is
+inevitably in this storage order.  Dudley assumes that, once written, the
+structure of a file - its low level sequence of type-shape pairs - will never
+change.  This is by far the most common use case for binary data files
+associated with scientific data or simulation states.  Note that general
+database files are designed for much broader use, in which data may be
+removed or structurally altered.  Dudley does not handle such cases, nor does
+it attempt to build indexes to search file contents as you would expect in
+a database file.
 
-In addition to data stored in the stream, the low level list also contains all
-the structural information in the text layout, in the order specified in the
-text layout, including parameter declarations, dict and list declarations,
-named type declarations, and struct member declarations, even though these
-may occupy no space in the data stream.  Thus, the low level list is really
-just a binary version of the Dudley text layout.  Each element of this list is
-called an "item", and the index in the items list serves as a unique identifier
-for that object.
+However, Dudley does support grouping data arrays as either anonymous lists or
+as dictionaries ("dicts") of named variables, and these groupings may contain
+other groupings in addition to arrays.  These lists and dicts match the basic
+organizing tools in any scientific programming language.  Dudley also supports
+arrays of structured data analogous to C structs in addition to primitive
+numeric and text data types.  Finally, Dudley supports symbolic names for
+array dimensions.  Scientific data archives frequently contain many arrays
+which share common dimensions, and the only difference between many data files
+is the particular values of these dimensions.  Symbolic dimension names, or
+integer valued parameters, enable a single Dudley description to apply to
+many different files or streams.
 
-The root dict is always items[0], so every other object has an index greater
-than zero.  However, the prefixed primitive types do not appear in the items
-list, so they are given unique negative pseudo-indices as described
-below - they are the only undefined objects in a Dudley layout.  Every object
-except the root dict has a parent.  The primitive types have the root dict as
-a parent.
+The low level sequence of objects in a file includes these organizational
+elements as well as the type-shape pairs, so there are a total of five
+different kinds of objects in the Dudley low-level list:
+
+1. DArray (datatype, shape, alignment)
+2. DDict (named objects)
+3. DList (anonymous objects)
+4. DParam (array dimension)
+   a. Static (fixed integer value)
+   b. Dynamic (scalar integer stored in stream)
+5. DType (array data type)
+   a. Compound (sequence of named DArray members - a C struct)
+   b. Typedef (single anonymous DArray)
+
+The index of each of these objects in the low-level list is how other objects
+refer to it.  There are two kinds of object Dudley requires which do not
+correspond to any item in the low-level list: primitive data types and
+non-parametrized array dimensions.  Since the index representing any the other
+kinds of object are non-negative, negative integers can be used for these
+special cases.  An object's index in the main list thus serves as its id.
+
+Parametrized array dimensions are indicated by the id of the parameter, which
+must be greater than zero, since id zero is the root dict.  Since no actual
+dimension can be less than zero, the negative of any non-parametrized dimension
+can therefore be distinguished from a parameter id, and that is what Dudley
+uses in array shapes.
 
 Dudley recognizes 19 primitive data types:
 u1 u2 u4 u8    unsigned integers (1, 2, 4, or 8 byte)
 i1 i2 i4 i8    signed integers (1, 2, 4, or 8 byte)
 b1             boolean (1 byte)
    f2 f4 f8    IEEE 754 floats (2, 4, or 8 byte)
-S1             CP1252, Latin1, or ASCII character (1 byte)
+S1             ASCII, CP1252, or Latin1 character (1 byte)
    c4 c8 c16   IEEE 754 complex (2, 4, or 8 byte re,im pairs)
 U1 U2 U4       UTF-8, UTF-16, or UTF-32 character (1, 2, or 4 byte)
-In this order, the 19 non-ordered primitive types are numbered 0-18.
 
 Bigger floating point types - f12 or f16 - are not in this list because they
 may not be present or have a standard format for some numpy implementations.
-Note that the S and U suffixes are byte counts, unlike in the numpy array
-protocol - the number of characters in the string is the fastest varying
+Note that the S and U suffixes are bytes per character, unlike in the numpy
+array protocol - the number of characters in the string is the fastest varying
 dimension in Dudley.
-
-Byte order prefixes: < (32) > (64) | (96)
-  prefix is shifted right 5 bits and added to 0-18, primitve types are
-  32-50 (<), 64-82 (>), and 96-114 (|)
-The prefixed versions are negated when used as identifiers, as mentioned above.
-The special pseudo-primitive type number 128 is reserved for the empty typedef
-{}, which Dudley uses to represnt None, simply to avoid multiple instances of
-this singleton from appearing in the items list.
 
 Addresses are kept in a parallel list to the items to allow multiple streams
 to share the layout.  Dynamic parameter values are also stored in a separate
 list, as are document strings and item attributes.
 
-DDict: parent, itemid, paramid, typeid,      where map[name]->id
-               names[id]->name
-DData: parent, dtype id, align, shape    (address, if any, kept in parallel list)
-DParam: parent, None, value   (fixed)
-        parent, dtype id, align, pid=dynamic parameter index
-DList: parent, item_list[i]->id
-DType: parent, item_map[name]->id  or  dtype, align, shape
-       --> like DParam, two kinds: structs and typedefs
+DDict: parent, name itemid map, paramid map, typeid map,  where map[name]->id
+DList: parent, name, items[i]->id
+DData: parent, name, typeid, align, shape
+DParam: parent, name, value   (static)
+        parent, name, typeid, align, pid=dynamic parameter index   (dynamic)
+    address, if any, kept in separate global address[id] list
+DType: parent, name, item_map[name]->id   (compound)
+       parent, name, dtype, align, shape   (typedef)
 
-A higher level API relies on temporary objects which have both the items list
-and the index into items.
+A higher level API relies on temporary DItem objects which have both the items
+list and the index into items.
 """
 from __future__ import absolute_import
 
@@ -77,70 +96,374 @@ if PY2:
 from ast import literal_eval  # literal_eval() is inverse of str.repr()
 
 
-class DLayout(object):
+D_PRIM, D_DATA, DPARAM, D_DICT, D_LIST, D_TYPE = 0, 1, 2, 3, 4, 5
+
+
+class DPrim(object):
+    """A primitive datatype.  There are exactly 5 + 14*3 = 47 instances:
+
+    Five single byte primitives for which the order is | (same as < or >):
+    `|u1`, `|i1`, `|b1`, `|S1`, and `|U1`, respectively unsigned and signed
+    integers, boolean, ASCII (or CP1252 or Latin1) character, or unicode
+    UTF-8 byte.
+
+    There are also five kinds of multibyte data:`u` for unsigned integers, `i`
+    for signed integers (two's complement), `f` for floating point (IEEE 754),
+    `c` for complex (pair of floats), and `U` for unicode (UTF-16 or UTF-32).
+
+    The multibyte types each have three possible byte orderings: `|` means
+    indeterminate (not quite the same meaning as in the numpy array protocol),
+    '<' means least significant byte first (little-endian), and `>` means
+    most significant byte first (big-endian).
+    
+    There are three different byte sizes for each: 2, 4, or 8 bytes per value
+    (but for complex values these are a total of 4, 8, or 16 bytes per value), except for the `U` kind, which has only 2 and 4 byte sizes.
+
+    Dudley numbers these primitives from 1 to 50 as follows::
+
+         1  |u1  |i1  |b1  |S1  |U1
+         6  |u2  |i2  |f2  |c4  |U2
+        11  |u4  |i4  |f4  |c8  |U4
+        16  |u8  |i8  |f8  |c16  -
+        21  <u2  <i2  <f2  <c4  <U2
+        26  <u4  <i4  <f4  <c8  <U4
+        31  <u8  <i8  <f8  <c16  -
+        36  >u2  >i2  >f2  >c4  >U2
+        41  >u4  >i4  >f4  >c8  >U4
+        46  >u8  >i8  >f8  >c16  -
+
+    With this numbering, an indeterminate type 5 < datatype < 21 can be
+    resolved to little-endian by adding 15, or to big-endian by adding 30.
+    Type numbers 20, 35, and 50 are reserved for a quad precision `f16`
+    floating point type, which is excluded because it currently lacks
+    consistent hardware support (although the same could be said of `f2`).
+    In particular, numpy implementations often support `f12` instead of `f16`.
+
+    Dudley also uses type number 0 for the empty compound `{}`, which means
+    `None` in python or `null` in javascript/JASON and takes no space in the
+    data stream.
+    """
+    itype = D_PRIM
+
+    def __init__(self, name):
+        self.parent = None
+        self.name = name
+        self.order = name[0]
+        self.kind = name[1]  # u i f c S U b
+        self.size = int(name[2:])  # bytes per value
+        self.align = self.size  # default alignment is size
+        if self.kind == "c":
+            self.align /= 2  # except for complex, which is same as float
+        self.members = None  # for compatibility with DType
+
+
+class DLayout(list):
     def __init__(self, stream=None, ignore=0):
-        self.items = []  # items[id] -> item (data, param, dict, list, or type)
+        super(DLayout, self).__init__((DDict(None)))  # self[0] is root dict
         self.params = []  # params[pid] -> id of dynamic parameter pid
         # Stream instances with this layout will have two lists of the same
-        # length as these: a list of addresses the same length as items, and
+        # length as these: a list of addresses the same length as self, and
         # a list of dynamic parameter values the same length as params.
-        # The layout itself may have a list of addresses, but that is created
-        # only on demand (e.g.- by explicit @address fields in the layout):
-        self.addrs = None  # The layout itself may have a list of addresses,
-                           # but that is created only if the layout itself has
-                           # explicit addreses (e.g.- @address fields).
-                           # struct member addrs[id] are offsets
         # Optional lists the same length as items are also created if the
         # layout contains any attributes or documentatation.
         self.atts = None  # atts[id] -> {attributes of item}
         self.docs = None  # docs[id] -> [docstrings for item]
-        root = DDict(self)  # create root dict as self.items[0]
-        self.current = root  # initially, root is the current container
+        self.current = 0  # initially, root is the current container
         if stream is not None:
             self.parse(stream, ignore)
 
-        def resolve_dtype(self, idtype):
-            t = self.primitives[-idtype] if idtype < 0 else self.items[idtype]
-            return t
+    # prim[-typeid] -> DPrim for that type
+    prim = [None] + [DPrim(t) for t in ("|u1", "|i1", "|b1", "|S1", "|U1")]
+    prim += [DPrim(t) for t in ("|u2", "|i2", "|f2", "|c4", "|U2")]
+    prim += [DPrim(t) for t in ("|u4", "|i4", "|f4", "|c8", "|U4")]
+    prim += [DPrim(t) for t in ("|u8", "|i8", "|f8", "|c16")] + [None]
+    prim += [DPrim(t) for t in ("<u2", "<i2", "<f2", "<c4", "<U2")]
+    prim += [DPrim(t) for t in ("<u4", "<i4", "<f4", "<c8", "<U4")]
+    prim += [DPrim(t) for t in ("<u8", "<i8", "<f8", "<c16")] + [None]
+    prim += [DPrim(t) for t in (">u2", ">i2", ">f2", ">c4", ">U2")]
+    prim += [DPrim(t) for t in (">u4", ">i4", ">f4", ">c8", ">U4")]
+    prim += [DPrim(t) for t in (">u8", ">i8", ">f8", ">c16")] + [None, None]
+    primid = {name: -i for i, name in enumerate(prim) if name}
 
-        def resolve_shape(self, shape):
-            pass
+    def resolve_type(self, idtype):
+        t = self.prim[-idtype] if idtype <= 0 else self.items[idtype]
+        return t
 
-        def parse(self, stream, ignore):
-            pass
+    def resolve_shape(self, shape):
+        pass
 
-
-D_DATA, DPARAM, D_DICT, D_LIST, D_TYPE = 0, 1, 2, 3, 4
+    def parse(self, stream, ignore):
+        pass
 
 
 class DData(object):
-    __slots__ = "parent", "idtype", "align", "shape"
-    itype = D_DATA  # item type
+    __slots__ = "parent", "name", "datatype", "shape", "align", "filter"
+    itype = D_DATA
 
-    def __init__(self, layout, parent, idtype, shape=None, align=0):
+    def __init__(self, parent, name, datatype, shape=None, align=0,
+                 filter=None):
         self.parent = parent
-        self.idtype = idtype
-        self.align = align or layout.resolve_dtype(idtype).align
-        self.shape = layout.resolve_shape(shape) if shape else None
-        layout.items.append(self)
+        self.name = name
+        self.datatype = datatype
+        self.shape = shape
+        # self.align may hold either alignment or absolute address:
+        # If it is an absolute address, align = -2 - address
+        # The -2 is chosen so that address -1 can be used to represent
+        # an undetermined address or (as yet) non-existent data, like
+        # a zero pointer in C.  An address of 0 is a real address, so it
+        # cannot be used for this purpose.  Align of 0 means that this
+        # data has no special alignmnet, so the alignment is the default
+        # for the datatype.
+        self.align = align  # if < 0, this is -2-address
+        self.filter = filter
+
+
+class DDict(object):
+    __slots__ = "parent", "name", "itemid", "paramid", "typeid"
+    itype = D_DICT
+
+    def __init__(self, parent, name=None):
+        self.parent = parent
+        self.name = name
+        self.itemid = {}
+        self.paramid = {}
+        self.typeid = {}
+
+
+class DList(list):
+    __slots__ = "parent", "name"
+    itype = D_LIST
+
+    def __init__(self, parent, name=None):
+        self.parent = parent
+        self.name = name
+        super(DList, self).__init__()
 
 
 class DParam(object):
-    __slots__ = "parent", "idtype", "align", "pid"
+    __slots__ = "parent", "name", "datatype", "pid", "align"
+    itype = D_PARAM
+
+    def __init__(self, parent, name, datatype, pid, align=0):
+        self.parent = parent
+        self.name = name
+        self.datatype = datatype  # None for static, DType id for dynamic
+        self.pid = pid  # If datatype is None, this is static value
+        self.align = align  # ignored for static parameter
+
+
+class DType(object):
+    __slots__ = "parent", "name", "members", "align"
+    itype = D_TYPE
+    # Note: Named types must have a dict as parent.
+    # Anonymous types must have the same parent as the (only) array with that
+    #   datatype, and that array aill immediately follow them.
+
+    def __init__(self, parent, name=None):
+        self.parent = parent
+        self.name = name
+        # Initialize to unfinished DType, must call DItem.finish_type
+        # to set members and align properly.
+        self.members = None  # dict for compound, int for typedef (DData id)
+        self.align = 0
+
+
+class DItem(object):
+    __slots__ = "layout", "item"
+    def __init__(self, layout, item):
+        self.layout = layout
+        self.item = item
+
+    @property
+    def itype(self):
+        return self.layout[self.item].itype
+
+    @property
+    def root(self):
+        return DItem(layout, 0)
+
+    @property
+    def parent(self):
+        layout = self.layout
+        return DItem(layout, layout[self.item].parent)
+
+    @property
+    def name(self):
+        return self.layout[self.item].name
+
+    @property
+    def items(self):
+        layout = self.layout
+        this = layout[self.item]
+        if this.itype == D_DICT:
+            return DItems(layout, this.itemid)
+        elif this.itype == D_LIST:
+            return DElements(layout, this)
+        raise TypeError("only dict and list have items")
+
+    @property
+    def param(self, name):
+        layout = self.layout
+        item = layout[self.item]
+        while item.itype != D_DICT or name not in item.paramid:
+            if not item:
+                return None
+            item = layout[item.parent]
+        return item.paramid[name]
+
+    @property
+    def types(self):
+        layout = self.layout
+        this = layout[self.item]
+        if this.itype == D_DICT:
+            return DItems(layout, this.typeid)
+        raise TypeError("only dict has types")
+
+    @property
+    def members(self):
+        layout = self.layout
+        this = layout[self.item]
+        if this.itype == D_TYPE:
+            members = this.members
+            if isinstance(members, dict):
+                return DItems(layout, members)
+            elif members is not None:
+                return DItem(layout, members)
+        raise TypeError("only struct type has members")
+
+    @property
+    def datatype(self):
+        layout = self.layout
+        this = layout[self.item]
+        if this.itype not in (D_DATA, D_PARAM):
+            return None
+        typeid = this.datatype
+        if typeid > 0:
+            return DItem(layout, typeid)
+        return layout.primitives[-typeid]  # What are these objects?
+
+    @property
+    def shape(self):
+        layout = self.layout
+        this = layout[self.item]
+        if this.itype != D_DATA or not this.shape:
+            return None
+        s = ()
+        for d in this.shape:  # decode shape
+            s += (DItem(layout, d) if d > 0 else -d,)
+        return s
+
+    @property
+    def align0(self):  # may be 0 if this is data or param
+        this = self.layout[self.item]
+        if this.itype not in (D_DATA, D_PARAM, D_TYPE):
+            return None
+        align = this.align
+        align = None if align < 0 else align
+
+    @property
+    def align(self):   # true alignment, always > 0
+        layout = self.layout
+        this = layout[self.item]
+        if this.itype not in (D_DATA, D_PARAM, D_TYPE):
+            return None
+        align = this.align
+        if align < 0:
+            return 1  # absolute address specified
+        elif align:
+            return align  # alignment specified
+        # Otherwise, alignment is inherited from type
+        return DItem(layout, this.datatype).datatype.align0
+
+    @property
+    def address(self):
+        this = self.layout[self.item]
+        if this.itype not in (D_DATA, D_PARAM) or this.datatype is None:
+            return None
+        align = this.align
+        return -2 - align if align < 0 else None
+
+    def finish_type(self):
+        layout = self.layout
+        item = self.item
+        this = layout[item]
+        first = item + 1
+        last = len(layout)
+        if last == first + 1 and layout[first].name is None:  # typedef
+            this.members = first
+            this.align = layout[first].align
+        else:  # compound
+            members = {}
+            align = 0
+            for i in range(first, last):
+                member = layout[i]
+                if member.parent != item or member.itype != D_DATA:
+                    continue
+                member = DItem(layout, i)
+                members[member.name] = i
+                a = member.align
+                if a > align:
+                    align = a
+            this.members = members
+            this.align = align
+
+
+class DItems(object):
+    __slots__ = "layout", "idmap"
+    def __init__(self, layout, idmap):
+        self.layout = layout
+        self.idmap = idmap
+
+    def __len__(self):
+        return len(self.idmap)
+
+    def __getitem__(self, key):
+        return DItem(self.layout, self.idmap[key])
+
+    def __contains__(self, key):
+        return key in  self.idmap
+
+    def __iter__(self):
+        return iter(self.idmap)
+
+    def get(self, key, default=None):
+        return DItem(self.layout, self.idmap.get(key, default))
+
+    def items(self):
+        layout = self.layout
+        itit = self.idmap.items()
+        def iteritems():
+            for name, item in itit:
+                yield name, DItem(layout, item)
+        return iteritems()
+
+
+class DElements(object):
+    __slots__ = "layout", "idlist"
+    def __init__(self, layout, idlist):
+        self.layout = layout
+        self.idlist = idlist
+
+    def __len__(self):
+        return len(self.idlist)
+
+    def __getitem__(self, index):
+        return DItem(self.layout, self.idlist[index])
+
+    def __iter__(self):
+        return len(self.idlist)
+
+
+
+
+
+
+class DParam(object):
     itype = D_PARAM  # item type
 
-    def __init__(self, layout, parent, *args):
-        self.parent = parent
-        if len(args) == 1:  # args = [value] is fixed value parameter
-            self.idtype = self.align = None
-            self.pid = args[0]  # = value for fixed parameter case
-        else:  # args = [dtype, align] is dynamic parameter (align=0 if none)
-            self.idtype = args[0]
-            self.align = args[1] or layout.dtype_item(args[0]).align
-            pid = len(layout.items)
-            layout.params.append(pid)
-            self.pid = pid
-        layout.items.append(self)
+    def __init__(self, layout, item):
+        self.layout = layout
+        self.item = item
 
 
 class DDict(object):
