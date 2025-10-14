@@ -90,12 +90,13 @@ except ImportError:
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-html_theme_options = {
-    'description': "Dudley Data Description Language",
-    # 'fixed_sidebar': True,  # needs alabaster 0.7.8
-    'show_related': True,
-    # without show_related, module pages have no links to any other page
-}
+if html_theme == 'alabaster:':
+    html_theme_options = {
+        'description': "Dudley Data Description Language",
+        # 'fixed_sidebar': True,  # needs alabaster 0.7.8
+        'show_related': True,
+        # without show_related, module pages have no links to any other page
+    }
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -125,11 +126,11 @@ if html_theme == "alabaster":
 elif html_theme == "furo":
     html_sidebars = {
         '**': [
-            # "sidebar/brand.html",
+            "sidebar/brand.html",
             "sidebar/search.html",
             "sidebar/scroll-start.html",
             "sidebar/navigation.html",
-            # "sidebar/ethical-ads.html",
+            "sidebar/ethical-ads.html",
             "sidebar/scroll-end.html",
             "sidebar/variant-selector.html",
         ]
