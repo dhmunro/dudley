@@ -81,6 +81,7 @@ try:
     html_theme = "furo"
 except ImportError:
     html_theme = "alabaster"  # built-in theme (always present)
+# html_theme = "alabaster"
 
 # Test if running as a github action (not completely foolproof):
 #if "CI" in os.environ and os.environ["CI"] and "GITHUB_RUN_ID" in os.environ:
@@ -90,13 +91,34 @@ except ImportError:
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-if html_theme == 'alabaster:':
-    html_theme_options = {
+if html_theme == "alabaster":
+    html_theme_options = {  # for alabaster, ignored by furo
         'description': "Dudley Data Description Language",
-        # 'fixed_sidebar': True,  # needs alabaster 0.7.8
-        'show_related': True,
-        # without show_related, module pages have no links to any other page
+        'fixed_sidebar': True,  # needs alabaster 0.7.8
+        'sidebar_collapse': True,
+        # 'show_relbars': True,  # puts next/previous in header and footer
+        'show_related': True,  # puts next/previous in sidebar
     }
+elif html_theme == "furo":
+    html_theme_options: Dict[str, Any] = {
+        "footer_icons": [
+            {
+                "name": "GitHub",
+                "url": "https://github.com/dhmunro/dudley/",
+                "html": """
+                    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 16 16">ox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"></path>
+                    </svg>
+                """,
+                "class": "",
+            },
+        ],
+        "source_repository": "https://github.com/dhmunro/dudley/",
+        "source_branch": "main",
+        "source_directory": "docs/",
+    }
+
+html_title = "Dudley Data Description Language"  # used by furo
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -130,7 +152,7 @@ elif html_theme == "furo":
             "sidebar/search.html",
             "sidebar/scroll-start.html",
             "sidebar/navigation.html",
-            "sidebar/ethical-ads.html",
+            # "sidebar/ethical-ads.html",
             "sidebar/scroll-end.html",
             "sidebar/variant-selector.html",
         ]
