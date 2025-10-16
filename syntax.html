@@ -384,27 +384,26 @@ square brackets <cite>[]</cite>.</p>
 <dt><strong>list</strong> item is one of:</dt><dd><p>data</p>
 <p>/ dict_item1 dict_item2 … dict_itemN</p>
 <p>[ list_item1, list_item2, ,,,, list_itemN ]</p>
-<p>number</p>
-<p>address</p>
+<p>number / dict_item1 dict_item2 … dict_itemN</p>
+<p>number [ list_item1, list_item2, ,,,, list_itemN ]</p>
+<p>number<sub>opt</sub> address</p>
 </dd>
 </dl>
 <p>As mentioned above, the comma <cite>,</cite> or <cite>]</cite> separating or terminating the list
 declaration also terminates a dict item in the list.</p>
-<p>The final two possibilities, an item which is a number (signed integer) or an
-address, then all the items in the <cite>[]</cite> must be numbers or addresses, that is,
-either <cite>[number1, …, numberN]</cite> or <cite>[address1, …, addressN]</cite>.  These
-two special syntaxes have very different meanings.</p>
-<p>The case of a number provides a mechanism for reopening a list item which is
-itself a dict or a list.  The number is the 0-origin index into the list, and
-<cite>[number1, …, numberN][items]</cite> is a shorthand for
-<cite>[number1][…][numberN][items]</cite>, which is also equivalent to
-<cite>[number1][[number2][…[[numberN]][items]…]]</cite> - in other words a way to
-extend nested lists.  As in python, a list index may be negative to refer to
-the items near the end of the list, so <cite>-1</cite> means item <cite>N-1</cite>, item <cite>-2</cite> means
-item <cite>N-1</cite>, and so on, if there are <cite>N</cite> items in the existing list.  If the
-referenced item is a sub-list, then the character after the <cite>[number]</cite> must
-be a <cite>[</cite>, while if it is a sub-dict, the next character must be a <cite>/</cite>.  In the
-latter case.</p>
+<p>In the second two cases, the leading number is the integer index of a
+previous list item to be extended.  That item must have been a dict in the <cite>/</cite>
+case, or a list in the <cite>[</cite> case.  Neither form appends a new item to the list,
+instead modifiying an existing item.</p>
+<p>The final case is a shortcut for duplicating a previously data item declaration
+as the next item of the list.  If number is not present, the previous list item
+is the default thing to duplicate.  In either case, the referenced item must be
+a data array, not a dict or a list.  With an <cite>address</cite> of <cite>%0</cite>, this makes it
+very easy to build a list consisting of many identically shaped arrays.</p>
+<p>The number can be negative to refer to the current end of the list, as in
+python list indexing, so that <cite>-1</cite> refers to the previous element, <cite>-2</cite> to the
+element before that, and so on.  (Thus, in the final case, the default number
+is <cite>-1</cite>.)</p>
 </section>
 <hr class="docutils" />
 <section id="layout-basics">

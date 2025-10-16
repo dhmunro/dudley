@@ -180,29 +180,30 @@ square brackets `[]`.
 
   [ list_item1, list_item2, ,,,, list_itemN ]
 
-  number
+  number / dict_item1 dict_item2 ... dict_itemN
 
-  address
+  number [ list_item1, list_item2, ,,,, list_itemN ]
+
+  number\ :subscript:`opt` address
 
 As mentioned above, the comma `,` or `]` separating or terminating the list
 declaration also terminates a dict item in the list.
 
-The final two possibilities, an item which is a number (signed integer) or an
-address, then all the items in the `[]` must be numbers or addresses, that is,
-either `[number1, ..., numberN]` or `[address1, ..., addressN]`.  These
-two special syntaxes have very different meanings.
+In the second two cases, the leading number is the integer index of a
+previous list item to be extended.  That item must have been a dict in the `/`
+case, or a list in the `[` case.  Neither form appends a new item to the list,
+instead modifiying an existing item.
 
-The case of a number provides a mechanism for reopening a list item which is
-itself a dict or a list.  The number is the 0-origin index into the list, and
-`[number1, ..., numberN][items]` is a shorthand for
-`[number1][...][numberN][items]`, which is also equivalent to
-`[number1][[number2][...[[numberN]][items]...]]` - in other words a way to
-extend nested lists.  As in python, a list index may be negative to refer to
-the items near the end of the list, so `-1` means item `N-1`, item `-2` means
-item `N-1`, and so on, if there are `N` items in the existing list.  If the
-referenced item is a sub-list, then the character after the `[number]` must
-be a `[`, while if it is a sub-dict, the next character must be a `/`.  In the
-latter case.
+The final case is a shortcut for duplicating a previously data item declaration
+as the next item of the list.  If number is not present, the previous list item
+is the default thing to duplicate.  In either case, the referenced item must be
+a data array, not a dict or a list.  With an `address` of `%0`, this makes it
+very easy to build a list consisting of many identically shaped arrays.
+
+The number can be negative to refer to the current end of the list, as in
+python list indexing, so that `-1` refers to the previous element, `-2` to the
+element before that, and so on.  (Thus, in the final case, the default number
+is `-1`.)
 
 
 ==========================================================
