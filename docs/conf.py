@@ -102,7 +102,7 @@ if html_theme == "alabaster":
 elif html_theme == "furo":
     html_theme_options: Dict[str, Any] = {
         "footer_icons": [
-            {
+            {  # octocat icon
                 "name": "GitHub",
                 "url": "https://github.com/dhmunro/dudley/",
                 "html": """

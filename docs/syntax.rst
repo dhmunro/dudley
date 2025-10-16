@@ -1,6 +1,212 @@
 Dudley Syntax
 =============
 
+Dudley is designed to be easily parsable.  It has no keywords and requires
+whitespace only where necessary to separate tokens.  Newline characters
+terminate comments (opened by a `#` character), but are otherwise treated like
+any other whitespace.  Each token is a name (possibly in quotes), a number
+(possibly signed), or punctuation.
+
+Fundamentally, a Dudley layout is a sequence of items.  Each item can be one of
+five different things:
+
+**data**
+  an n-dimensional array of numbers or (fixed length) text strings
+
+**dict**
+  a collection of named items (any of the five kinds)
+
+**list**
+  a sequence of anonymous data, dict, or list items
+
+**datatype**
+  the type of each element of a data array, may be:
+
+  * primitive, one of 19 predefined types (int, float, ASCII, or unicode)
+  * compound, a sequence of named data arrays (C struct or numpy record dtype)
+  * typedef, a single anonymous data array
+
+**parameter**
+  a named integer value that can be used as a data array dimension length,
+  may be:
+
+  * fixed value, set in the layout
+  * variable value, stored as a scalar integer value in the binary stream
+
+Only data and variable parameters occupy space in the binary stream the
+layout describes.
+
+The first item (item 0) of every layout is its implicitly defined root dict.
+Every other item in the layout has a parent container, except for the
+predefined primitive datatypes.  (These primitives are the only thing shared
+among all layouts, and indeed among all binary streams Dudley can describe.)
+
+Data item
+---------
+
+A data array is the most complicated item.  It may consist of as little as
+a datatype to declare a simple scalar value, but optionally a shape, an
+address, and a filter (in that order) may follow the datatype:
+
+.. https://stackoverflow.com/questions/11984652/bold-italic-in-restructuredtext
+
+**data**:
+  datatype shape\ :subscript:`opt` address\ :subscript:`opt`
+  filter\ :subscript:`opt`
+
+A **shape** is a comma delimited list of dimensions enclosed in square
+brackets `[dim1, ..., dimN]`.  Each dimension in the shape may be either an
+integer value or a parameter name.  (The parameter name may optionally have
+`+` or `-` suffixes as will be descibed later.)
+
+In Dudley, the first dimension varies slowest,
+the last dimension varies fastest, and there is intentionally no way to
+specify reversed array index order.  This is the default ordering in numpy
+(and arguably in C) but opposite to the index ordering in a FORTRAN array.
+To be clear, shape `[3, 2]` in Dudley means three pairs, *not* two triples.
+Each dimension in the shape may be either an integer value or a parameter
+name.  (The parameter name may optionally have `+` or `-` suffixes as will be
+descibed below.)
+
+An **address** is either an absolute byte address in the binary stream, or
+an alignment to specify that a few undefined padding bytes will be added to
+bring the absolute address up to some even multiple of two (the value of the
+alignment).  An address is `@number` in the layout, while an alignment is
+`%number`.  As a special case, `%0` is a no-op, that is, the same as no
+explicit address specification, which is useful in peculiar situations.
+
+If no address field (or `%0`) is specified, the data array is located immediately
+after the previous (data or variable parameter) item in the layout, possibly
+adjusted by the default alignment for its datatype.  An address can be any
+non-negative integer, while an alignment must be a (small) power of two (or 0).
+Either kind of address field overrides the automatic placement after the
+previous item.  The very first item in the layout goes at address 0 in the
+stream, but the entire stream may be offset from byte 0 of the file it is in.
+(For example, the offset is 16 bytes for binary files which begin with a native
+Dudley file signature.)
+
+A **filter** begins with either `-&gt;` or `&lt;-`, followed by a
+name (e.g.- `gzip`) and an optional comma delimited argument list in
+parentheses `(arg1, ..., argN)`, where each argument is either a number (int
+or float) or a quoted string.  Filters indicate compressed data (`-&gt;`) or
+references to other items (`&lt;-`).
+
+Any filter prevents a layout from describing more than one binary file
+or stream.  Lossless compression doesn't work very well for most binary data
+(since low order bits of floats are already random), while references can and
+should be avoided when you are designing the layout of stored data.  Although
+you should avoid them, filters will be described in detail elsewhere.
+
+Dict item
+---------
+
+A dict is a sequence of named items with no delimiters between them other than
+whitespace.  The item name always comes first, followed by a punctuation
+character that determines which if the five kinds of items is being declared:
+
+**dict** item is one of:
+  data_name : data
+
+  dict_name / dict
+
+  list_name [item1, ..., itemN]
+
+  type_name {item1 ... itemN}
+
+  param_name = param
+
+  `..`
+
+  `/`
+
+The last two possibilities are actually not dict items; `..` opens the
+parent dict (a no-op if the current dict is root), while `/` opens the root
+dict.  Subsequent dict item declarations go into that newly opened dict.
+(A comma `,` also closes the current dict, but that case is discussed in the
+section on list items below.)
+
+If the parent container of the current dict is a list rather than a dict, then
+it counts as the root of a separate tree for the purposes of `..` and `/`.
+
+Although all of the dict items have names, Dudley dicts keep three separate
+name spaces: The main one for data, dict, and list items, a second one for type
+items, and a third for parameters.  That is a data array, a datatype, and a
+parameter may all have the same name - though obviously this will confuse a
+human reader, even though their distinct usage is clear to the Dudley parser.
+
+The different kinds of items also behave differently when their name is
+reused.  Attempting to reuse a data item name in a single dict is always an
+error.  Similarly, reusing a type item name is always an error.
+
+However, if a sub-dict name was already used and was a sub-dict, then
+that original sub-dict is reopened and subsequent item declarations go there.
+Similarly, if a list name was already used and was a list, then the original
+list is reopened and extended by the items in brackets `[]`.  Thus, dicts and
+lists may be extended - their item declarations need not appear in order in
+the layout.
+
+Parameter names also may be reused.  Parameters resemble variables in a
+block of code, except that defining a new value does not clobber the original
+value, but always creates a new item in the layout.  After the redeclaration,
+there is no way to get back to the previous parameter item for subsequent
+array shape declarations, but any previously declared array shapes still refer
+to the original parameter item.  (In the Dudley program APIs, this limitation
+is enforced, even though it is only required by the layout syntax.)
+
+Note that these rules allow you to declare new items in any dict (under the
+same root) by specifying the full "path name" of the new item, e.g.::
+
+    /dict0_name/dict1_name/dict2_name/data_name = data
+
+However, note that dict2_name remains the current dict after such a declaration.
+Furthermore, the `..` "up to parent" syntax in Dudley does *not* work the way
+you might expect from the UNIX file system analogy::
+
+    /dict0_name/dict1_name/dict2_name/data_name .. ..
+
+is how you get from `div2_name` back to `dict0_name` in a Dudley layout - no
+slashes!
+
+List item
+---------
+
+A list is a comma delimited list of zero or more data, dict, or list items in
+square brackets `[]`.
+
+**list** item is one of:
+  data
+
+  / dict_item1 dict_item2 ... dict_itemN
+
+  [ list_item1, list_item2, ,,,, list_itemN ]
+
+  number
+
+  address
+
+As mentioned above, the comma `,` or `]` separating or terminating the list
+declaration also terminates a dict item in the list.
+
+The final two possibilities, an item which is a number (signed integer) or an
+address, then all the items in the `[]` must be numbers or addresses, that is,
+either `[number1, ..., numberN]` or `[address1, ..., addressN]`.  These
+two special syntaxes have very different meanings.
+
+The case of a number provides a mechanism for reopening a list item which is
+itself a dict or a list.  The number is the 0-origin index into the list, and
+`[number1, ..., numberN][items]` is a shorthand for
+`[number1][...][numberN][items]`, which is also equivalent to
+`[number1][[number2][...[[numberN]][items]...]]` - in other words a way to
+extend nested lists.  As in python, a list index may be negative to refer to
+the items near the end of the list, so `-1` means item `N-1`, item `-2` means
+item `N-1`, and so on, if there are `N` items in the existing list.  If the
+referenced item is a sub-list, then the character after the `[number]` must
+be a `[`, while if it is a sub-dict, the next character must be a `/`.  In the
+latter case.
+
+
+==========================================================
+
 Layout basics
 -------------
 
