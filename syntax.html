@@ -236,6 +236,177 @@
         <article role="main" id="furo-main-content">
           <section id="dudley-syntax">
 <h1>Dudley Syntax<a class="headerlink" href="#dudley-syntax" title="Link to this heading">¶</a></h1>
+<p>Dudley is designed to be easily parsable.  It has no keywords and requires
+whitespace only where necessary to separate tokens.  Newline characters
+terminate comments (opened by a <cite>#</cite> character), but are otherwise treated like
+any other whitespace.  Each token is a name (possibly in quotes), a number
+(possibly signed), or punctuation.</p>
+<p>Fundamentally, a Dudley layout is a sequence of items.  Each item can be one of
+five different things:</p>
+<dl class="simple">
+<dt><strong>data</strong></dt><dd><p>an n-dimensional array of numbers or (fixed length) text strings</p>
+</dd>
+<dt><strong>dict</strong></dt><dd><p>a collection of named items (any of the five kinds)</p>
+</dd>
+<dt><strong>list</strong></dt><dd><p>a sequence of anonymous data, dict, or list items</p>
+</dd>
+<dt><strong>datatype</strong></dt><dd><p>the type of each element of a data array, may be:</p>
+<ul class="simple">
+<li><p>primitive, one of 19 predefined types (int, float, ASCII, or unicode)</p></li>
+<li><p>compound, a sequence of named data arrays (C struct or numpy record dtype)</p></li>
+<li><p>typedef, a single anonymous data array</p></li>
+</ul>
+</dd>
+<dt><strong>parameter</strong></dt><dd><p>a named integer value that can be used as a data array dimension length,
+may be:</p>
+<ul class="simple">
+<li><p>fixed value, set in the layout</p></li>
+<li><p>variable value, stored as a scalar integer value in the binary stream</p></li>
+</ul>
+</dd>
+</dl>
+<p>Only data and variable parameters occupy space in the binary stream the
+layout describes.</p>
+<p>The first item (item 0) of every layout is its implicitly defined root dict.
+Every other item in the layout has a parent container, except for the
+predefined primitive datatypes.  (These primitives are the only thing shared
+among all layouts, and indeed among all binary streams Dudley can describe.)</p>
+<section id="data-item">
+<h2>Data item<a class="headerlink" href="#data-item" title="Link to this heading">¶</a></h2>
+<p>A data array is the most complicated item.  It may consist of as little as
+a datatype to declare a simple scalar value, but optionally a shape, an
+address, and a filter (in that order) may follow the datatype:</p>
+<dl class="simple">
+<dt><strong>data</strong>:</dt><dd><p>datatype shape<sub>opt</sub> address<sub>opt</sub>
+filter<sub>opt</sub></p>
+</dd>
+</dl>
+<p>A <strong>shape</strong> is a comma delimited list of dimensions enclosed in square
+brackets <cite>[dim1, …, dimN]</cite>.  Each dimension in the shape may be either an
+integer value or a parameter name.  (The parameter name may optionally have
+<cite>+</cite> or <cite>-</cite> suffixes as will be descibed later.)</p>
+<p>In Dudley, the first dimension varies slowest,
+the last dimension varies fastest, and there is intentionally no way to
+specify reversed array index order.  This is the default ordering in numpy
+(and arguably in C) but opposite to the index ordering in a FORTRAN array.
+To be clear, shape <cite>[3, 2]</cite> in Dudley means three pairs, <em>not</em> two triples.
+Each dimension in the shape may be either an integer value or a parameter
+name.  (The parameter name may optionally have <cite>+</cite> or <cite>-</cite> suffixes as will be
+descibed below.)</p>
+<p>An <strong>address</strong> is either an absolute byte address in the binary stream, or
+an alignment to specify that a few undefined padding bytes will be added to
+bring the absolute address up to some even multiple of two (the value of the
+alignment).  An address is <cite>&#64;number</cite> in the layout, while an alignment is
+<cite>%number</cite>.  As a special case, <cite>%0</cite> is a no-op, that is, the same as no
+explicit address specification, which is useful in peculiar situations.</p>
+<p>If no address field (or <cite>%0</cite>) is specified, the data array is located immediately
+after the previous (data or variable parameter) item in the layout, possibly
+adjusted by the default alignment for its datatype.  An address can be any
+non-negative integer, while an alignment must be a (small) power of two (or 0).
+Either kind of address field overrides the automatic placement after the
+previous item.  The very first item in the layout goes at address 0 in the
+stream, but the entire stream may be offset from byte 0 of the file it is in.
+(For example, the offset is 16 bytes for binary files which begin with a native
+Dudley file signature.)</p>
+<p>A <strong>filter</strong> begins with either <cite>-&amp;gt;</cite> or <cite>&amp;lt;-</cite>, followed by a
+name (e.g.- <cite>gzip</cite>) and an optional comma delimited argument list in
+parentheses <cite>(arg1, …, argN)</cite>, where each argument is either a number (int
+or float) or a quoted string.  Filters indicate compressed data (<cite>-&amp;gt;</cite>) or
+references to other items (<cite>&amp;lt;-</cite>).</p>
+<p>Any filter prevents a layout from describing more than one binary file
+or stream.  Lossless compression doesn’t work very well for most binary data
+(since low order bits of floats are already random), while references can and
+should be avoided when you are designing the layout of stored data.  Although
+you should avoid them, filters will be described in detail elsewhere.</p>
+</section>
+<section id="dict-item">
+<h2>Dict item<a class="headerlink" href="#dict-item" title="Link to this heading">¶</a></h2>
+<p>A dict is a sequence of named items with no delimiters between them other than
+whitespace.  The item name always comes first, followed by a punctuation
+character that determines which if the five kinds of items is being declared:</p>
+<dl>
+<dt><strong>dict</strong> item is one of:</dt><dd><p>data_name : data</p>
+<p>dict_name / dict</p>
+<p>list_name [item1, …, itemN]</p>
+<p>type_name {item1 … itemN}</p>
+<p>param_name = param</p>
+<p><cite>..</cite></p>
+<p><cite>/</cite></p>
+</dd>
+</dl>
+<p>The last two possibilities are actually not dict items; <cite>..</cite> opens the
+parent dict (a no-op if the current dict is root), while <cite>/</cite> opens the root
+dict.  Subsequent dict item declarations go into that newly opened dict.
+(A comma <cite>,</cite> also closes the current dict, but that case is discussed in the
+section on list items below.)</p>
+<p>If the parent container of the current dict is a list rather than a dict, then
+it counts as the root of a separate tree for the purposes of <cite>..</cite> and <cite>/</cite>.</p>
+<p>Although all of the dict items have names, Dudley dicts keep three separate
+name spaces: The main one for data, dict, and list items, a second one for type
+items, and a third for parameters.  That is a data array, a datatype, and a
+parameter may all have the same name - though obviously this will confuse a
+human reader, even though their distinct usage is clear to the Dudley parser.</p>
+<p>The different kinds of items also behave differently when their name is
+reused.  Attempting to reuse a data item name in a single dict is always an
+error.  Similarly, reusing a type item name is always an error.</p>
+<p>However, if a sub-dict name was already used and was a sub-dict, then
+that original sub-dict is reopened and subsequent item declarations go there.
+Similarly, if a list name was already used and was a list, then the original
+list is reopened and extended by the items in brackets <cite>[]</cite>.  Thus, dicts and
+lists may be extended - their item declarations need not appear in order in
+the layout.</p>
+<p>Parameter names also may be reused.  Parameters resemble variables in a
+block of code, except that defining a new value does not clobber the original
+value, but always creates a new item in the layout.  After the redeclaration,
+there is no way to get back to the previous parameter item for subsequent
+array shape declarations, but any previously declared array shapes still refer
+to the original parameter item.  (In the Dudley program APIs, this limitation
+is enforced, even though it is only required by the layout syntax.)</p>
+<p>Note that these rules allow you to declare new items in any dict (under the
+same root) by specifying the full “path name” of the new item, e.g.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">/</span><span class="n">dict0_name</span><span class="o">/</span><span class="n">dict1_name</span><span class="o">/</span><span class="n">dict2_name</span><span class="o">/</span><span class="n">data_name</span> <span class="o">=</span> <span class="n">data</span>
+</pre></div>
+</div>
+<p>However, note that dict2_name remains the current dict after such a declaration.
+Furthermore, the <cite>..</cite> “up to parent” syntax in Dudley does <em>not</em> work the way
+you might expect from the UNIX file system analogy:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">/</span><span class="n">dict0_name</span><span class="o">/</span><span class="n">dict1_name</span><span class="o">/</span><span class="n">dict2_name</span><span class="o">/</span><span class="n">data_name</span> <span class="o">..</span> <span class="o">..</span>
+</pre></div>
+</div>
+<p>is how you get from <cite>div2_name</cite> back to <cite>dict0_name</cite> in a Dudley layout - no
+slashes!</p>
+</section>
+<section id="list-item">
+<h2>List item<a class="headerlink" href="#list-item" title="Link to this heading">¶</a></h2>
+<p>A list is a comma delimited list of zero or more data, dict, or list items in
+square brackets <cite>[]</cite>.</p>
+<dl>
+<dt><strong>list</strong> item is one of:</dt><dd><p>data</p>
+<p>/ dict_item1 dict_item2 … dict_itemN</p>
+<p>[ list_item1, list_item2, ,,,, list_itemN ]</p>
+<p>number</p>
+<p>address</p>
+</dd>
+</dl>
+<p>As mentioned above, the comma <cite>,</cite> or <cite>]</cite> separating or terminating the list
+declaration also terminates a dict item in the list.</p>
+<p>The final two possibilities, an item which is a number (signed integer) or an
+address, then all the items in the <cite>[]</cite> must be numbers or addresses, that is,
+either <cite>[number1, …, numberN]</cite> or <cite>[address1, …, addressN]</cite>.  These
+two special syntaxes have very different meanings.</p>
+<p>The case of a number provides a mechanism for reopening a list item which is
+itself a dict or a list.  The number is the 0-origin index into the list, and
+<cite>[number1, …, numberN][items]</cite> is a shorthand for
+<cite>[number1][…][numberN][items]</cite>, which is also equivalent to
+<cite>[number1][[number2][…[[numberN]][items]…]]</cite> - in other words a way to
+extend nested lists.  As in python, a list index may be negative to refer to
+the items near the end of the list, so <cite>-1</cite> means item <cite>N-1</cite>, item <cite>-2</cite> means
+item <cite>N-1</cite>, and so on, if there are <cite>N</cite> items in the existing list.  If the
+referenced item is a sub-list, then the character after the <cite>[number]</cite> must
+be a <cite>[</cite>, while if it is a sub-dict, the next character must be a <cite>/</cite>.  In the
+latter case.</p>
+</section>
+<hr class="docutils" />
 <section id="layout-basics">
 <h2>Layout basics<a class="headerlink" href="#layout-basics" title="Link to this heading">¶</a></h2>
 <p>Data arrays are multidimensional arrays of numbers, boolean values, or
@@ -921,6 +1092,9 @@ is no longer a general template - it applies only to files with three records:</
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">Dudley Syntax</a><ul>
+<li><a class="reference internal" href="#data-item">Data item</a></li>
+<li><a class="reference internal" href="#dict-item">Dict item</a></li>
+<li><a class="reference internal" href="#list-item">List item</a></li>
 <li><a class="reference internal" href="#layout-basics">Layout basics</a></li>
 <li><a class="reference internal" href="#parameters">Parameters</a></li>
 <li><a class="reference internal" href="#compound-and-named-data-types">Compound and named data types</a></li>
