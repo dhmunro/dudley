@@ -1,13 +1,13 @@
 <!doctype html>
 <html class="no-js" lang="en" data-content_root="./">
-  <head>
-<meta charset="utf-8">
+  <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="#">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="prev" title="Filters" href="filters.html">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.09.25 -->
-<meta name="robots" content="noindex" />
-<title>Search - Dudley Data Description Language</title><link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+        <title>Extensions and Signatures - Dudley Data Description Language</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=580074bf" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
     
@@ -184,17 +184,17 @@
   
   <span class="sidebar-brand-text">Dudley Data Description Language</span>
   
-</a><form class="sidebar-search-container" method="get" action="#" role="search">
+</a><form class="sidebar-search-container" method="get" action="search.html" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
   <input type="hidden" name="check_keywords" value="yes">
   <input type="hidden" name="area" value="default">
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
-  <ul>
+  <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="syntax.html">Dudley Syntax</a></li>
 <li class="toctree-l1"><a class="reference internal" href="filters.html">Filters</a></li>
-<li class="toctree-l1"><a class="reference internal" href="signatures.html">Extensions and Signatures</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Extensions and Signatures</a></li>
 </ul>
 
 </div></div>
@@ -213,7 +213,17 @@
           <span>Back to top</span>
         </a>
         <div class="content-icon-container">
-          <div class="theme-toggle-container theme-toggle-content">
+          <div class="view-this-page">
+  <a class="muted-link" href="https://github.com/dhmunro/dudley/blob/main/docs/signatures.rst?plain=true" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div><div class="edit-this-page">
+  <a class="muted-link" href="https://github.com/dhmunro/dudley/edit/main/docs/signatures.rst" rel="edit" title="Edit this page">
+    <svg><use href="#svg-pencil"></use></svg>
+    <span class="visually-hidden">Edit this page</span>
+  </a>
+</div><div class="theme-toggle-container theme-toggle-content">
             <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
               <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
               <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
@@ -226,17 +236,38 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          
-<noscript>
-<div class="admonition error">
-  <p class="admonition-title">Error</p>
-  <p>
-    Please activate JavaScript to enable the search functionality.
-  </p>
+          <section id="extensions-and-signatures">
+<h1>Extensions and Signatures<a class="headerlink" href="#extensions-and-signatures" title="Link to this heading">¶</a></h1>
+<p>The recommended extension for a Dudley layout is .dud, and for binary files
+natively described by such a layout .bd (for “binary data”).  However, the
+Dudley layout may also be appended to the end of the binary file to produce
+a single self-describing file.  Of course, a Dudley layout may also be
+generated for a non-native binary file such as an HDF or PDB file, in which
+case the separate layout .dud file is recommended.</p>
+<p>A native Dudley binary file begins with one of two eight byte signatures:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mi">8</span><span class="n">d</span> <span class="o">&lt;</span> <span class="n">B</span> <span class="n">D</span> <span class="mi">0</span><span class="n">d</span> <span class="mi">0</span><span class="n">a</span> <span class="mi">1</span><span class="n">a</span> <span class="mi">0</span><span class="n">a</span>   <span class="p">(</span><span class="mi">8</span><span class="n">d</span> <span class="mi">3</span><span class="n">c</span> <span class="mi">42</span> <span class="mi">44</span> <span class="mi">0</span><span class="n">d</span> <span class="mi">0</span><span class="n">a</span> <span class="mi">1</span><span class="n">a</span> <span class="mi">0</span><span class="n">a</span><span class="p">)</span>
+<span class="mi">8</span><span class="n">d</span> <span class="o">&gt;</span> <span class="n">B</span> <span class="n">D</span> <span class="mi">0</span><span class="n">d</span> <span class="mi">0</span><span class="n">a</span> <span class="mi">1</span><span class="n">a</span> <span class="mi">0</span><span class="n">a</span>   <span class="p">(</span><span class="mi">8</span><span class="n">d</span> <span class="mi">3</span><span class="n">e</span> <span class="mi">42</span> <span class="mi">44</span> <span class="mi">0</span><span class="n">d</span> <span class="mi">0</span><span class="n">a</span> <span class="mi">1</span><span class="n">a</span> <span class="mi">0</span><span class="n">a</span><span class="p">)</span>
+</pre></div>
 </div>
-</noscript>
-
-<div id="search-results"></div>
+<p>The &lt; variant makes the default byte order little endian (least significant
+byte first) while the &gt; variant makes the default byte order big endian.  This
+may be overridden by an explicit &gt; or &lt; prefix for a summary block in the
+layout itself, so that the &lt; or &gt; may merely indicate the byte order of the
+machine writing the file rather than any contents.  The first byte following
+signature is address zero in the corresponding layout.</p>
+<p>Furthermore, the second eight bytes of a native file are either all zero, or
+the address of the layout appended to the end of the binary file, in the byte
+order specified by the &lt; or &gt; character in the first eight bytes.  This will
+also become the first byte of any data appended to the file if it is
+subsequently extended.</p>
+<p>This was inspired by the PNG header.  The rationale is that non-binary FTP
+file transfers will corrupt either the 0d 0a sequence or the 0a character,
+while the 1a character stops terminal output on MSDOS (and maybe Windows).
+The 8d character is chosen because it is illegal as the first character
+of a UTF-8 stream, it is not defined in the CP-1252 character encoding,
+not printable in the latin-1 encoding, and finally any file transfer which
+resets the top bit to zero will corrupt it.</p>
+</section>
 
         </article>
       </div>
@@ -244,7 +275,17 @@
         
         <div class="related-pages">
           
-          
+          <a class="prev-page" href="filters.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Filters</div>
+                
+              </div>
+            </a>
         </div>
         <div class="bottom-of-page">
           <div class="left-details">
@@ -280,8 +321,5 @@
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/furo.js?v=46bd48cc"></script>
-    
-<script src="_static/searchtools.js"></script>
-<script src="_static/language_data.js"></script>
-<script src="searchindex.js"></script></body>
+    </body>
 </html>

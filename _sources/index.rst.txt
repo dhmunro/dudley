@@ -46,3 +46,5 @@ Features:
 
    overview
    syntax
+   filters
+   signatures
