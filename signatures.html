@@ -251,10 +251,12 @@ appended at the end of a “.bd” file to make a single self-describing file
 like an HDF5 file, or the contents of the “.bd” file may be described by a
 separate “.dud” file.</p>
 <p>In either case, a “.bd” file begins with one of two eight byte signatures:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mi">8</span><span class="n">d</span> <span class="o">&lt;</span> <span class="n">B</span> <span class="n">D</span> <span class="mi">0</span><span class="n">d</span> <span class="mi">0</span><span class="n">a</span> <span class="mi">1</span><span class="n">a</span> <span class="mi">0</span><span class="n">a</span>   <span class="p">(</span><span class="mi">8</span><span class="n">d</span> <span class="mi">3</span><span class="n">c</span> <span class="mi">42</span> <span class="mi">44</span> <span class="mi">0</span><span class="n">d</span> <span class="mi">0</span><span class="n">a</span> <span class="mi">1</span><span class="n">a</span> <span class="mi">0</span><span class="n">a</span><span class="p">)</span>
-<span class="mi">8</span><span class="n">d</span> <span class="o">&gt;</span> <span class="n">B</span> <span class="n">D</span> <span class="mi">0</span><span class="n">d</span> <span class="mi">0</span><span class="n">a</span> <span class="mi">1</span><span class="n">a</span> <span class="mi">0</span><span class="n">a</span>   <span class="p">(</span><span class="mi">8</span><span class="n">d</span> <span class="mi">3</span><span class="n">e</span> <span class="mi">42</span> <span class="mi">44</span> <span class="mi">0</span><span class="n">d</span> <span class="mi">0</span><span class="n">a</span> <span class="mi">1</span><span class="n">a</span> <span class="mi">0</span><span class="n">a</span><span class="p">)</span>
-</pre></div>
+<blockquote>
+<div><div class="line-block">
+<div class="line">8d &lt; B D 0d 0a 1a 0a   (8d 3c 42 44 0d 0a 1a 0a)</div>
+<div class="line">8d &gt; B D 0d 0a 1a 0a   (8d 3e 42 44 0d 0a 1a 0a)</div>
 </div>
+</div></blockquote>
 <p>This was inspired by the PNG header.  The rationale is that non-binary FTP
 file transfers will corrupt either the 0d 0a sequence or the 0a character,
 while the 1a character stops terminal output on MSDOS (and maybe Windows).
