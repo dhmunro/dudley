@@ -172,7 +172,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
         <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
       </label>
     </div>
@@ -231,14 +231,17 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
             <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
           </label>
         </div>
         <article role="main" id="furo-main-content">
           <section id="filters">
 <h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>Dudley supports two kinds of filters.  <em>Compression</em> filters convert an array
+<p>Dudley supports two kinds of filters, compression (<cite>-&gt;</cite>) and reference (<cite>&lt;-</cite>).</p>
+<section id="compression-filters">
+<h2>Compression filters<a class="headerlink" href="#compression-filters" title="Link to this heading">¶</a></h2>
+<p><em>Compression</em> filters convert an array
 declared in the usual way into a (hopefully shorter) byte string:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">f8</span><span class="p">[</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">100</span><span class="p">]</span> <span class="o">-&gt;</span> <span class="n">zfp</span>  <span class="c1"># compress 1000x100x100 array using zfp</span>
 </pre></div>
@@ -259,47 +262,56 @@ do not know in advance how many bytes of the stream will be occupied by the
 compressed array, so using any filters at all restricts a Dudley layout to
 a particualr individual byte stream.  The default filters are all
 simplified versions of popular open source compressors:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>*zfp(level)* **[ZFP](https://zfp.io)** is a lossy compression library.
-The Dudley `level` parameter is the ZFP *tolerance*, which is the acceptable
-absolute error for the array values if `level&gt;0`.  If `level&lt;0`, then
-`-level` is the ZFP *precision*, which is roughly the number of bits of
-mantissa that will be preserved, a rough way to specify the acceptable
-relative error for array values.  Finally, `level=0` specifies the ZFP
-lossless compression option.  The default is `level=-15`, which produces
+<dl class="simple">
+<dt><strong>zfp(level)</strong></dt><dd><p><a class="reference external" href="https://zfp.io">ZFP</a> is a lossy compression library.
+The Dudley <cite>level</cite> parameter is the ZFP <em>tolerance</em>, which is the acceptable
+absolute error for the array values if <cite>level&gt;0</cite>.  If <cite>level&lt;0</cite>, then
+<cite>-level</cite> is the ZFP <em>precision</em>, which is roughly the number of bits of
+mantissa that will be preserved, a way to specify the acceptable
+relative error for array values.  Finally, <cite>level=0</cite> specifies the ZFP
+lossless compression option.  The default is <cite>level=-15</cite>, which produces
 a bit better than part per thousand relative accuracy.  Only works on
-arrays of numbers (best for floats) with up to four dimensions.
-*gzip(level)* **[zlib](https://zlib.net)** is a lossless compression library.
-The `level` parameter can be 0-9 or -1, with the same meanings as the gzip
-utility.  However, Dudley makes the default `level=9` on the assumption that
+arrays of numbers (best for floats) with up to four dimensions.</p>
+</dd>
+<dt><strong>gzip(level)</strong></dt><dd><p><a class="reference external" href="https://zlib.net">zlib</a> is a well-known lossless compression library.
+The <cite>level</cite> parameter can be 0-9 or -1, with the same meanings as the gzip
+utility.  However, Dudley makes the default <cite>level=9</cite> on the assumption that
 you will usually want maximum compression.  The zlib compression is not
-really designed for binary data, but it can work well on integers and text.
-*jpeg(quality)* **[jpeg](https://jpeg.org)** is a lossy image
-compression format.  Accepts only `u1[NX, NY]` data (grayscale image),
-`u1[NX, NY, 3]` data (RGB image), or `u1[NX, NY, 4]` data (CMYK image).
-The `quality` is 0-95, with `quality=75` the default.
-*png(level)* **[png](https://libpng.org/pub/png)** is a lossless image
-compression format.  Accepts only `u?[NX, NY]` data (grayscale image),
-`u?[NX, NY, 3]` data (RGB image), where `u?` is either `u1` or `u2`.
-The `level` is 0-9, with `level=9` the default.
-</pre></div>
-</div>
+really designed for binary data, but it can work well on integers and text.</p>
+</dd>
+<dt><strong>jpeg(quality)</strong></dt><dd><p><a class="reference external" href="https://jpeg.org">jpeg</a> is a well-known lossy image
+compression format.  Accepts only <cite>u1[NX, NY]</cite> data (grayscale image),
+<cite>u1[NX, NY, 3]</cite> data (RGB image), or <cite>u1[NX, NY, 4]</cite> data (CMYK image).
+The <cite>quality</cite> is 0-95, with <cite>quality=75</cite> the default.</p>
+</dd>
+<dt><strong>png(level)</strong></dt><dd><p><a class="reference external" href="https://libpng.org/pub/png">png</a> is a well-known lossless image
+compression format.  Accepts only <cite>u?[NX, NY]</cite> data (grayscale image),
+<cite>u?[NX, NY, 3]</cite> data (RGB image), where <cite>u?</cite> is either <cite>u1</cite> or <cite>u2</cite>.
+The <cite>level</cite> is 0-9, with <cite>level=9</cite> the default.</p>
+</dd>
+</dl>
+</section>
+<section id="reference-filters">
+<h2>Reference filters<a class="headerlink" href="#reference-filters" title="Link to this heading">¶</a></h2>
 <p>The second kind of filter, a <em>reference</em> filter, is completely different.
 Instead of converting an array of declared type and shape to an unknown
 number of bytes in the file like a compression filter, a <em>reference</em> filter
 converts an array of unknown type and shape into a reference to that object
 where each such reference has a known datatype (usually an integer).  This
-reference is roughly equivalent to declaring a <cite>void *</cite> in C:</p>
+reference is roughly equivalent to declaring a <cite>void *</cite> array in C:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">datatype</span> <span class="n">shape</span> <span class="o">&lt;-</span> <span class="n">ref</span>  <span class="c1"># this array holds references to unknown objects</span>
 </pre></div>
 </div>
 <p>Now the objects which are referenced obviously must be declared <em>somewhere</em> in
 the layout - otherwise there would be no way to read them back.  Therefore,
-Dudley expects to find a sequence of special declarations of the form:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">=</span> <span class="n">datatype</span> <span class="n">shape</span> <span class="nb">filter</span> <span class="n">address</span>
+Dudley expects to find a sequence of special anonymouos declarations of the
+form:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>: datatype shape` :subscript:`opt` address` :subscript:`opt`
 </pre></div>
 </div>
 <p>These can appear anywhere a named dict item is expected, but these reference
-declarations are kept outside of the dict-list container tree.  The <cite>ref</cite>
+declarations are always placed in the root dict.  The datatype and shape have
+restrictions described previously in the Dudley syntax section.  The <cite>ref</cite>
 filter is responsible for associating these special declarations with the
 item containing the <cite>&lt;- ref</cite> marker.  HDF5 and PDB files each have their own
 <cite>ref</cite> filter, but these are intended to be generated only by software
@@ -311,6 +323,7 @@ way pointers are used in C/C++ data structures.  However, C/C++ pointers do
 not map very well to scipy programs, since they objects they point to (at least
 in scientific programs) are usually ndarrays, or to dict-like or list-like
 objects containing them, which are first-class objects in scipy or Dudley.</p>
+</section>
 </section>
 
         </article>
@@ -363,8 +376,28 @@ objects containing them, which are first-class objects in scipy or Dudley.</p>
         
       </footer>
     </div>
-    <aside class="toc-drawer no-toc">
+    <aside class="toc-drawer">
       
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Filters</a><ul>
+<li><a class="reference internal" href="#compression-filters">Compression filters</a></li>
+<li><a class="reference internal" href="#reference-filters">Reference filters</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
       
       
     </aside>
