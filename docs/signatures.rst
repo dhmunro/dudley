@@ -15,10 +15,10 @@ appended at the end of a ".bd" file to make a single self-describing file
 like an HDF5 file, or the contents of the ".bd" file may be described by a
 separate ".dud" file.
 
-In either case, a ".bd" file begins with one of two eight byte signatures::
+In either case, a ".bd" file begins with one of two eight byte signatures:
 
-    8d < B D 0d 0a 1a 0a   (8d 3c 42 44 0d 0a 1a 0a)
-    8d > B D 0d 0a 1a 0a   (8d 3e 42 44 0d 0a 1a 0a)
+  | 8d < B D 0d 0a 1a 0a   (8d 3c 42 44 0d 0a 1a 0a)
+  | 8d > B D 0d 0a 1a 0a   (8d 3e 42 44 0d 0a 1a 0a)
 
 This was inspired by the PNG header.  The rationale is that non-binary FTP
 file transfers will corrupt either the 0d 0a sequence or the 0a character,
