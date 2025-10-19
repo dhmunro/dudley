@@ -3,10 +3,10 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Dudley Syntax" href="syntax.html"><link rel="prev" title="Dudley Data Description Language" href="index.html">
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Filters" href="filters.html"><link rel="prev" title="Dudley Syntax" href="syntax.html">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.09.25 -->
-        <title>Overview - Dudley Data Description Language</title>
+        <title>Special Comments - Dudley Data Description Language</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=580074bf" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -172,7 +172,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
         <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
       </label>
     </div>
@@ -191,9 +191,9 @@
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <ul class="current">
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="syntax.html">Dudley Syntax</a></li>
-<li class="toctree-l1"><a class="reference internal" href="comments.html">Special Comments</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Special Comments</a></li>
 <li class="toctree-l1"><a class="reference internal" href="filters.html">Filters</a></li>
 <li class="toctree-l1"><a class="reference internal" href="signatures.html">File Names and Signatures</a></li>
 </ul>
@@ -215,12 +215,12 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="https://github.com/dhmunro/dudley/blob/main/docs/overview.rst?plain=true" title="View this page">
+  <a class="muted-link" href="https://github.com/dhmunro/dudley/blob/main/docs/comments.rst?plain=true" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
 </div><div class="edit-this-page">
-  <a class="muted-link" href="https://github.com/dhmunro/dudley/edit/main/docs/overview.rst" rel="edit" title="Edit this page">
+  <a class="muted-link" href="https://github.com/dhmunro/dudley/edit/main/docs/comments.rst" rel="edit" title="Edit this page">
     <svg><use href="#svg-pencil"></use></svg>
     <span class="visually-hidden">Edit this page</span>
   </a>
@@ -232,48 +232,92 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
             <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="overview">
-<h1>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h1>
-<p>Dudley is a data description language - a human-readable way to describe
-how data is encoded in a byte stream.  A Dudley description, or <em>layout</em>,
-specifies the contents of a binary data file, with roughly the same scope and
-use cases as <a class="reference external" href="https://www.hdfgroup.org/solutions/hdf5/">HDF5</a> and similar
-self-describing binary file formats.  However, a single Dudley layout may also
-describe many different files or byte streams, so it can also be used like
-the <a class="reference external" href="https://www.rfc-editor.org/rfc/rfc4506">XDR</a> standard to exchange
-multiple similar data sets among programs built around a common layout.  Like
-HDF5 (but not XDR), Dudley is specialized for describing scientific data.</p>
-<p>Specifically, Dudley is modeled after numpy, where n-dimensional arrays are
-first class objects, which are grouped using python’s dict and/or list
-containers.  Thus, a Dudley layout organizes data in exactly the same way as
-<a class="reference external" href="https://json.org">JASON</a>, except that the elements in the container tree
-are binary numpy ndarrays instead of textual numbers or strings.</p>
-<p>But one of Dudley’s most important features has no numpy equivalent: symbolic
-names for dimension lengths.  Very often a collection of data arrays share
-common dimension lengths, so this feature can show important relationships
-among the various arrays in a data set.  The
-<a class="reference external" href="https://www.unidata.ucar.edu/software/netcdf">netCDF</a> format also has this
-feature, but unlike netCDF, Dudley allows the dimension lengths to be stored
-in the stream as parameter values.  This extension permits a single Dudley
-layout to describe a large number of files or stream instances - potentially
-every restart dump file for even aphysics simulation code,</p>
-<p>Since physics simulations often require only a few dozen parameters to fix
-the dimensions of every array, a separate catalog file can store copies of all
-parameters for the very large numbers of individual data files which may be
-associated with large parallel simulations.  Dudley has only very low level
-support for this use case, but by using Dudley for the individual files in
-such collections, you are in a strong position to design efficient ways to
-access arbitrary data anywhere in the collection.</p>
-<p>A final remark is that by commenting a Dudley layout, you can document all the
-variables stored in the file in the same place you describe the layout of
-the file or data stream.  Thus, a layout can serve as a quick reference guide
-to the variables describing the state of a simulation or the results of an
-experiment or observation.</p>
+          <section id="special-comments">
+<h1>Special Comments<a class="headerlink" href="#special-comments" title="Link to this heading">¶</a></h1>
+<p>A comment in a Dudley layout begins with a <cite>#</cite> and extends to the end of the
+line.  Comments, including the leading <cite>#</cite>, are treated like any other
+whitespace.</p>
+<section id="document-comments">
+<h2>Document comments<a class="headerlink" href="#document-comments" title="Link to this heading">¶</a></h2>
+<p>However, a Dudley parser does not completely ignore all comments.  A comment
+beginning with <cite>##</cite> is a document comment.  Dudley collects document
+comments when it parses the layout, and remembers which item was being
+declared at the point where each document comment appeared, so you can later
+query the document comments associated with any item in the layout.  Multiple
+document comment lines may be associated with a single item.</p>
+<p>The rule for which item “is being declared” and is therefore associated with
+a document comment is not quite obvious.  To document a dict or list (or
+datatype) container, you can place document comments before its first item or
+member.  For dict and list containers, any document comment after the
+container is reopened but before the first new item is declared also apply
+to the container.  Item declarations within a dict always begin with the
+name of the item; any document comment after the name but before the name of
+the following item will be associated with that named item.  For items in a
+list, document comments for an item may appear after the comma ending the
+item declaration, as long as the declaration of the next item has not yet
+begun.</p>
+<p>Note that a document comment for a list container or a named datatype may
+appear after its close bracket or curly brace, as well as before its first
+item or member.</p>
+<p>Notice that, unlike document comments in many other languages, Dudley
+documentation alway <em>follows</em> the item being documented; there is no way to
+place the documentation for an item <em>before</em> its declaration.  The Dudley
+parser is designed to require very little lookahead in general, so this rule
+is consistent with the overall design goals of the parser.</p>
+</section>
+<section id="attribute-comments">
+<h2>Attribute comments<a class="headerlink" href="#attribute-comments" title="Link to this heading">¶</a></h2>
+<p>Document comments are completely free-form.  Dudley provides a second kind of
+special comment which must conform to a (very simple) formal syntax - the
+attribute comment.  Attribute comments begin with <cite>#:</cite>.  Dudley collects and
+associates attribute comments with indivdual items in a layout in exactly the
+same way as document comments.  Any item may have both, and multiline
+docuemnt and attribute comments may be freely mixed (although this is probably
+not good practice) - Dudley keeps them separate, so that docuemntation and
+attributes for any item may be retrieved separately.</p>
+<dl class="simple">
+<dt><strong>attribute comment</strong></dt><dd><p><cite>#:</cite> attr1 attr2 … attrN</p>
+</dd>
+</dl>
+<p>That is, each attribute comment consists of any number (including zero) of
+whitespace delimited attributes.  Each attribute may be one of:</p>
+<dl>
+<dt><strong>attr</strong></dt><dd><p>attr_name</p>
+<p>attr_name = attr_value</p>
+</dd>
+</dl>
+<p>An <cite>attr_name</cite> follows the same rules as any other Dudley name, namely it must
+be quoted if if contains characters other than alphanumeric characters or
+underscores, or if it begins with a digit.  For attributes which have a value,
+the value may be one of:</p>
+<dl>
+<dt><strong>attr_value</strong></dt><dd><p>integer_number</p>
+<p>floating_point_number</p>
+<p>“quoted string”</p>
+<p>[alist_value1, alist_value2, … alist_valueN]</p>
+</dd>
+</dl>
+<p>Quoted strings may use either single or double quotes, and support the same
+three backslash escapes as Dudley names.</p>
+<p>The attribute value may also be a 1D array of comma delimited values in
+square brackets, the fourth form shown here.  The <cite>alist_values</cite> may be any
+of the other three types - integers, floats, or quoted strings - but all the
+values in the array must have the same type.  That is, only homogeneous 1D
+arrays are permitted as attribute values.  There is no way to continue an
+array attribute value into a second attribute comment - if the comment line
+ends before the close square bracket, it is an error.</p>
+<p>There is a delicate balance to be struck between what is an “attribute” of a
+data item, and what is “data” in its own right.  Dudley intentionally
+encourages you to take the complexity of the value into account by limiting
+what it can keep as an attribute.  Notice also that attribute values are not
+binary, but text representations.  Floats and integers are kept internally as
+<cite>f8</cite> and <cite>i8</cite> values.</p>
+</section>
 </section>
 
         </article>
@@ -281,23 +325,23 @@ experiment or observation.</p>
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="syntax.html">
+          <a class="next-page" href="filters.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Dudley Syntax</div>
+                <div class="title">Filters</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="index.html">
+          <a class="prev-page" href="syntax.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Home</div>
+                <div class="title">Dudley Syntax</div>
                 
               </div>
             </a>
@@ -326,8 +370,28 @@ experiment or observation.</p>
         
       </footer>
     </div>
-    <aside class="toc-drawer no-toc">
+    <aside class="toc-drawer">
       
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Special Comments</a><ul>
+<li><a class="reference internal" href="#document-comments">Document comments</a></li>
+<li><a class="reference internal" href="#attribute-comments">Attribute comments</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
       
       
     </aside>

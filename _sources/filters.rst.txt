@@ -55,7 +55,7 @@ simplified versions of popular open source compressors:
 **png(level)**
   `png <https://libpng.org/pub/png>`__ is a well-known lossless image
   compression format.  Accepts only `u?[NX, NY]` data (grayscale image),
-  `u?[NX, NY, 3]` data (RGB image), where `u?` is either `u1` or `u2`.
+  or `u?[NX, NY, 3]` data (RGB image), where `u?` is either `u1` or `u2`.
   The `level` is 0-9, with `level=9` the default.
 
 Reference filters
