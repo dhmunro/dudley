@@ -46,5 +46,6 @@ Features:
 
    overview
    syntax
+   comments
    filters
    signatures
