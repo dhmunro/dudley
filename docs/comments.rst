@@ -15,6 +15,9 @@ declared at the point where each document comment appeared, so you can later
 query the document comments associated with any item in the layout.  Multiple
 document comment lines may be associated with a single item.
 
+**document comment**
+  `##` Any text documenting an item in a layout
+
 The rule for which item "is being declared" and is therefore associated with
 a document comment is not quite obvious.  To document a dict or list (or
 datatype) container, you can place document comments before its first item or
@@ -31,6 +34,19 @@ Note that a document comment for a list container or a named datatype may
 appear after its close bracket or curly brace, as well as before its first
 item or member.
 
+For example::
+
+    NLON = i4  ## number of longitudes
+    NLAT = i4  ## number of latitudes
+    NALT = i4  ## number of altitudes
+    pres: f4[NALT, NLAT, NLON]  ## (kPa) atmospheric pressure
+    pres_t [  ## atmospheric pressures at several times
+      f4,  ## (hr) first time
+      f4[NALT, NLAT, NLON],  ## (kPa) pressure at first time
+      f4,  ## (hr) second time
+      f4[NALT, NLAT, NLON],  ## (kPa) pressure at second time
+    ]
+
 Notice that, unlike document comments in many other languages, Dudley
 documentation alway *follows* the item being documented; there is no way to
 place the documentation for an item *before* its declaration.  The Dudley
@@ -45,8 +61,8 @@ special comment which must conform to a (very simple) formal syntax - the
 attribute comment.  Attribute comments begin with `#:`.  Dudley collects and
 associates attribute comments with indivdual items in a layout in exactly the
 same way as document comments.  Any item may have both, and multiline
-docuemnt and attribute comments may be freely mixed (although this is probably
-not good practice) - Dudley keeps them separate, so that docuemntation and
+document and attribute comments may be freely mixed (although this is probably
+not good practice) - Dudley keeps them separate, so that documentation and
 attributes for any item may be retrieved separately.
 
 **attribute comment**
@@ -88,6 +104,7 @@ ends before the close square bracket, it is an error.
 There is a delicate balance to be struck between what is an "attribute" of a
 data item, and what is "data" in its own right.  Dudley intentionally
 encourages you to take the complexity of the value into account by limiting
-what it can keep as an attribute.  Notice also that attribute values are not
+what it recognizes as an attribute.  Notice also that attribute values are not
 binary, but text representations.  Floats and integers are kept internally as
 `f8` and `i8` values.
+

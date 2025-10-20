@@ -178,13 +178,16 @@ square brackets `[]`.
 
   / dict_item1 dict_item2 ... dict_itemN
 
-  [ list_item1, list_item2, ,,,, list_itemN ]
+  [ list_item1, list_item2, ..., list_itemN ]
 
   number / dict_item1 dict_item2 ... dict_itemN
 
-  number [ list_item1, list_item2, ,,,, list_itemN ]
+  number [ list_item1, list_item2, ..., list_itemN ]
 
   number\ :subscript:`opt` address
+
+An optional trailing comma between the final item in a list (`list_itemN`) and
+the closing `]` is ignored.
 
 As mentioned above, the comma `,` or `]` separating or terminating the list
 declaration also terminates a dict item in the list.
