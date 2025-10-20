@@ -386,12 +386,14 @@ square brackets <cite>[]</cite>.</p>
 <dl>
 <dt><strong>list</strong> item is one of:</dt><dd><p>data</p>
 <p>/ dict_item1 dict_item2 … dict_itemN</p>
-<p>[ list_item1, list_item2, ,,,, list_itemN ]</p>
+<p>[ list_item1, list_item2, …, list_itemN ]</p>
 <p>number / dict_item1 dict_item2 … dict_itemN</p>
-<p>number [ list_item1, list_item2, ,,,, list_itemN ]</p>
+<p>number [ list_item1, list_item2, …, list_itemN ]</p>
 <p>number<sub>opt</sub> address</p>
 </dd>
 </dl>
+<p>An optional trailing comma between the final item in a list (<cite>list_itemN</cite>) and
+the closing <cite>]</cite> is ignored.</p>
 <p>As mentioned above, the comma <cite>,</cite> or <cite>]</cite> separating or terminating the list
 declaration also terminates a dict item in the list.</p>
 <p>In the second two cases, the leading number is the integer index of a

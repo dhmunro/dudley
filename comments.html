@@ -250,6 +250,10 @@ comments when it parses the layout, and remembers which item was being
 declared at the point where each document comment appeared, so you can later
 query the document comments associated with any item in the layout.  Multiple
 document comment lines may be associated with a single item.</p>
+<dl class="simple">
+<dt><strong>document comment</strong></dt><dd><p><cite>##</cite> Any text documenting an item in a layout</p>
+</dd>
+</dl>
 <p>The rule for which item “is being declared” and is therefore associated with
 a document comment is not quite obvious.  To document a dict or list (or
 datatype) container, you can place document comments before its first item or
@@ -264,6 +268,19 @@ begun.</p>
 <p>Note that a document comment for a list container or a named datatype may
 appear after its close bracket or curly brace, as well as before its first
 item or member.</p>
+<p>For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">NLON</span> <span class="o">=</span> <span class="n">i4</span>  <span class="c1">## number of longitudes</span>
+<span class="n">NLAT</span> <span class="o">=</span> <span class="n">i4</span>  <span class="c1">## number of latitudes</span>
+<span class="n">NALT</span> <span class="o">=</span> <span class="n">i4</span>  <span class="c1">## number of altitudes</span>
+<span class="n">pres</span><span class="p">:</span> <span class="n">f4</span><span class="p">[</span><span class="n">NALT</span><span class="p">,</span> <span class="n">NLAT</span><span class="p">,</span> <span class="n">NLON</span><span class="p">]</span>  <span class="c1">## (kPa) atmospheric pressure</span>
+<span class="n">pres_t</span> <span class="p">[</span>  <span class="c1">## atmospheric pressures at several times</span>
+  <span class="n">f4</span><span class="p">,</span>  <span class="c1">## (hr) first time</span>
+  <span class="n">f4</span><span class="p">[</span><span class="n">NALT</span><span class="p">,</span> <span class="n">NLAT</span><span class="p">,</span> <span class="n">NLON</span><span class="p">],</span>  <span class="c1">## (kPa) pressure at first time</span>
+  <span class="n">f4</span><span class="p">,</span>  <span class="c1">## (hr) second time</span>
+  <span class="n">f4</span><span class="p">[</span><span class="n">NALT</span><span class="p">,</span> <span class="n">NLAT</span><span class="p">,</span> <span class="n">NLON</span><span class="p">],</span>  <span class="c1">## (kPa) pressure at second time</span>
+<span class="p">]</span>
+</pre></div>
+</div>
 <p>Notice that, unlike document comments in many other languages, Dudley
 documentation alway <em>follows</em> the item being documented; there is no way to
 place the documentation for an item <em>before</em> its declaration.  The Dudley
@@ -277,8 +294,8 @@ special comment which must conform to a (very simple) formal syntax - the
 attribute comment.  Attribute comments begin with <cite>#:</cite>.  Dudley collects and
 associates attribute comments with indivdual items in a layout in exactly the
 same way as document comments.  Any item may have both, and multiline
-docuemnt and attribute comments may be freely mixed (although this is probably
-not good practice) - Dudley keeps them separate, so that docuemntation and
+document and attribute comments may be freely mixed (although this is probably
+not good practice) - Dudley keeps them separate, so that documentation and
 attributes for any item may be retrieved separately.</p>
 <dl class="simple">
 <dt><strong>attribute comment</strong></dt><dd><p><cite>#:</cite> attr1 attr2 … attrN</p>
@@ -314,7 +331,7 @@ ends before the close square bracket, it is an error.</p>
 <p>There is a delicate balance to be struck between what is an “attribute” of a
 data item, and what is “data” in its own right.  Dudley intentionally
 encourages you to take the complexity of the value into account by limiting
-what it can keep as an attribute.  Notice also that attribute values are not
+what it recognizes as an attribute.  Notice also that attribute values are not
 binary, but text representations.  Floats and integers are kept internally as
 <cite>f8</cite> and <cite>i8</cite> values.</p>
 </section>
