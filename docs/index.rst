@@ -18,11 +18,11 @@ Features:
 
 * **Simple data model**
 
+  * based on numpy `ndarray` and python `dict` and `list`
   * multi-dimensional array data in containers
   * dict-like containers map names to arrays or containers
   * list-like containers hold sequence of anonymous arrays or containers
   * array data type may be numeric, string, unicode, or compounds
-  * based on numpy `ndarray` and python `dict` and `list`
 
 * **Human readable**
 
