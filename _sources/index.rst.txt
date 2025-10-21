@@ -33,12 +33,12 @@ Features:
 * **Single layout can describe multiple binary files or streams**
 
   * array dimensions can be parameters stored in the binary file
-  * support for catalog files which store parameters for a collection
-    of binary files sharing a layout
+  * enables catalog files describing large collections of files sharing
+    one layout (or a few layouts)
 
 * **Lightweight** (compared to HDF5)
 
-  * Python and C language support
+  * Python and C language implementations
 
 .. toctree::
    :maxdepth: 2
