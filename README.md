@@ -14,18 +14,18 @@ See the documentation at https://dhmunro.github.io/dudley.
 Dudley features:
 
 * Simple data model
+  - based on numpy ndarray and python dict and list
   - multi-dimensional array data in containers
   - dict-like containers map names to arrays or containers
   - list-like containers hold sequence of anonymous arrays or containers
   - array data type may be numeric, string, unicode, or compounds
-  - based on numpy ndarray and python dict and list
 * Human readable
   - layout with documentation comments serves as quick-reference guide for
     binary file contents
   - simplifies collaborations involving exchange of binary data
 * Single layout can describe multiple binary files or streams
   - array dimensions can be parameters stored in the binary file
-  - support for catalog files which store parameters for a collection of
-    binary files sharing a layout
+  - enables catalog files describing large collections of files sharing
+    one layout (or a few layouts)
 * Lightweight (compared to HDF5)
-  - Python and C language support
+  - Python and C language implementations
