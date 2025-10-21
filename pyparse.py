@@ -1,3 +1,8 @@
+# Idea: Separating assress list from layout also allows an alternative
+# in-memory address list comprised of the items themselves as they exist
+# in memory.  This could add a selling point to  Dudley's usefulness in
+# designing data structures.
+
 """Parse a Dudley layout from a file, stream, or str
 
 A file automatically serializes whatever it contains by address.  Hence at the

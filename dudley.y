@@ -1,8 +1,8 @@
 /* Dudley grammar
   23 terminals
   21 non-terminals
-  57 rules
-  86 states
+  60 rules
+  90 states
 
   Does not include mini-grammar for attribute comments (or document comments)
   - expect to handler those in lexer.
@@ -39,16 +39,15 @@ dict_items:
 ;
 
 dict_item:
-  SYMBOL EQ data_item
-| SYMBOL COLON INTEGER
-| SYMBOL COLON PRIMTYPE placement
+  SYMBOL COLON data_item
+| SYMBOL EQ INTEGER
+| SYMBOL EQ PRIMTYPE placement
 | SYMBOL SLASH
 | SYMBOL list_def
 | SYMBOL struct_def
-| SYMBOL list_extend
 | SLASH
 | DOTDOT
-| EQ data_item
+| COLON data_item
 | error
 ;
 
@@ -87,7 +86,12 @@ address_align:
 ;
 
 list_def:
-  LBRACK list_items RBRACK
+  LBRACK list_items list_close
+;
+
+list_close:
+  RBRACK
+| COMMA RBRACK
 ;
 
 list_items:
@@ -100,12 +104,11 @@ list_item:
   data_item
 | list_def
 | SLASH dict_items
+| SLASH
+| INTEGER list_def
+| INTEGER SLASH dict_items
+| address_align
 | error
-;
-
-list_extend:
-  address_align
-| list_extend address_align
 ;
 
 struct_def:

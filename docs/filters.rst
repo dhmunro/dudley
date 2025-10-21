@@ -72,10 +72,10 @@ reference is roughly equivalent to declaring a `void *` array in C::
 
 Now the objects which are referenced obviously must be declared *somewhere* in
 the layout - otherwise there would be no way to read them back.  Therefore,
-Dudley expects to find a sequence of special anonymouos declarations of the
-form::
+Dudley expects to find a sequence of special anonymous declarations of the
+form:
 
-    : datatype shape` :subscript:`opt` address` :subscript:`opt`
+  : datatype shape\ :subscript:`opt` address\ :subscript:`opt`
 
 These can appear anywhere a named dict item is expected, but these reference
 declarations are always placed in the root dict.  The datatype and shape have
