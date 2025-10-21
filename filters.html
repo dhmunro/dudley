@@ -305,11 +305,11 @@ reference is roughly equivalent to declaring a <cite>void *</cite> array in C:</
 </div>
 <p>Now the objects which are referenced obviously must be declared <em>somewhere</em> in
 the layout - otherwise there would be no way to read them back.  Therefore,
-Dudley expects to find a sequence of special anonymouos declarations of the
+Dudley expects to find a sequence of special anonymous declarations of the
 form:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>: datatype shape` :subscript:`opt` address` :subscript:`opt`
-</pre></div>
-</div>
+<blockquote>
+<div><p>: datatype shape<sub>opt</sub> address<sub>opt</sub></p>
+</div></blockquote>
 <p>These can appear anywhere a named dict item is expected, but these reference
 declarations are always placed in the root dict.  The datatype and shape have
 restrictions described previously in the Dudley syntax section.  The <cite>ref</cite>
