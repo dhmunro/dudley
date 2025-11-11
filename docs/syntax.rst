@@ -102,16 +102,16 @@ Dict item
 
 A dict is a sequence of named items with no delimiters between them other than
 whitespace.  The item name always comes first, followed by a punctuation
-character that determines which if the five kinds of items is being declared:
+character that determines which of the five kinds of items is being declared:
 
 **dict** item is one of:
   data_name : data
 
-  dict_name / dict
+  dict_name / item1 ...
 
   list_name [item1, ..., itemN]
 
-  type_name {item1 ... itemN}
+  type_name {member1 ... memberN}
 
   param_name = param
 
@@ -119,18 +119,20 @@ character that determines which if the five kinds of items is being declared:
 
   `/`
 
-The last two possibilities are actually not dict items; `..` opens the
-parent dict (a no-op if the current dict is root), while `/` opens the root
+The last two possibilities are actually not dict items; ".." opens the
+parent dict (a no-op if the current dict is root), while "/" opens the root
 dict.  Subsequent dict item declarations go into that newly opened dict.
-(A `,` or a `]` also closes the current dict, but that case is discussed in the
+(A "," or a "]" also closes the current dict, but that case is discussed in the
 section on list items below.)
 
 If the parent container of the current dict is a list rather than a dict, then
-it counts as the root of a separate tree for the purposes of `..` and `/`.
+it counts as the root of a separate tree for the purposes of ".." and "/" -
+that is ".." is a no-op and "/" in any descendant dict pops back to the
+nearest ancestor whose parent is a list.
 
 Although all of the dict items have names, Dudley dicts keep three separate
 name spaces: The main one for data, dict, and list items, a second one for type
-items, and a third for parameters.  That is a data array, a datatype, and a
+items, and a third for parameters.  That is, a data array, a datatype, and a
 parameter may all have the same name - though obviously this will confuse a
 human reader, even though their distinct usage is clear to the Dudley parser.
 
@@ -141,11 +143,11 @@ error.  Similarly, reusing a type item name is always an error.
 However, if a sub-dict name was already used and was a sub-dict, then
 that original sub-dict is reopened and subsequent item declarations go there.
 Similarly, if a list name was already used and was a list, then the original
-list is reopened and extended by the items in brackets `[]`.  Thus, dicts and
+list is reopened and extended by the items in brackets "[]".  Thus, dicts and
 lists may be extended - their item declarations need not appear in order in
 the layout.
 
-Parameter names also may be reused.  Parameters resemble variables in a
+Parameter names also may be reused.  Parameters behave like variables in a
 block of code, except that defining a new value does not clobber the original
 value, but always creates a new item in the layout.  After the redeclaration,
 there is no way to get back to the previous parameter item for subsequent
@@ -156,22 +158,22 @@ is enforced, even though it is only required by the layout syntax.)
 Note that these rules allow you to declare new items in any dict (under the
 same root) by specifying the full "path name" of the new item, e.g.::
 
-    /dict0_name/dict1_name/dict2_name/data_name = data
+    /dict0_name/dict1_name/dict2_name/data_name : data
 
 However, note that dict2_name remains the current dict after such a declaration.
-Furthermore, the `..` "up to parent" syntax in Dudley does *not* work the way
+Furthermore, the ".." "up to parent" syntax in Dudley does *not* work the way
 you might expect from the UNIX file system analogy::
 
-    /dict0_name/dict1_name/dict2_name/data_name .. ..
+    /dict0_name/dict1_name/dict2_name/ .. ..
 
 is how you get from `div2_name` back to `dict0_name` in a Dudley layout - no
-slashes!
+slash after a ".."!
 
 List item
 ---------
 
 A list is a comma delimited list of zero or more data, dict, or list items in
-square brackets `[]`.
+square brackets "[]".
 
 **list** item is one of:
   data
@@ -187,14 +189,14 @@ square brackets `[]`.
   number\ :subscript:`opt` address
 
 An optional trailing comma between the final item in a list (`list_itemN`) and
-the closing `]` is ignored.
+the closing "]" is ignored.
 
-As mentioned above, the comma `,` or `]` separating or terminating the list
+As mentioned above, the comma "," or "]" separating or terminating the list
 declaration also terminates a dict item in the list.
 
 In the second two cases, the leading number is the integer index of a
-previous list item to be extended.  That item must have been a dict in the `/`
-case, or a list in the `[` case.  Neither form appends a new item to the list,
+previous list item to be extended.  That item must have been a dict in the "/"
+case, or a list in the "[" case.  Neither form appends a new item to the list,
 instead modifiying an existing item.
 
 The final case is a shortcut for duplicating a previously data item declaration
@@ -208,8 +210,8 @@ python list indexing, so that `-1` refers to the previous element, `-2` to the
 element before that, and so on.  (Thus, in the final case, the default number
 is `-1`.)
 
-Type item
-----------
+Datatype specifiers
+-------------------
 
 The datatype in a **data** array declaration may simply be a name or it may be
 an anonymous datatype enclosed in curly braces `{item1 ... itemN}`.  The
@@ -245,10 +247,15 @@ individual simulations or interactive sessions in those languages.  Unlike the
 compound or typedef forms, `{}` does not create a separate item in the
 layout, but is instead treated like a predefined primitive.
 
+Any of the forms in curly braces "{}" may appear as a named type item in a
+dict.  Such a name may subsequently be used as a `type_name` in subsequent
+data declarations in the dict where it is declared or any descendant, but not
+outside that subtree.
+
 Parameter item
 --------------
 
-After the `=` sign, a parameter declaration resembles a data array declaration,
+After the "=" sign, a parameter declaration resembles a data array declaration,
 except that a fixed integer value is permitted and a shape or filter is not:
 
 **param** is one of:
@@ -285,27 +292,27 @@ one (or more) `+` or `-` suffixes to its name when you declare an array
 with one (or a few) more or less element(s).  For example, if you bin a
 population by income, you might describe poll result like this::
 
-      NBINS = i4          # number of income bins (variable)
-      income: f4[NBINS+]  # boundaries of income bins
-      npeople: i4[NBINS]  # number of people in each income bin
+    NBINS = i4          # number of income bins (variable)
+    income: f4[NBINS+]  # boundaries of income bins
+    npeople: i4[NBINS]  # number of people in each income bin
 
 Of course, in this case you might prefer to think of there being one *more*
 bin than income boundary - with a bin for all those below your smallest income
 value and another for all those above your largest - in which case you would
-declare `income: f4[NBINS-]` instead.  In either case, just the
-relationship gives a human reader of this layout a pretty clear idea of which
-way you are thinking about bins and boundaries.
+declare `income: f4[NBINS-]` instead.  In either case, the relationship
+between the dimension lengths gives a human reader of this layout a pretty
+clear idea of which way you are thinking about bins and boundaries.
 
 Parameter and type scope
 ------------------------
 
 Both parameters and named datatypes are children of a dict.  When a name
-appears in any array declaration (including type declarations in `{}`),
-Dudley searches all the ancestor dicts of the array being declared for a
-parameter or named type matching the name.  The matching parameter or type
+appears in any shape declaration (including type member declarations inside
+`{}`), Dudley searches all the ancestor dicts of the array being declared for
+a parameter or named type matching the name.  The matching parameter or type
 name declared in the nearest ancestor is the one Dudley uses.  This association
 is determined as Dudley parses the layout, so only parameter or type names
-declared in the layout prior to thearray being parsed can match.
+declared in the layout prior to the array being parsed can match.
 
 In particular, a parameter in the shape of a data array member (or its type)
 in a compound datatype will be bound to the nearest ancestor parameter (or
@@ -419,7 +426,7 @@ generated by the context in which they were declared.
 
 Filters, discussed more fully in a later section, create the need for two
 additional kinds of anonymous items.  These both depend on the content of the
-data being stored, not simmply its structure, and so they can only be present
+data being stored, not simply its structure, and so they can only be present
 in programmatically generated Dudley layouts.
 
 In brief, a compression filter requires an anonymous variable parameter, whose
