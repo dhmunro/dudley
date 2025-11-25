@@ -48,4 +48,7 @@ Features:
    syntax
    comments
    filters
+   grammar
    signatures
+   python
+   

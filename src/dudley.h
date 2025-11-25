@@ -5,25 +5,25 @@
 
 /* Assume at least C99 compiler to get fixed integer sizes. */
 #include <stdint.h>
-#define d_u1_t uint8_t
-#define d_i1_t int8_t
-#define d_u2_t uint16_t
-#define d_i2_t int16_t
-#define d_u4_t uint32_t
-#define d_i4_t int32_t
-#define d_u8_t uint64_t
-#define d_i8_t int64_t
+#define u1_t uint8_t
+#define i1_t int8_t
+#define u2_t uint16_t
+#define i2_t int16_t
+#define u4_t uint32_t
+#define i4_t int32_t
+#define u8_t uint64_t
+#define i8_t int64_t
 
-typedef d_i8_t d_item_t;  /* d_item_t i; D_Item *item = layout->items[i] */
+typedef i8_t d_id_t;  /* d_id_t i; D_Item *item = layout->items[i] */
 
 typedef struct D_Stream D_Stream;
 typedef struct D_Item D_Item;
 typedef struct D_Filter D_Filter;
 
 /* Dudley primitive datatypes not supported in C89. */
-#define d_f2_t d_u2_t
-#define d_U2_t d_u2_t
-#define d_U4_t d_u4_t
+#define d_f2_t u2_t
+#define d_U2_t u2_t
+#define d_U4_t u4_t
 /* Dudley pre-defined primitive data type values, indeterminate byte order */
 #define D_u1 -1
 #define D_i1 -2
@@ -49,7 +49,7 @@ typedef struct D_Filter D_Filter;
 #define D_be 30
 /* The pseudo-primitive D_null is the Dudley datatype for {} */
 #define D_null 0
-/* Return value signalling error in many calls returning a d_item_t */
+/* Return value signalling error in many calls returning a d_id_t */
 #define D_ERROR -63
 /* Kinds of items (itype): */
 #define D_DATA 1
@@ -64,17 +64,17 @@ typedef struct D_Filter D_Filter;
  *   -(value>>6) = parameter item index, (value&0x3f)-32 = + or - suffix count
  *   This has the side effect of limiting the +- suffix count to 31.
  */
- #define D_P(pitem) ((-(d_i8_t)(pitem))<<6|32)
- #define D_PS(pitem, nsfx) (((-(d_i8_t)(pitem))<<6)|(32+(nsfx)))
+ #define D_P(pitem) ((-(i8_t)(pitem))<<6|32)
+ #define D_PS(pitem, nsfx) (((-(i8_t)(pitem))<<6)|(32+(nsfx)))
  #define D_PX(dim) ((-((dim)>>6)))
  #define D_PSX(dim) (((dim)&0x3f)-32)
 
 /* Convert address to align argument.  Note -1 is reserved for not present. */
-#define D_ADDR(a) (-2 - (d_item_t)(a))
+#define D_ADDR(a) (-2 - (d_id_t)(a))
 
 /* D_Item is base class for all five kinds of items. */
 #define D_ITEM_BASE int itype;\
-    d_item_t parent;\
+    d_id_t parent;\
     char *name
 
 struct D_Item {
@@ -148,25 +148,25 @@ extern int d_flush(D_Stream *stream);
 extern int d_close(D_Stream *stream);
 
 /* Query an existing item in a D_Stream. */
-extern d_item_t dq_parent(D_Stream *stream, d_item_t item);  /* -1 if none */
-extern const char *dq_name(D_Stream *stream, d_item_t item);  /* 0 if none */
+extern d_id_t dq_parent(D_Stream *stream, d_id_t item);  /* -1 if none */
+extern const char *dq_name(D_Stream *stream, d_id_t item);  /* 0 if none */
 /* If the current container is a dict or type, elements can also be accessed
  * by name using dq_item.  No matter what the current container, the
  * current meaning of a named type or parameter may be retrieved using
  * dq_type or dq_param.
  */
-extern d_item_t dq_item(D_Stream *stream, const char *name);
-extern d_item_t dq_type(D_Stream *stream, const char *name);
-extern d_item_t dq_param(D_Stream *stream, const char *name);
+extern d_id_t dq_item(D_Stream *stream, const char *name);
+extern d_id_t dq_type(D_Stream *stream, const char *name);
+extern d_id_t dq_param(D_Stream *stream, const char *name);
 
 /* Navigate and iterate over containers. */
-extern d_item_t d_go_to(D_Stream *stream, d_item_t item);
-extern d_item_t d_go_up(D_Stream *stream, d_item_t item);  /* closes types */
+extern d_id_t d_go_to(D_Stream *stream, d_id_t item);
+extern d_id_t d_go_up(D_Stream *stream, d_id_t item);  /* closes types */
 /* Iterate over elements of current container (dict, list, or type), in item
 * declaration order for dict and type containers.
  */
-extern d_item_t d_element(D_Stream *stream, d_item_t index);
-extern d_i8_t d_count(D_Stream *stream, d_item_t item);  /* 0<=index<count */
+extern d_id_t d_element(D_Stream *stream, d_id_t index);
+extern i8_t d_count(D_Stream *stream, d_id_t item);  /* 0<=index<count */
 
 /* Query data array or variable parameter, returning number of items -
  * shape in dq_data0 is as declared, including parameter references, while
@@ -176,10 +176,10 @@ extern d_i8_t d_count(D_Stream *stream, d_item_t item);  /* 0<=index<count */
  * filled in, but shape[0] or xshape[0] will be negative of actual number
  * of dimensions.
  */
-extern d_i8_t dq_data0(D_Stream *stream, d_item_t item, d_item_t *datatype,
-                       d_i8_t **shape, d_item_t *align, D_Filter **filter);
-extern d_i8_t dq_data(D_Stream *stream, d_item_t item,
-                      d_item_t *datatype, d_i8_t **xshape);
+extern i8_t dq_data0(D_Stream *stream, d_id_t item, d_id_t *datatype,
+                     i8_t **shape, d_id_t *align, D_Filter **filter);
+extern i8_t dq_data(D_Stream *stream, d_id_t item,
+                    d_id_t *datatype, i8_t **xshape);
 
 /* Declare new items in a D_Stream.
  * Use name=0 if current container is list, or for anonymous items if current
@@ -189,16 +189,16 @@ extern d_i8_t dq_data(D_Stream *stream, d_item_t item,
  * use d_element, then d_go_to; dq_item followed by d_go_to is equivalent to
  * d_dict or d_list if the container already exists.)
  */
-extern d_item_t d_dict(D_Stream *stream, const char *name);
-extern d_item_t d_list(D_Stream *stream, const char *name);
-extern d_item_t d_type(D_Stream *stream, const char *name);
-extern d_item_t d_data(D_Stream *stream, const char *name, d_item_t datatype,
-                       d_i8_t *shape, d_item_t align, D_Filter *filter);
+extern d_id_t d_dict(D_Stream *stream, const char *name);
+extern d_id_t d_list(D_Stream *stream, const char *name);
+extern d_id_t d_type(D_Stream *stream, const char *name);
+extern d_id_t d_data(D_Stream *stream, const char *name, d_id_t datatype,
+                     i8_t *shape, d_id_t align, D_Filter *filter);
 /* For d_param, use datatype=0 for fixed parameter and align for its value. */
-extern d_item_t d_param(D_Stream *stream, const char *name,
-                        d_item_t datatype, d_i8_t align);
+extern d_id_t d_param(D_Stream *stream, const char *name,
+                      d_id_t datatype, i8_t align);
 /* Declare new list data item to have same type and shape as a previous one. */
-extern d_item_t d_like(D_Stream *stream, d_item_t item, d_item_t align);
+extern d_id_t d_like(D_Stream *stream, d_id_t item, d_id_t align);
 
 /* Read or write data.
  * Note that xshape must be expanded shape or 0 - no parameter references.
@@ -225,25 +225,25 @@ extern d_item_t d_like(D_Stream *stream, d_item_t item, d_item_t align);
  * a different meaning.)  The return value is the actual nummber of parameters,
  * while the count argument is the number of values in values.
  */
-extern int d_read(D_Stream *stream, d_item_t item, void *buf, d_i8_t *xshape);
-extern int d_write(D_Stream *stream, d_item_t item, void *buf, d_i8_t *xshape);
-extern int d_pread(D_Stream *stream, d_item_t item, d_i8_t *leading,
-                   d_i8_t min, d_i8_t max, void *buf, d_i8_t *xshape);
-extern int d_pwrite(D_Stream *stream, d_item_t item, d_i8_t *leading,
-                    d_i8_t min, d_i8_t max, void *buf, d_i8_t *xshape);
-extern int d_associate(D_Stream *stream, d_item_t item,
-                       void *buf, d_i8_t *xshape);
-extern int d_get_params(D_Stream *stream, int count, d_i8_t *values);
-extern int d_set_params(D_Stream *stream, int count, d_i8_t *values);
+extern int d_read(D_Stream *stream, d_id_t item, void *buf, i8_t *xshape);
+extern int d_write(D_Stream *stream, d_id_t item, void *buf, i8_t *xshape);
+extern int d_pread(D_Stream *stream, d_id_t item, i8_t *leading,
+                   i8_t min, i8_t max, void *buf, i8_t *xshape);
+extern int d_pwrite(D_Stream *stream, d_id_t item, i8_t *leading,
+                    i8_t min, i8_t max, void *buf, i8_t *xshape);
+extern int d_associate(D_Stream *stream, d_id_t item,
+                       void *buf, i8_t *xshape);
+extern int d_get_params(D_Stream *stream, int count, i8_t *values);
+extern int d_set_params(D_Stream *stream, int count, i8_t *values);
 
 /* Get size of memory buffer to hold item, 0 if undefined parameters. */
-extern size_t d_sizeof(D_Stream *stream, d_item_t item);
+extern size_t d_sizeof(D_Stream *stream, d_id_t item);
 
 /* Load shape into buffer, returning input buffer address.
  *   shape = {ndims, dim1, dim2, ...}
  * Use D_P and D_PS macros for parameterized dimensions (fixed or dynamic).
  */
-extern d_i8_t *d_shape(d_i8_t *buf, int ndims, ...);
+extern i8_t *d_shape(i8_t *buf, int ndims, ...);
 
 /* Filter arguments are passed as double values; filter callback function must
  * convert to integer values as required.

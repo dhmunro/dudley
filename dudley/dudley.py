@@ -1,38 +1,234 @@
-# Idea: Separating assress list from layout also allows an alternative
-# in-memory address list comprised of the items themselves as they exist
-# in memory.  This could add a selling point to  Dudley's usefulness in
-# designing data structures.
+"""Build and navigate a Dudley layout.
 
-"""Parse a Dudley layout from a file, stream, or str
+The basic API builds and navigate a layout's dict/list container tree::
 
-A file automatically serializes whatever it contains by address.  Hence at the
-lowest level, file or stream contents must be a sequence of type-shape pairs
-describing how to decode the bytes of the stream into n-dimensional arrays of
-numbers or strings of text.  The fastest way to read or write all the data is
-inevitably in this storage order.  Dudley assumes that, once written, the
-structure of a file - its low level sequence of type-shape pairs - will never
-change.  This is by far the most common use case for binary data files
-associated with scientific data or simulation states.  Note that general
-database files are designed for much broader use, in which data may be
-removed or structurally altered.  Dudley does not handle such cases, nor does
-it attempt to build indexes to search file contents as you would expect in
-a database file.
+    root = layout(dudfile)  # return root dict, dudfile optional
+    dct = dct0.dict(name)  # create (or return) a dict dct in dict dct0
+    lst = dct0.list(name)  # create (or return) a list lst in dict dct0
+    dct = lst0.dict()  # create a dict dct in list lst0
+    lst = lst0.list()  # create a list lst in list lst0
+    item = container[key]  # key is name for dict, index for list container
+    for key in container:  # Also list(dct), len(container), etc.
+        ...
+    for key, item in container.items():
+        ...
+    # Declare data array - dshape, align, and filter are optional.
+    dat = dct.data(name, datatype, dshape, align, filter)
+    dat = lst.data(datatype, dshape, align, filter)
+    # Item properties:
+    itype = item.itype  # D_PRIM, D_DATA, D_PARAM, D_DICT, D_LIST or D_TYPE
+    container = item.parent  # dict, list, or datatype, None only for root
+    root = item.root  # root container (dict)
+    # Note that the root container of a dict within a list is the dict whose
+    # parent is the list, not the root dict of the layout.
+    name = item.name  # None if item.parent is not a dict or datatype
+    datatype = item.datatype  # None for non-data item
+    dshape = item.dshape  # None for non-data item, () for scalar data item
+    align = item.align  # None for non-data item, 0 for unspecified
+    filter = item.filter  # None for non-data item or unfiltered data item
 
-However, Dudley does support grouping data arrays as either anonymous lists or
-as dictionaries ("dicts") of named variables, and these groupings may contain
-other groupings in addition to arrays.  These lists and dicts match the basic
-organizing tools in any scientific programming language.  Dudley also supports
-arrays of structured data analogous to C structs in addition to primitive
-numeric and text data types.  Finally, Dudley supports symbolic names for
-array dimensions.  Scientific data archives frequently contain many arrays
-which share common dimensions, and the only difference between many data files
-is the particular values of these dimensions.  Symbolic dimension names, or
-integer valued parameters, enable a single Dudley description to apply to
-many different files or streams.
+In data array declarations, datatype can be the name of a Dudley primitive
+type, like "i4", "f8", etc., or a numpy dtype, or a Dudley compound or typedef
+created using this datatype API::
 
-The low level sequence of objects in a file includes these organizational
-elements as well as the type-shape pairs, so there are a total of five
-different kinds of objects in the Dudley low-level list:
+    typ = dct0.datatype(typename)  # create a datatype
+    typ.data(memname, datatype, dshape, align)  # add member to datatype typ
+    typ.data()  # close datatype typ
+    # Alternatively, you can add all the members as additional arguments to
+    # the original call, in which case the returned typ is already closed:
+    typ = dct0.datatype(typename,
+                        (memname, datatype, dshape, align),
+                        ...)
+    # You can retrieve members using typ[memname] and iterate over members
+    # as if typ were a dict.  The parent of a member is the datatype, and the
+    # parent of the datatype is the dict dct0 where it was declared.
+    # All dict containers have a types property for retrieving datatypes
+    # declared in them:
+    typ = dct0.types[typename]
+    for typename in dct0.types:  # Also list(dct0.types), len(dct0.types), etc.
+        ...
+    for typename, datatype in dct0.types.items():
+        ...
+    dct0.types[typename] = dtype  # declare Dudley equivalent to numpy dtype
+
+The dshape and align arguments are always optional.  The typename may be None
+to create an anonymous datatype.  An anonymous datatype may be used only once,
+and must be used in its one container.data() declaration immediately after the
+anonymous datatype itself is declared.  If the datatype has only a single
+member, the memname may be None; this is a Dudley typedef datatype.
+
+The dshape in a data array declaration is a tuple analogous to an ndarray
+shape, except that dimension lengths may be parameter references in addition
+to integer values.  The Dudley parameter API is::
+
+    param = dct0.param(name, value)  # declare a fixed value parameter
+    param = dct0.param(name, datatype, align)  # declare a dynamic parameter
+    # The datatype must be an integer primitive type (or a typedef datatype
+    # equivalent to one).  The align argument is optional.
+    value = param.value  # value if fixed, None if dynamic
+    # All dict containers have a params property for retrieving datatypes
+    # declared in them, which works somewhat differently:
+    param = dct0.params[name]  # returned param may be in ancestor of dct0
+    for param in dct0.params:
+        ...  # param.name may not be unique in dct0
+    # Retrieve all the dynamic parameters in the layout with:
+    dynamic = list(dct0.params.dynamic)  # any dct0 in layout gives same list
+    # To use a parameter in a dshape:
+    dshape = dim0, dim1, ...  # dimX may be integer or parameter reference
+    # A parameter reference is simply the param item, or param+suffix or
+    # param-suffix, where suffix is the number of "+" or "-" suffixes in the
+    # equivalent Dudley layout shape.  Suffix is limited to -32<suffix<32.
+
+The align argument can accept an absolute address as well as an alignment.  To
+do that, pass an Address object instead of simply an integer value.  Address
+is a subclass of int which is equal to the alignment if non-negative (with 0
+meaning to use default alignment for the datatype).  Negative values encode an
+byte address (relative to the beginning of an instance for a datatype member,
+otherwise relative to the beginning of the binary data stream).  You can
+decode the byte address with the address property, which will be None if the
+align represents an alignment::
+
+    align = Address(byte_address)  # encode byte_address (>=0) as an Address
+    byte_address = align.address  # None if align >= 0
+
+You can duplicate the datatype and dshape of a previous element of a list
+with the dup method::
+
+    dat = lst.dup(index, align)  # align is optional
+
+You can create filters for data array declarations using::
+
+    filter = Filter(name, arg1, arg2, ...)  # all arguments are optional
+
+Any item in a layout can have documentation comments - an array of text strings
+- and attributes - a dict mapping attribute name keys to values.  These may be
+accessed as properties on the item::
+
+    item.docs += documentation_string  # append docuemntation string to item
+    docs = item.docs  # None or a list of strings
+    item.attribs[name] = value  # create attribute for item
+    attribs = item.attribs  # None or a dict of attributes
+
+Finally, you can dump a Dudley layout as a text file with::
+
+    root.dump(dudfile)
+
+In order to use a layout read from a dudfile or build with the preceding API,
+you need to open a binary data file or stream.  The Dudley stream API is
+designed so that you do not need to explicitly reference the layout if you do
+not care about sharing layouts among many streams, but simply want use Dudley
+to write native Dudley self-describing binary files::
+
+    # In the following bd_stream a binary I/O stream
+    s_root = openbd(bd_stream)
+    s_root = openbd(bd_stream, layout_root)
+    s_root = openbd(bd_stream, layout_root, param_values)
+    s_root.flush()  # writes all buffers and layout (any s_)
+    s_root.close()
+
+In the first case, the bd_stream must be a native Dudley file with a signature
+and its layout appended to the file.  If the stream is open for writing, then
+any additions to its layout will be written to the end of the file whenever it
+is flushed or closed.
+
+In the second case, the layout is given independently of the binary I/O stream,
+and the file need not have a Dudley signature.  However, if the file is newly
+created, it will be given a Dudley signature.  Use this form to open multiple
+files sharing a common layout, avoiding the need to parse the layout for each
+call to openbd.
+
+In the third case, not only the layout, but the specific values of all the
+dynamic parameters for this particular binary I/O stream are provided, avoiding
+the need to read them from the binary stream, in addition to avoid reading and
+parsing the layout.
+
+The s_root returned by openbd corresponds to the root dict of the layout, and
+the stream interface parallels the layout interface, but with stream containers
+instead of layout constainers::
+
+    value_or_item = s_container[key]  # reads data or returns s_container
+    values = s_container()  # reads entire dict or list (optional levels arg)
+    s_dict[name] = array_like  # write array (or dtype, shape to just declare)
+    s_dict.update({...})  # dict update method works
+    s_list.append(ndarray_or_dict_or_list)  # s_list.extend() also works
+    s_list[index] = array_like  # overwrite existing item
+    values = s_container()  # reads entire dict or list (optional levels arg)
+    s_container = s_container.parent  # navigation same as layout containers
+    s_root = s_container.root  # of whole stream, not just to s_list
+    container = s_container._  # return corresponding layout container
+    for name in s_dict:  # or names = list(s_dict)
+        ...
+    for name, value_or_item in s_dict.items():
+        ---
+    for value_or_item in s_list:
+        ...
+    # For example, you can use the _ property like this:
+    item = s_container._[key]  # query key by returning its layout item
+    typ = s_dict._.types[name] = dtype  # create named Dudley datatype
+    param = s_dict._.param(name, ...)  # or params to query
+
+Note that s_root.q returns the entire layout.  If you use (dtype, shape) to
+declare an array, you may use a Dudley typ or shape containing Dudley param
+references.  Arrays declared in this way will automatically set dynamic
+parameters on first use, subsequently checking other arrays using those
+parameters match.
+
+For item names that do not conflict with its method names, an s_dict supports
+python's attribute syntax instead of its [] item syntax::
+
+    value_or_item = s_dict.name  # same as s_dict["name"]
+    s_dict.name = array_like  # or (dtype, shape) or {...} or (list, [...])
+
+To handle method or keyword name conflicts, a trailing underscore in the name
+will be removed.  (Thus if you want a name ending with underscore you need to
+add an additional underscore.  Does not apply to dunder names.)
+
+Initially, assigning to an array will overwrite any previously written value in
+the file, or fail if the new value is not conformable.  However, the Dudley
+stream interface supports a record mode, in which writing any data array
+appends to (or creates) a list item with the given name.  You turn this on or
+off for any s_dict using the s_dict.record method::
+
+    s_dict.record(True)  # turn on record mode (s_dict any dict in the stream)
+    s_dict[name] = array0
+    s_dict[name] = array1
+    s_dict[name] = array2
+    # Above sequence is equivalent to:
+    s_dict.record(False)  # turn off record mode
+    s_dict[name] = list, [array0]
+    s_dict[name].append(array1)
+    s_dict[name].append(array2)
+
+    mode = s_dict.record()  # query record mode for s_dict
+
+Since the arrays are not being overwritten, array0, array1, and array2 need not
+be conformable.
+
+Note that in record mode, you can use the s_dict.update method to append to a
+whole collection of lists with a single call.
+
+The record mode is a shorthand for writing record lists.  The corresponding
+shorthand for reading them back is::
+
+    s_dict.goto(index)  # referencing any s_list gives s_list[index]
+    s_dict.goto(var=value)  # select index where s_dict["var"] closest to value
+    s_dict.goto(None)  # exit goto mode, an s_list is again a list
+    index = s_dict.goto()  # get current goto index, None if not in goto mode
+    with s_dict.goto(index):  # temporarily set goto index
+        ...
+"""
+
+
+""" ---------------------------------------------
+At the lowest level, a Dudley layout is a list of data arrays and containers,
+collectively referred to as "items".  To avoid circular references among these
+items, internally each item is referenced by its integer index into this list.
+Items appear in the order they are declared in a Dudley layout, and item 0 is
+always the implicitly declared root dict for the layout.  By default, this
+order coincides with address order in the file.  Thus, the fastest way to read
+or write multiple data items will usually be in order of their list index.
+
+The item list comprises five different kinds of object:
 
 1. DArray (datatype, shape, alignment)
 2. DDict (named objects)
@@ -42,14 +238,14 @@ different kinds of objects in the Dudley low-level list:
    b. Dynamic (scalar integer stored in stream)
 5. DType (array data type)
    a. Compound (sequence of named DArray members - a C struct)
-   b. Typedef (single anonymous DArray)
+   b. Typedef (single anonymous DArray member)
 
 The index of each of these objects in the low-level list is how other objects
 refer to it.  There are two kinds of object Dudley requires which do not
 correspond to any item in the low-level list: primitive data types and
 non-parametrized array dimensions.  Since the index representing any the other
-kinds of object are non-negative, negative integers can be used for these
-special cases.  An object's index in the main list thus serves as its id.
+kinds of object are non-negative, negative integers are be used for these
+special cases.
 
 Parametrized array dimensions are indicated by the id of the parameter, which
 must be greater than zero, since id zero is the root dict.  Since no actual
@@ -122,7 +318,8 @@ class DPrim(object):
     most significant byte first (big-endian).
     
     There are three different byte sizes for each: 2, 4, or 8 bytes per value
-    (but for complex values these are a total of 4, 8, or 16 bytes per value), except for the `U` kind, which has only 2 and 4 byte sizes.
+    (but for complex values these are a total of 4, 8, or 16 bytes per value),
+    except for the `U` kind, which has only 2 and 4 byte sizes.
 
     Dudley numbers these primitives from 1 to 50 as follows::
 
@@ -142,11 +339,14 @@ class DPrim(object):
     Type numbers 20, 35, and 50 are reserved for a quad precision `f16`
     floating point type, which is excluded because it currently lacks
     consistent hardware support (although the same could be said of `f2`).
-    In particular, numpy implementations often support `f12` instead of `f16`.
+    In particular, numpy implementations often support `f12` but not `f16`.
 
     Dudley also uses type number 0 for the empty compound `{}`, which means
     `None` in python or `null` in javascript/JASON and takes no space in the
-    data stream.
+    data stream.  (Note that 0 root dict, never a datatype.)
+
+    All 47 instances are kept in the prims attribute of the DLayout class, so
+    that DLayout.prims[iprim] is primitive number iprim.
     """
     itype = D_PRIM
 
@@ -210,7 +410,7 @@ class DData(object):
         self.parent = parent
         self.name = name
         self.datatype = datatype
-        self.shape = shape
+        self.shape = DShape(shape or ())
         # self.align may hold either alignment or absolute address:
         # If it is an absolute address, align = -2 - address
         # The -2 is chosen so that address -1 can be used to represent
@@ -255,6 +455,45 @@ class DParam(object):
         self.datatype = datatype  # None for static, DType id for dynamic
         self.pid = pid  # If datatype is None, this is static value
         self.align = align  # ignored for static parameter
+
+
+class DShape(tuple):
+    """a tuple with shape(stream) method to expand parameter references"""
+    __slots__ = ()
+
+    def __new__(cls, *args):
+        shape = []
+        for arg in args:
+            try:
+                if arg >= 0:  # TypeError if arg is tuple or list
+                    shape.append(arg)  # plain non-negative integer
+                    continue
+                arg, sfx = -arg, 0  # assume <0 is minus paramid shorthand
+            except (TypeError, ValueError):  # ValueError if arg is ndarray
+                arg, sfx = arg  # (paramid, suffix) for P+ or P- references
+                if sfx < -31 or sfx > 31 or arg <= 0:
+                    raise ValueError("illegal parameter reference")
+            shape.append((arg, sfx))
+        super(DShape, self).__new__(cls, shape)
+
+    def shape(self, stream):
+        """return array shape with any parameter references expanded"""
+        shape = []
+        for dim in self:
+            if isinstance(dim, tuple):
+                paramid, sfx = dim
+                param = stream.layout[paramid]
+                pid = param.pid
+                if param.datatype is None:
+                    dim = pid  # fixed parameter value
+                else:
+                    dim = stream.param(pid)  # get dynamic parameter value
+                if dim < 0:
+                    continue  # dynamic dimension -1 omitted from shape
+                if dim:
+                    dim += sfx  # if dimension is non-zero, add suffix
+            shape.append(dim)
+        return tuple(shape)
 
 
 class DType(object):
@@ -351,12 +590,9 @@ class DItem(object):
     def shape(self):
         layout = self.layout
         this = layout[self.item]
-        if this.itype != D_DATA or not this.shape:
+        if this.itype != D_DATA:
             return None
-        s = ()
-        for d in this.shape:  # decode shape
-            s += (DItem(layout, d) if d > 0 else -d,)
-        return s
+        return this.shape  # always a DShape = tuple + shape(stream) method
 
     @property
     def align0(self):  # may be 0 if this is data or param
@@ -456,13 +692,13 @@ class DElements(object):
         return DItem(self.layout, self.idlist[index])
 
     def __iter__(self):
-        return len(self.idlist)
+        return iter(self.idlist)
 
 
 
 
 
-
+# =============================== OBSOLETE =========================
 class DParam(object):
     itype = D_PARAM  # item type
 
