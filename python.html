@@ -1,0 +1,729 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="./">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="prev" title="File Names and Signatures" href="signatures.html">
+
+    <!-- Generated with Sphinx 8.2.3 and Furo 2025.09.25 -->
+        <title>Python API - Dudley Data Description Language</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=580074bf" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #eeffcc;
+  --color-code-foreground: black;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="index.html"><div class="brand">Dudley Data Description Language</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="index.html">
+  
+  <span class="sidebar-brand-text">Dudley Data Description Language</span>
+  
+</a><form class="sidebar-search-container" method="get" action="search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="syntax.html">Dudley Syntax</a></li>
+<li class="toctree-l1"><a class="reference internal" href="comments.html">Special Comments</a></li>
+<li class="toctree-l1"><a class="reference internal" href="filters.html">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="grammar.html">Dudley Grammar</a></li>
+<li class="toctree-l1"><a class="reference internal" href="signatures.html">File Names and Signatures</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Python API</a></li>
+</ul>
+
+</div></div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="https://github.com/dhmunro/dudley/blob/main/docs/python.rst?plain=true" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div><div class="edit-this-page">
+  <a class="muted-link" href="https://github.com/dhmunro/dudley/edit/main/docs/python.rst" rel="edit" title="Edit this page">
+    <svg><use href="#svg-pencil"></use></svg>
+    <span class="visually-hidden">Edit this page</span>
+  </a>
+</div><div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="python-api">
+<h1>Python API<a class="headerlink" href="#python-api" title="Link to this heading">¶</a></h1>
+<p>The Dudley python API has a higher level stream interface and a lower level
+layout interface.  The stream interface handles saving and restoring numpy data
+in individual self-describing binary files.  The layout interface handles more
+formal design and construction of where and how binary data will be stored in
+a file.  Thus the stream interface is what you need for concrete operations,
+while the layout interface is what you need for abstract descriptions.</p>
+<p>While the stream interface is fairly complete as far as moving data between a
+binary file and a numpy environment, it lacks any way to query the type and
+shape of a data array without reading it.  Familiarity with the basic structure
+of the data is presumed.  When you need query operations, you need to move to
+the layout interface.  For casual interactive use, often the easiest and most
+convenient way to understand the contents and structure of a binary file is to
+simply dump the Dudley layout for the entire file and read it.</p>
+<p>Fundamentally, both interfaces map numpy ndarrays into a binary stream,
+organized into python dict and list containers.  In order to handle numpy
+record datatypes, a Dudley layout supports compound datatypes in addition to
+numeric and text ndarrays.  Finally, Dudley extends numpy array shapes with
+support for named parameter references as dimension lengths.  These parameters
+may have dynamic values which are written into the data stream mixed with the
+ndarrays.  A Dudley layout with dynamic parameters describes not just a single
+binary file, but a parametrized family of files.</p>
+<section id="stream-interface">
+<h2>Stream interface<a class="headerlink" href="#stream-interface" title="Link to this heading">¶</a></h2>
+<section id="moving-data">
+<h3>Moving data<a class="headerlink" href="#moving-data" title="Link to this heading">¶</a></h3>
+<p>Before you can read or write binary data, you need to open a binary I/O stream
+using the <cite>dudley.openbd</cite> function:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">dudley</span> <span class="kn">import</span> <span class="n">openbd</span>
+<span class="n">s_root</span> <span class="o">=</span> <span class="n">openbd</span><span class="p">(</span><span class="n">bdfile</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In this simple form <cite>bdfile</cite> is a filename, and <cite>mode</cite> can be “r” (read only),
+“w” (create for read-write, clobber if exists), “a” (create or open for
+update), “r+” (open for update), or “w-” (create for read-write, error if
+exists).  If <cite>bdfile</cite> already exists, it must begin with a Dudley signature,
+and have its Dudley layout appended to the end of the file.  If <cite>openbd</cite> is
+creating the file, it will have this format.  In other words, Dudley acts like
+HDF5 or ather self-describing binary file formats after this <cite>openbd</cite> call.</p>
+<p>(More complex scenarios involve optional <cite>dud</cite> and <cite>params</cite> arguments to
+<cite>openbd</cite>, which set the Dudley layout and any dynamic parameter values without
+needing to read them from the file.)</p>
+<p>The <cite>s_root</cite> object returned by <cite>openbd</cite> is the root dict of the stream, an
+instance of the <cite>SDict</cite> container class.  <cite>SDict</cite> instances behave for the
+most part like python dict instances, except that their keys must be text
+strings, and their values are typically numpy ndarrays which are stored in
+the binary file associated with the <cite>SDict</cite>.  For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">s_root</span><span class="p">[</span><span class="s2">&quot;var0&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">zeros</span><span class="p">((</span><span class="mi">5</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>  <span class="c1"># writes a 5x3 array of zeros named var0</span>
+<span class="n">var0</span> <span class="o">=</span> <span class="n">s_root</span><span class="p">[</span><span class="s2">&quot;var0&quot;</span><span class="p">]</span>  <span class="c1"># reads ndarray var0</span>
+<span class="c1"># SDict update, __iter__, and items methods and others work like a dict:</span>
+<span class="n">s_root</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">var1</span><span class="o">=</span><span class="n">arange</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span> <span class="n">var2</span><span class="o">=</span><span class="n">arange</span><span class="p">(</span><span class="mi">5</span><span class="p">)[:,</span> <span class="n">newaxis</span><span class="p">]</span><span class="o">*</span><span class="n">arange</span><span class="p">(</span><span class="mi">3</span><span class="p">))</span>
+<span class="n">names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">s_root</span><span class="p">)</span>  <span class="c1"># get names of all items in s_root</span>
+<span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">s_root</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">s_root</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">s_root</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+<span class="k">if</span> <span class="s2">&quot;var1&quot;</span> <span class="ow">in</span> <span class="n">s_root</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;var1 is in root dict&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>An <cite>SDict</cite> has methods beyond the standard python dict methods as well, in order
+to control its attached I/O stream:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">s_root</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>  <span class="c1"># flush buffers and write layout at end of file</span>
+<span class="n">s_root</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>  <span class="c1"># flush and close the file (making s_root object unusable)</span>
+</pre></div>
+</div>
+<p>The <cite>close</cite> method is implicitly invoked by the <cite>SDict</cite> destructor, so if the
+python object goes out of scope, the associated file will be closed.  Similarly
+you can use an <cite>SDict</cite> like a file handle:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">openbd</span><span class="p">(</span><span class="s2">&quot;example.bd&quot;</span><span class="p">,</span> <span class="s2">&quot;a&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">s_root</span><span class="p">:</span>
+    <span class="n">s_root</span><span class="p">[</span><span class="s2">&quot;var0&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">zeros</span><span class="p">((</span><span class="mi">5</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+<span class="c1"># var0 either overwritten or appended to previous contents, file closed</span>
+</pre></div>
+</div>
+<p>Like a dict, an <cite>SDict</cite> permits you to save multiple values at once using the
+<cite>update</cite> method.  Unlike a dict, an <cite>SDict</cite> has a <cite>subset</cite> method that allows
+you to restore multiple values at once:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">var0</span><span class="p">,</span> <span class="n">var2</span> <span class="o">=</span> <span class="n">s_root</span><span class="o">.</span><span class="n">subset</span><span class="p">(</span><span class="s2">&quot;var0&quot;</span><span class="p">,</span> <span class="s2">&quot;var2&quot;</span><span class="p">)</span>  <span class="c1"># return value actually a dict</span>
+</pre></div>
+</div>
+<p><cite>SDict</cite> instances also feature syntactic sugar beyond dict instances.  Namely,
+you may use python’s attribute syntax instead of its item syntax whenever the
+variable name is a legal python variable name that does not conflict with any
+<cite>SDict</cite> method names:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">s_root</span><span class="o">.</span><span class="n">var0</span> <span class="o">=</span> <span class="n">value</span>  <span class="c1"># same as s_root[&quot;var0&quot;] = value</span>
+<span class="n">value</span> <span class="o">=</span> <span class="n">s_root</span><span class="o">.</span><span class="n">var0</span>  <span class="c1"># same as value = s_root[&quot;var0&quot;]</span>
+</pre></div>
+</div>
+<p>This syntax is so handy in casual interactive use that there is also a hack to
+work around the occasional collision of a variable name with an <cite>SDict</cite> method
+name or a python reserved word: If the attribute name ends in underscore,
+that trailing underscore is removed:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">items</span> <span class="o">=</span> <span class="n">s_root</span><span class="o">.</span><span class="n">items_</span>  <span class="c1"># same as items = s_root[&quot;items&quot;]</span>
+<span class="n">s_root</span><span class="o">.</span><span class="n">yield_</span> <span class="o">=</span> <span class="n">value</span>  <span class="c1"># same as s_root[&quot;yield&quot;] = value</span>
+</pre></div>
+</div>
+</section>
+<section id="containers">
+<h3>Containers<a class="headerlink" href="#containers" title="Link to this heading">¶</a></h3>
+<p>A Dudley dict may contain not only data arrays, but also sub-dict and list
+containers.  <cite>SDict</cite> objects map to python dict objects in the obvious way,
+but the Dudley <cite>SList</cite> object - a list container - is slightly trickier to
+write because of the potential confusion between a python list and a numpy
+1D array object - in fact, most numpy APIs that accept ndarray arguments will
+also accept python lists or tuples (called array_like in numpy parlance).</p>
+<p>Writing a Dudley sub-dict is straightforward.  For example to create a sub-dict
+“mydict” of <cite>s_root</cite>, simply set it to a python dict instead of an ndarray:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">s_root</span><span class="o">.</span><span class="n">mydict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">var0</span><span class="o">=</span><span class="n">value0</span><span class="p">,</span> <span class="n">var1</span><span class="o">=</span><span class="n">value1</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>However, reading “mydict” behaves differently than reading an ndarray.  Instead
+of returning the populated python dict, reading “mydict” returns the
+corresponding <cite>SDict</cite> container:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mydict</span> <span class="o">=</span> <span class="n">s_root</span><span class="o">.</span><span class="n">mydict</span>  <span class="c1"># mydict is an `SDict`, not a python dict</span>
+<span class="n">value0</span> <span class="o">=</span> <span class="n">mydict</span><span class="o">.</span><span class="n">var0</span>  <span class="c1"># ... etc.</span>
+<span class="n">value0</span> <span class="o">=</span> <span class="n">s_root</span><span class="o">.</span><span class="n">mydict</span><span class="o">.</span><span class="n">var0</span>  <span class="c1"># read only var0, not whole mydict</span>
+</pre></div>
+</div>
+<p>The third line of this example shows why <cite>s_root.mydict</cite> does not read the
+entire contents of <cite>mydict</cite>.  If you do want to read back the entire python
+dict, any <cite>SDict</cite> object may be invoked as a function to do so (another
+enhancement to a python dict):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mydict</span> <span class="o">=</span> <span class="n">s_root</span><span class="o">.</span><span class="n">mydict</span><span class="p">()</span>  <span class="c1"># reads &quot;mydict&quot; back as a python dict</span>
+<span class="n">everything</span> <span class="o">=</span> <span class="n">s_root</span><span class="p">()</span>  <span class="c1"># reads the entire bdfile into memory</span>
+<span class="c1"># Thus, to copy an entire file (inefficently compared to cp command):</span>
+<span class="n">openbd</span><span class="p">(</span><span class="s2">&quot;file2.bd&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">openbd</span><span class="p">(</span><span class="s2">&quot;file1.bd&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)())</span>
+</pre></div>
+</div>
+<p>Similiarly, reading a Dudley list container does not immediately read all the
+items in the list, but rather returns an <cite>SList</cite> instance:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mylist</span> <span class="o">=</span> <span class="n">s_root</span><span class="o">.</span><span class="n">mylist</span>  <span class="c1"># mylist is an SList if &quot;mylist&quot; is a Dudley list</span>
+<span class="n">value1</span> <span class="o">=</span> <span class="n">mylist</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>  <span class="c1"># reads second item in Dudley list &quot;mylist&quot;</span>
+<span class="n">value0</span><span class="p">,</span> <span class="n">value1</span><span class="p">,</span> <span class="n">value2</span> <span class="o">=</span> <span class="n">mylist</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span>  <span class="c1"># reads first three items in list</span>
+<span class="n">value_list</span> <span class="o">=</span> <span class="n">mylist</span><span class="p">[:]</span>  <span class="c1"># reads all items in list, like mydict()</span>
+</pre></div>
+</div>
+<p>All of the python list indexing operations work for an <cite>SList</cite> (just as the
+dict key lookup operations work for an <cite>SDict</cite>).  The append and extend methods
+also work, as does the len function:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mylist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value3</span><span class="p">)</span>
+<span class="n">mylist</span> <span class="o">+=</span> <span class="n">value3</span>  <span class="c1"># SList += operator shorthand for append</span>
+<span class="n">mylist</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">value5</span><span class="p">,</span> <span class="n">value6</span><span class="p">])</span>
+<span class="n">nelements</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">mylist</span><span class="p">)</span>  <span class="c1"># note that len(mydict) works as well</span>
+</pre></div>
+</div>
+<p>But how do you declare that “mylist” is a Dudley list in the first place?  All
+of these examples assume that <cite>s_root.my_list</cite> already exists, and:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">s_root</span><span class="o">.</span><span class="n">var0</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>  <span class="c1"># same as s_root.var0 = array([1, 2, 3])</span>
+</pre></div>
+</div>
+<p>because <cite>[1, 2, 3]</cite>, while it is a python list, is also a numpy <cite>array_like</cite>
+object.  The stream interface breaks this ambiguity by treating a length-2
+tuple whose first element is the python list class (that is, <cite>type([])</cite>) to
+mean that the second element is to be interpreted as a list rather than as an
+array_like.  Alternatively, you can declare an empty list as just the list
+class:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">s_root</span><span class="o">.</span><span class="n">mylist</span> <span class="o">=</span> <span class="nb">list</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]</span>  <span class="c1"># mylist is the list [1, 2, 3]</span>
+<span class="n">s_root</span><span class="o">.</span><span class="n">mylist</span> <span class="o">=</span> <span class="nb">list</span>  <span class="c1"># mylist is the empty list []</span>
+<span class="n">s_root</span><span class="o">.</span><span class="n">mylist</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>  <span class="c1"># same, starting from empty list</span>
+<span class="n">s_root</span><span class="o">.</span><span class="n">mylist</span> <span class="o">=</span> <span class="nb">list</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">]),</span> <span class="mi">3</span><span class="p">]</span>  <span class="c1"># recursive application</span>
+</pre></div>
+</div>
+<p>The fourth example above shows that you need to apply this rule recursively to
+define nested lists.</p>
+<p>The stream interface provides a similar special functionality if you assign a
+variable using a length-2 tuple whose first element is a numpy dtype.  In this
+case, the second element is a shape.  This hack enables you to declare an
+array in the file without actually writing any data initially:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">s_root</span><span class="o">.</span><span class="n">var0</span> <span class="o">=</span> <span class="n">dtype</span><span class="p">,</span> <span class="n">shape</span>  <span class="c1"># declare &quot;var0&quot; without writing anything</span>
+</pre></div>
+</div>
+<p>You can then write the data for var0 in chunks.  The trick to do that is to
+pass multiple keys to the <cite>[]</cite> operator:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">s_root</span><span class="p">[</span><span class="s2">&quot;var0&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">part_of_var0</span>  <span class="c1"># partial write of var0[0:2]</span>
+<span class="n">part_of_var0</span> <span class="o">=</span> <span class="n">s_root</span><span class="p">[</span><span class="s2">&quot;var0&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span>  <span class="c1"># partial read of var0[0:2]</span>
+</pre></div>
+</div>
+<p>You use <cite>s_dict[name]</cite> (or <cite>s_dict.name</cite>) or <cite>s_list[index]</cite> to move down the
+container tree.  To move up the container tree, both <cite>SDict</cite> and <cite>SList</cite>
+objects have <cite>parent</cite> and <cite>root</cite> properties:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">s_container1</span> <span class="o">=</span> <span class="n">s_container0</span><span class="o">.</span><span class="n">parent</span>  <span class="c1"># SDict or SList parent of container</span>
+<span class="n">s_root</span> <span class="o">=</span> <span class="n">s_container0</span><span class="o">.</span><span class="n">root</span>  <span class="c1"># root SDict of the stream</span>
+</pre></div>
+</div>
+</section>
+<section id="recording-mode">
+<h3>Recording mode<a class="headerlink" href="#recording-mode" title="Link to this heading">¶</a></h3>
+<p>An <cite>SDict</cite> has modes to simplify recording the history of a data array
+as it changes, perhaps during the course of a simulation.  Normally,
+when you store data to an existing array, the streaming interface overwrites
+the previous stored value, just as reassigning a variable in a python program
+overwrites any previous value.  If instead you want to save the old value in
+addition to the new value, you want the variable in the file to be an <cite>SList</cite>
+whose elements are the values of the data array.  Since an <cite>SList</cite> can be
+extended, this permits you to store an evolving sequence of arrays under a
+single variable name:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mydict</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="nb">list</span><span class="p">,</span> <span class="p">[</span><span class="n">x</span><span class="p">]</span>  <span class="c1"># store array x as the first element of an SList</span>
+<span class="o">...</span>  <span class="c1"># change x somehow</span>
+<span class="n">mydict</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>  <span class="c1"># append new value of x array</span>
+<span class="o">...</span>  <span class="c1"># change x somehow</span>
+<span class="n">mydict</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>  <span class="c1"># append new value of x array</span>
+</pre></div>
+</div>
+<p>Especially for casual interactive use, this can become tedious, as well as less
+clear than you might hope for someone reading your code.  Instead, the stream
+interface provides a shorthand for storing arrays as lists, with assignment
+operations appending list elements:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mydict</span><span class="o">.</span><span class="n">recording</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># put mydict in recording mode</span>
+<span class="n">mydict</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">x</span>  <span class="c1"># in recording mode mydict.x becomes a 1-element SList [x]</span>
+<span class="o">...</span>  <span class="c1"># change x somehow</span>
+<span class="n">mydict</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">x</span>  <span class="c1"># in recording mode same as mydict.x += x, not overwrite</span>
+<span class="o">...</span>  <span class="c1"># change x somehow</span>
+<span class="n">mydict</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">x</span>  <span class="c1"># append third value of x array</span>
+</pre></div>
+</div>
+<p>Note that the first declaration of <cite>x</cite> must be made with <cite>mydict</cite> in recording
+mode for this to work; once <cite>mydict.x</cite> is a data array, recording mode cannot
+change it into an <cite>SList</cite> container.  In recording mode, you can
+record new values for multiple variables with a single call:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create SLists var0, var1, etc.:</span>
+<span class="n">mydict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">var0</span><span class="o">=</span><span class="n">value0</span><span class="p">,</span> <span class="n">var1</span><span class="o">=</span><span class="n">value1</span><span class="p">,</span> <span class="o">...</span><span class="p">))</span>
+<span class="o">...</span>  <span class="c1"># change value0, value1, etc.</span>
+<span class="n">mydict</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">var0</span><span class="o">=</span><span class="n">value0</span><span class="p">,</span> <span class="n">var1</span><span class="o">=</span><span class="n">value1</span><span class="p">,</span> <span class="o">...</span><span class="p">))</span>  <span class="c1"># append values</span>
+</pre></div>
+</div>
+<p>When you reference a sub-<cite>SDict</cite>, it inherits the recording state of its
+parent <cite>SDict</cite>, so the above update can be used to create and update an entire
+tree of dicts; you don’t need to append to each <cite>SList</cite> individually.</p>
+<p>Recording mode works for creating and appending to lists of arrays.  <cite>SDict</cite>
+has an independent goto mode to make it convenient to read back lists recorded
+in this manner.  Each <cite>SDict</cite> keeps a “goto index”, which is normally <cite>None</cite> to
+indicate the <cite>SDict</cite> is not in goto mode.  In goto mode, any reference to a
+Dudley list element acts as if the element with that index were referenced:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mydict</span><span class="o">.</span><span class="n">goto</span><span class="p">(</span><span class="mi">42</span><span class="p">)</span>  <span class="c1"># sets goto mode index to 42</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">mydict</span><span class="o">.</span><span class="n">x</span>  <span class="c1"># same as mydict.x[42] if goto mode were off</span>
+<span class="n">mydict</span><span class="o">.</span><span class="n">goto</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>  <span class="c1"># turns off goto mode</span>
+<span class="n">mydict</span><span class="o">.</span><span class="n">goto</span><span class="p">(</span><span class="n">time</span><span class="o">=</span><span class="n">t0</span><span class="p">)</span>  <span class="c1"># set to index where mydict.time[index] is nearest t0</span>
+<span class="c1"># mydict.goto is an SDict property, not just a method, which itself has</span>
+<span class="c1"># other useful attributes and methods:</span>
+<span class="n">recording_state</span> <span class="o">=</span> <span class="n">mydict</span><span class="o">.</span><span class="n">goto</span><span class="o">.</span><span class="n">recording</span>  <span class="c1"># True or False</span>
+<span class="n">goto_state</span> <span class="o">=</span> <span class="n">mydict</span><span class="o">.</span><span class="n">goto</span><span class="o">.</span><span class="n">goto</span>  <span class="c1"># current index or None</span>
+<span class="k">for</span> <span class="n">time</span> <span class="ow">in</span> <span class="n">mydict</span><span class="o">.</span><span class="n">goto</span><span class="o">.</span><span class="n">time</span><span class="p">:</span>  <span class="c1"># &quot;time&quot; can be any SList variable in mydict</span>
+    <span class="o">...</span>  <span class="c1"># Loop over all elements of mydict.time, setting goto index</span>
+    <span class="o">...</span>  <span class="c1">#   to corresponding value on each pass.</span>
+<span class="k">with</span> <span class="n">mydict</span><span class="o">.</span><span class="n">goto</span><span class="p">:</span>  <span class="c1"># remember goto and recording states</span>
+    <span class="n">mydict</span><span class="o">.</span><span class="n">goto</span><span class="p">(</span><span class="mi">42</span><span class="p">)</span>  <span class="c1"># temporarily sets goto mode index to 42</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">mydict</span><span class="o">.</span><span class="n">x</span>  <span class="c1"># retrieves x[42]</span>
+<span class="c1"># mydict goto and recording modes restored to before with statement</span>
+</pre></div>
+</div>
+<p>With a keyword argument, you can specify an index using any list of scalar
+values in <cite>mydict</cite> - the variable <cite>mydict.time</cite> is an <cite>SList</cite> of times in the
+above example.  To work as a goto keyword, a variable must have a scalar
+value, but for the iterator <cite>mydict.goto.varname</cite>, the values of <cite>varname</cite> can
+be anything.</p>
+</section>
+</section>
+<section id="layout-interface">
+<h2>Layout interface<a class="headerlink" href="#layout-interface" title="Link to this heading">¶</a></h2>
+<section id="dicts-lists-and-data">
+<h3>Dicts, lists, and data<a class="headerlink" href="#dicts-lists-and-data" title="Link to this heading">¶</a></h3>
+<p>Usually, the best way to build a Dudley layout that is not associated with any
+binary data file is to write a “.dud” text file, then parse it with:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">l_root</span> <span class="o">=</span> <span class="n">dudley</span><span class="p">(</span><span class="n">dudfile</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The <cite>dudfile</cite> argument can be the name of a text file or a python <cite>TextIOBase</cite>
+text stream object.  The <cite>dudley</cite> function parses this text according to the
+Dudley language, returning an <cite>LDict</cite> object representing the root dict of the
+layout.  Unlike an <cite>SDict</cite>, the <cite>LDict</cite> is not associated with any particular
+binary data stream - you cannot use it to read or write data.  However, every
+<cite>SDict</cite> or <cite>SList</cite> container has an associated <cite>LDict</cite> or <cite>LList</cite> container
+which is the description of its contents in the Dudley data model.  You can
+retrieve this description using the read-only <cite>dudley</cite> property:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">l_root</span> <span class="o">=</span> <span class="n">s_root</span><span class="o">.</span><span class="n">dudley</span>  <span class="c1"># get entire layout for a binary stream</span>
+</pre></div>
+</div>
+<p>Unlike the stream interface, the layout interface is not designed for casual
+interactive use.  There is no syntactic sugar like mapping attribute names to
+item names; there are few convenience features like recording mode.  That said,
+<cite>LDict</cite> and <cite>LList</cite> containers both implement many of the methods python
+programmers expect in dict or list containers:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">item</span> <span class="o">=</span> <span class="n">l_dict</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+<span class="n">nitems</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">l_dict</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">l_dict</span><span class="p">:</span>
+    <span class="o">...</span>
+<span class="n">names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">l_dict</span><span class="p">)</span>  <span class="c1"># all item names</span>
+<span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">l_dict</span><span class="p">:</span>
+    <span class="o">...</span>
+<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+    <span class="o">...</span>
+
+<span class="n">item</span> <span class="o">=</span> <span class="n">l_list</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+<span class="n">nitems</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">l_list</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">l_list</span><span class="p">:</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+<p>While the stream interface has no classes beyond the <cite>SDict</cite> and <cite>SList</cite>
+containers, the layout interface must describe all of the different kinds
+of objects in the Dudley language.  Besides dicts and lists, there are
+data arrays, parameters, datatypes, and primitives, all of which are
+subclasses of a generic item class.  There are a couple of helper classes as
+well for things like filters.</p>
+<p>Creating a data item in an <cite>LDict</cite> (or <cite>LList</cite>) is similar to declaring an
+array without writing it in an <cite>SDict</cite> (or <cite>SList</cite>):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">l_dict</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">datatype</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">align</span><span class="p">,</span> <span class="n">filt</span>  <span class="c1"># only datatype required</span>
+<span class="n">l_list</span> <span class="o">+=</span> <span class="n">datatype</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">align</span><span class="p">,</span> <span class="n">filt</span>
+<span class="n">l_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">datatype</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">align</span><span class="p">,</span> <span class="n">filt</span><span class="p">)</span>  <span class="c1"># this adds a single item</span>
+</pre></div>
+</div>
+<p>To create a dict or list container, you use the python “dict” or “list” class
+as if it were a datatype.  There are also a shortcuts to return the new layout
+container item:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">l_dict</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">dict</span>  <span class="c1"># create a sub-dict called name</span>
+<span class="n">l_dict</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span>  <span class="c1"># create a list called name</span>
+<span class="n">mydict</span> <span class="o">=</span> <span class="n">l_dict</span><span class="p">[</span><span class="n">name</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]</span>  <span class="c1"># shortcut returns the new (or existing) dict</span>
+<span class="n">mylist</span> <span class="o">=</span> <span class="n">l_dict</span><span class="p">[</span><span class="n">name</span><span class="p">,</span> <span class="nb">list</span><span class="p">]</span>  <span class="c1"># shortcut returns the new (or existing) list</span>
+
+<span class="n">l_list</span> <span class="o">+=</span> <span class="nb">dict</span>  <span class="c1"># or l_list,append(dict)</span>
+<span class="n">l_list</span> <span class="o">+=</span> <span class="nb">list</span>  <span class="c1"># or l_list,append(list)</span>
+<span class="n">mydict</span> <span class="o">=</span> <span class="n">l_list</span> <span class="o">+</span> <span class="nb">dict</span>  <span class="c1"># shortcut returns the new dict</span>
+<span class="n">mylist</span> <span class="o">=</span> <span class="n">l_list</span> <span class="o">+</span> <span class="nb">list</span>  <span class="c1"># shortcut returns the new list</span>
+</pre></div>
+</div>
+</section>
+<section id="datatypes-and-parameters">
+<h3>Datatypes and parameters<a class="headerlink" href="#datatypes-and-parameters" title="Link to this heading">¶</a></h3>
+<p>In addition to data, dict, and list items, datatype and parameter items may be
+associated with an <cite>LDict</cite>.  You create and access parameters using the
+<cite>params</cite> property and datatypes using the <cite>types</cite> ; both of these are
+themselves dict-like objects:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">param</span> <span class="o">=</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>  <span class="c1"># LParam parameter item for name</span>
+<span class="n">datatype</span> <span class="o">=</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">types</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>  <span class="c1"># LType datatype item for name</span>
+<span class="c1"># Note: param or datatype may be in an ancestor of l_dict</span>
+<span class="c1"># However, when used as an iterator, only parameters or types with</span>
+<span class="c1">#   l_dict as their parent are iterated over:</span>
+<span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">params</span><span class="p">:</span>
+    <span class="o">...</span>
+<span class="k">for</span> <span class="n">datatype</span> <span class="ow">in</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">types</span><span class="p">:</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+<p>In order to create a parameter, use one of:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">param</span> <span class="o">=</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">]</span>  <span class="c1"># create fixed parameter</span>
+<span class="n">param</span> <span class="o">=</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">name</span><span class="p">,</span> <span class="n">datatype</span><span class="p">,</span> <span class="n">align</span><span class="p">]</span>  <span class="c1"># create dynamic parameter</span>
+    <span class="c1"># datatype must be integer primitive, align is optional</span>
+</pre></div>
+</div>
+<p>To reference a parameter in a shape, simply include an <cite>LParam</cite> object in its
+shape list.  You can add or subtract a small integer value from an <cite>LParam</cite>
+reference in order to indicate Dudley “+” or “-” suffixes.  For example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">NZONES</span> <span class="o">=</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;NZONES&quot;</span><span class="p">,</span> <span class="s2">&quot;i8&quot;</span><span class="p">]</span>
+<span class="o">...</span>
+<span class="n">l_dict</span><span class="p">[</span><span class="s2">&quot;rho&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;f8&quot;</span><span class="p">,</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">NZONES</span><span class="p">)</span>  <span class="c1"># rho is 3xNZONES array of doubles</span>
+<span class="n">l_dict</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;f8&quot;</span><span class="p">,</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">NZONES</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># x is 3x(NZONES+1) array of doubles</span>
+</pre></div>
+</div>
+<p>In order to create a typedef datatype, you can use (shape and align are
+optional):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">datatype</span> <span class="o">=</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">types</span><span class="p">[</span><span class="n">name</span><span class="p">,</span> <span class="n">datatype</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">align</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>To create a compound datatype, use a python “with” statement:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">types</span><span class="p">[</span><span class="n">name</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="k">as</span> <span class="n">datatype</span><span class="p">:</span>  <span class="c1"># ... here really is Ellipsis</span>
+    <span class="c1"># Inside the block, datatype acts like a dict container.</span>
+    <span class="n">datatype</span><span class="p">[</span><span class="n">mname0</span><span class="p">]</span> <span class="o">=</span> <span class="n">datatype0</span><span class="p">,</span> <span class="n">shape0</span><span class="p">,</span> <span class="n">align0</span>
+    <span class="n">datatype</span><span class="p">[</span><span class="n">mname1</span><span class="p">]</span> <span class="o">=</span> <span class="n">datatype1</span><span class="p">,</span> <span class="n">shape1</span><span class="p">,</span> <span class="n">align1</span>
+    <span class="o">...</span>  <span class="c1"># datatype is open and unusable as an array type inside block</span>
+<span class="c1"># datatype is closed and usable outside its with block</span>
+</pre></div>
+</div>
+<p>Besides <cite>LType</cite> objects, a <cite>datatype</cite> argument in an array declaration may be
+a string, which can be either a (prefixed or unprefixed) primitive type name,
+or a previously defined type name (in the current container or an ancestor).</p>
+</section>
+<section id="alignment-and-address">
+<h3>Alignment and address<a class="headerlink" href="#alignment-and-address" title="Link to this heading">¶</a></h3>
+<p>The optional <cite>align</cite> argument in array and dynamic parameter declarations can
+be used to slightly adjust the byte address of the data in a file.  Primitive
+datatypes have an alignment equal to their byte size (of each floating point
+component in the case of complex), meaning that the byte address of that
+primitive will always be a multiple of its size.  However, for any individual
+data array, you can override that default alignment by specifying an <cite>align</cite>
+argument in its declaration.  Typedef or compound datatypes have alignment
+equal to the largest alignment of any member by default, but that too may be
+overridden by an <cite>align</cite> argument for specific arrays.  An <cite>align</cite> value must
+always be a small power of 2: 1, 2, 4, or 8.  As a special case, an <cite>align</cite>
+value of 0 means to use the default alignment of the <cite>datatype</cite> of the array.</p>
+<p>However, the Dudley language permits you to declare arrays with a specified
+byte address (<cite>&#64;address</cite>) instead of just an alignment adjustment (<cite>%align</cite>).
+In the python layout interface, such an address specification is indicated by
+an <cite>align</cite> value with a special <cite>Address</cite> object instead of an integer:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">l_dict</span><span class="p">[</span><span class="s2">&quot;mydata&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">datatype</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">Address</span><span class="p">(</span><span class="mi">12345</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>declares that the data array “mydata” begins at exactly byte address 12345 of
+the file.  Such an address ignores the default datatype alignment restriction
+(just as it would be ignored if you specified a non-zero <cite>align</cite>).</p>
+</section>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          <a class="prev-page" href="signatures.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">File Names and Signatures</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2025, David Munro
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            <div class="icons">
+              <a class="muted-link " href="https://github.com/dhmunro/dudley/" aria-label="GitHub">
+                    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 16 16">ox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"></path>
+                    </svg>
+                </a>
+              
+            </div>
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Python API</a><ul>
+<li><a class="reference internal" href="#stream-interface">Stream interface</a><ul>
+<li><a class="reference internal" href="#moving-data">Moving data</a></li>
+<li><a class="reference internal" href="#containers">Containers</a></li>
+<li><a class="reference internal" href="#recording-mode">Recording mode</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#layout-interface">Layout interface</a><ul>
+<li><a class="reference internal" href="#dicts-lists-and-data">Dicts, lists, and data</a></li>
+<li><a class="reference internal" href="#datatypes-and-parameters">Datatypes and parameters</a></li>
+<li><a class="reference internal" href="#alignment-and-address">Alignment and address</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="_static/documentation_options.js?v=f2a433a1"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/scripts/furo.js?v=46bd48cc"></script>
+    </body>
+</html>

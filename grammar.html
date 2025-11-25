@@ -3,10 +3,10 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Dudley Grammar" href="grammar.html"><link rel="prev" title="Special Comments" href="comments.html">
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="File Names and Signatures" href="signatures.html"><link rel="prev" title="Filters" href="filters.html">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.09.25 -->
-        <title>Filters - Dudley Data Description Language</title>
+        <title>Dudley Grammar - Dudley Data Description Language</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=580074bf" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -194,8 +194,8 @@
 <li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="syntax.html">Dudley Syntax</a></li>
 <li class="toctree-l1"><a class="reference internal" href="comments.html">Special Comments</a></li>
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Filters</a></li>
-<li class="toctree-l1"><a class="reference internal" href="grammar.html">Dudley Grammar</a></li>
+<li class="toctree-l1"><a class="reference internal" href="filters.html">Filters</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Dudley Grammar</a></li>
 <li class="toctree-l1"><a class="reference internal" href="signatures.html">File Names and Signatures</a></li>
 <li class="toctree-l1"><a class="reference internal" href="python.html">Python API</a></li>
 </ul>
@@ -217,12 +217,12 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="https://github.com/dhmunro/dudley/blob/main/docs/filters.rst?plain=true" title="View this page">
+  <a class="muted-link" href="https://github.com/dhmunro/dudley/blob/main/docs/grammar.rst?plain=true" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
 </div><div class="edit-this-page">
-  <a class="muted-link" href="https://github.com/dhmunro/dudley/edit/main/docs/filters.rst" rel="edit" title="Edit this page">
+  <a class="muted-link" href="https://github.com/dhmunro/dudley/edit/main/docs/grammar.rst" rel="edit" title="Edit this page">
     <svg><use href="#svg-pencil"></use></svg>
     <span class="visually-hidden">Edit this page</span>
   </a>
@@ -239,93 +239,148 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="filters">
-<h1>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h1>
-<p>Dudley supports two kinds of filters, compression (<cite>-&gt;</cite>) and reference (<cite>&lt;-</cite>).</p>
-<section id="compression-filters">
-<h2>Compression filters<a class="headerlink" href="#compression-filters" title="Link to this heading">¶</a></h2>
-<p><em>Compression</em> filters convert an array
-declared in the usual way into a (hopefully shorter) byte string:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">f8</span><span class="p">[</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">100</span><span class="p">]</span> <span class="o">-&gt;</span> <span class="n">zfp</span>  <span class="c1"># compress 1000x100x100 array using zfp</span>
-</pre></div>
-</div>
-<p>what actually is written to the data stream is the result of compressing the
-array using zfp.  The zfp filter uses a lossy compression scheme, so the
-1000x100x100 array you read back will not be precisely the same as what you
-wrote.  ZFP has many tuning options, but the default Dudley zfp filter
-simplifies its various options to just a single optional parameter.  If you
-want to pass a non-default parameter value to a filter, you write the filter
-like a function call:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">f8</span><span class="p">[</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">100</span><span class="p">]</span> <span class="o">-&gt;</span> <span class="n">zfp</span><span class="p">(</span><span class="mf">1.e-6</span><span class="p">)</span>  <span class="c1"># compress with tolerance 1.e-6</span>
-</pre></div>
-</div>
-<p>Dudley implements four compression filters by default, but you can define and
-register your own custom filters if you wish.  Unlike an unfiltered array, you
-do not know in advance how many bytes of the stream will be occupied by the
-compressed array, so using any filters at all restricts a Dudley layout to
-a particualr individual byte stream.  The default filters are all
-simplified versions of popular open source compressors:</p>
+          <section id="dudley-grammar">
+<h1>Dudley Grammar<a class="headerlink" href="#dudley-grammar" title="Link to this heading">¶</a></h1>
+<section id="terminals">
+<h2>Terminals<a class="headerlink" href="#terminals" title="Link to this heading">¶</a></h2>
+<p>Besides punctuation, the Dudley grammar has these terminals:</p>
 <dl class="simple">
-<dt><strong>zfp(level)</strong></dt><dd><p><a class="reference external" href="https://zfp.io">ZFP</a> is a lossy compression library.
-The Dudley <cite>level</cite> parameter is the ZFP <em>tolerance</em>, which is the acceptable
-absolute error for the array values if <cite>level&gt;0</cite>.  If <cite>level&lt;0</cite>, then
-<cite>-level</cite> is the ZFP <em>precision</em>, which is roughly the number of bits of
-mantissa that will be preserved, a way to specify the acceptable
-relative error for array values.  Finally, <cite>level=0</cite> specifies the ZFP
-lossless compression option.  The default is <cite>level=-15</cite>, which produces
-a bit better than part per thousand relative accuracy.  Only works on
-arrays of numbers (best for floats) with up to four dimensions.</p>
+<dt><strong>name</strong>:</dt><dd><p>Any text comprising ASCII alphanumeric characters or underscores whose first
+character is not a digit.  Additionally, any quoted Unicode text excluding
+the NUL charcter is a legal name; Dudley has no keywords.  Names may be
+quoted with either single or double quotes, “<strong>&quot;</strong>” or “<strong>`</strong>”, and escape
+sequences “<strong>\&quot;</strong>”, “<strong>\`</strong>” and “<strong>\\</strong>” can be used inside quoted
+strings.  (Dudley does not recognize any other escape sequences; a quoted
+string only ends with the matching unescaped close quote.)</p>
 </dd>
-<dt><strong>gzip(level)</strong></dt><dd><p><a class="reference external" href="https://zlib.net">zlib</a> is a well-known lossless compression library.
-The <cite>level</cite> parameter can be 0-9 or -1, with the same meanings as the gzip
-utility.  However, Dudley makes the default <cite>level=9</cite> on the assumption that
-you will usually want maximum compression.  The zlib compression is not
-really designed for binary data, but it can work well on integers and text.</p>
+<dt><strong>integer</strong>:</dt><dd><p>A string of decimal digits not beginning with 0 (except for the single digit
+0), or a string or hex digits prefixed by “0x”.  The digits may be prefixed
+with a “-” or “+” sign.</p>
 </dd>
-<dt><strong>jpeg(quality)</strong></dt><dd><p><a class="reference external" href="https://jpeg.org">jpeg</a> is a well-known lossy image
-compression format.  Accepts only <cite>u1[NX, NY]</cite> data (grayscale image),
-<cite>u1[NX, NY, 3]</cite> data (RGB image), or <cite>u1[NX, NY, 4]</cite> data (CMYK image).
-The <cite>quality</cite> is 0-95, with <cite>quality=75</cite> the default.</p>
+<dt><strong>primitive</strong>:</dt><dd><p>A three or four character shorthand name for the predefined primitive
+datatypes, similar to the numpy array protocol, consisting of one of three
+prefixes, followed by a single character indicating the kind of encoding,
+followed by one or two digits specifying the number of bytes per item.
+The prefixes are “<strong>&lt;</strong>” (little endian), “<strong>&gt;</strong>” (big endian), or
+“<strong>|</strong>” (unspecified byte order).  The characters are “u” or “i” (unsigned
+or signed integer, 1, 2, 4, or 8 bytes), “f” (IEEE754 floating point, 2, 4
+or 8 bytes), “c” (complex, 4, 8, or 16 bytes), “b” (boolean,   1 byte), “S”
+(ASCII or CP1252 or Latin1 character, 1 byte), “U” (Unicode character, 1, 2,
+or 4 bytes).</p>
 </dd>
-<dt><strong>png(level)</strong></dt><dd><p><a class="reference external" href="https://libpng.org/pub/png">png</a> is a well-known lossless image
-compression format.  Accepts only <cite>u?[NX, NY]</cite> data (grayscale image),
-or <cite>u?[NX, NY, 3]</cite> data (RGB image), where <cite>u?</cite> is either <cite>u1</cite> or <cite>u2</cite>.
-The <cite>level</cite> is 0-9, with <cite>level=9</cite> the default.</p>
+<dt><strong>float</strong>:</dt><dd><p>A floating point number recognized by C or python (including an
+optional sign prefix).  It must include a decimal point to distinguish it
+from an integer.</p>
 </dd>
 </dl>
 </section>
-<section id="reference-filters">
-<h2>Reference filters<a class="headerlink" href="#reference-filters" title="Link to this heading">¶</a></h2>
-<p>The second kind of filter, a <em>reference</em> filter, is completely different.
-Instead of converting an array of declared type and shape to an unknown
-number of bytes in the file like a compression filter, a <em>reference</em> filter
-converts an array of unknown type and shape into a reference to that object
-where each such reference has a known datatype (usually an integer).  This
-reference is roughly equivalent to declaring a <cite>void *</cite> array in C:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">datatype</span> <span class="n">shape</span> <span class="o">&lt;-</span> <span class="n">ref</span>  <span class="c1"># this array holds references to unknown objects</span>
-</pre></div>
-</div>
-<p>Now the objects which are referenced obviously must be declared <em>somewhere</em> in
-the layout - otherwise there would be no way to read them back.  Therefore,
-Dudley expects to find a sequence of special anonymous declarations of the
-form:</p>
-<blockquote>
-<div><p>: datatype shape<sub>opt</sub> address<sub>opt</sub></p>
-</div></blockquote>
-<p>These can appear anywhere a named dict item is expected, but these reference
-declarations are always placed in the root dict.  The datatype and shape have
-restrictions described previously in the Dudley syntax section.  The <cite>ref</cite>
-filter is responsible for associating these special declarations with the
-item containing the <cite>&lt;- ref</cite> marker.  HDF5 and PDB files each have their own
-<cite>ref</cite> filter, but these are intended to be generated only by software
-translators that produce Dudley layouts describing the HDF5 or PDB binary
-files.</p>
-<p>The HDF5 an PDB reference or pointer objects were primarily designed to support
-a kind of “object store” feature that, at least at first glance, maps to the
-way pointers are used in C/C++ data structures.  However, C/C++ pointers do
-not map very well to scipy programs, since they objects they point to (at least
-in scientific programs) are usually ndarrays, or to dict-like or list-like
-objects containing them, which are first-class objects in scipy or Dudley.</p>
+<section id="container-specification">
+<h2>Container specification<a class="headerlink" href="#container-specification" title="Link to this heading">¶</a></h2>
+<p>Here “?” denotes zero or one occurrence, “+” denotes one or more occurrence,
+and “*” denotes zero or more occurrences.</p>
+<p>Note that the entire layout is a <strong>dict</strong>, namely the root dict.</p>
+<dl>
+<dt><strong>dict</strong>:</dt><dd><p>dictitem*</p>
+</dd>
+<dt><strong>dictitem</strong>:</dt><dd><p>name “<strong>:</strong>” data</p>
+<p>name “<strong>/</strong>” dict</p>
+<p>name “<strong>[</strong>” list “<strong>]</strong>”</p>
+<p>name “<strong>=</strong>” parameter</p>
+<p>name struct</p>
+<p>“<strong>/</strong>”</p>
+<p>“<strong>..</strong>”</p>
+</dd>
+<dt><strong>list</strong>:</dt><dd><p>listitems?</p>
+</dd>
+<dt><strong>listitems</strong>:</dt><dd><p>listitem</p>
+<p>listitem “<strong>,</strong>” listitems</p>
+</dd>
+<dt><strong>listitem</strong>:</dt><dd><p>data</p>
+<p>integer? address</p>
+<p>integer? “<strong>/</strong>” dict</p>
+<p>integer? “<strong>[</strong>” list “<strong>]</strong>”</p>
+</dd>
+</dl>
+</section>
+<section id="data-specification">
+<h2>Data specification<a class="headerlink" href="#data-specification" title="Link to this heading">¶</a></h2>
+<dl>
+<dt><strong>array</strong>:</dt><dd><p>datatype shape? address?</p>
+<p>struct shape? address?</p>
+</dd>
+<dt><strong>data</strong>:</dt><dd><p>array filter?</p>
+</dd>
+<dt><strong>parameter</strong>:</dt><dd><p>integer</p>
+<p>primitive address?</p>
+<p>name address?</p>
+</dd>
+<dt><strong>datatype</strong>:</dt><dd><p>primitive</p>
+<p>name</p>
+</dd>
+<dt><strong>struct</strong>:</dt><dd><p>“<strong>{</strong>” structbody “<strong>}</strong>”</p>
+</dd>
+<dt><strong>structbody</strong>:</dt><dd><p>structmember*</p>
+<p>“<strong>:</strong>” array</p>
+</dd>
+<dt><strong>structmember</strong>:</dt><dd><p>name “<strong>:</strong>” array</p>
+</dd>
+<dt><strong>shape</strong>:</dt><dd><p>“<strong>[</strong>” dimensions “<strong>]</strong>”</p>
+</dd>
+<dt><strong>dimensions</strong>:</dt><dd><p>dimension</p>
+<p>dimension “<strong>,</strong>” dimensions</p>
+</dd>
+<dt><strong>dimension</strong>:</dt><dd><p>integer</p>
+<p>name</p>
+<p>name “<strong>+</strong>”+</p>
+<p>name “<strong>-</strong>“+</p>
+</dd>
+<dt><strong>address</strong>:</dt><dd><p>“<strong>&#64;</strong>” integer</p>
+<p>“<strong>%</strong>” integer</p>
+</dd>
+<dt><strong>filter</strong>:</dt><dd><p>“<strong>-&gt;</strong>” name arguments?</p>
+<p>“<strong>&lt;-</strong>” name arguments?</p>
+</dd>
+<dt><strong>arguments</strong>:</dt><dd><p>“<strong>(</strong>” arglist “<strong>)</strong>”</p>
+</dd>
+<dt><strong>arglist</strong>:</dt><dd><p>argument</p>
+<p>argument “<strong>,</strong>” arglist</p>
+</dd>
+<dt><strong>argument</strong>:</dt><dd><p>integer</p>
+<p>float</p>
+</dd>
+</dl>
+</section>
+<section id="comments">
+<h2>Comments<a class="headerlink" href="#comments" title="Link to this heading">¶</a></h2>
+<p>Comments begin with “<strong>#</strong>” and extend to the next end-of line.  They are
+treated as whitespace but otherwise ignored for the purposes of building the
+layout.  However, the Dudley parser records two special types of comments,
+and associates their text with the item (array, dict, list, parameter, or
+datatype) currently being defined.</p>
+<dl>
+<dt><strong>## document comment line</strong>:</dt><dd><p>The parser keeps a list of document comment lines associated with each item.</p>
+</dd>
+<dt><strong>#: attributes</strong>:</dt><dd><p>The parser keeps a dict of attributes associated with each item.</p>
+</dd>
+<dt><strong>attributes</strong>:</dt><dd><p>attribute</p>
+<p>attribute attributes</p>
+</dd>
+<dt><strong>attribute</strong>:</dt><dd><p>name</p>
+<p>name “<strong>=</strong>” attrvalue</p>
+<p>name “<strong>=</strong>” “<strong>[</strong>” integers “<strong>]</strong>”</p>
+<p>name “<strong>=</strong>” “<strong>[</strong>” floats “<strong>]</strong>”</p>
+</dd>
+<dt><strong>attrvalue</strong>:</dt><dd><p>integer</p>
+<p>float</p>
+<p>string</p>
+</dd>
+<dt><strong>integers</strong>:</dt><dd><p>integer “<strong>,</strong>” integers</p>
+</dd>
+<dt><strong>floats</strong>:</dt><dd><p>float “<strong>,</strong>” floats</p>
+</dd>
+<dt><strong>string</strong>:</dt><dd><p>A terminal like the <strong>name</strong> terminal, except that it must be quoted.</p>
+</dd>
+</dl>
 </section>
 </section>
 
@@ -334,23 +389,23 @@ objects containing them, which are first-class objects in scipy or Dudley.</p>
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="grammar.html">
+          <a class="next-page" href="signatures.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Dudley Grammar</div>
+                <div class="title">File Names and Signatures</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="comments.html">
+          <a class="prev-page" href="filters.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Special Comments</div>
+                <div class="title">Filters</div>
                 
               </div>
             </a>
@@ -391,9 +446,11 @@ objects containing them, which are first-class objects in scipy or Dudley.</p>
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Filters</a><ul>
-<li><a class="reference internal" href="#compression-filters">Compression filters</a></li>
-<li><a class="reference internal" href="#reference-filters">Reference filters</a></li>
+<li><a class="reference internal" href="#">Dudley Grammar</a><ul>
+<li><a class="reference internal" href="#terminals">Terminals</a></li>
+<li><a class="reference internal" href="#container-specification">Container specification</a></li>
+<li><a class="reference internal" href="#data-specification">Data specification</a></li>
+<li><a class="reference internal" href="#comments">Comments</a></li>
 </ul>
 </li>
 </ul>
