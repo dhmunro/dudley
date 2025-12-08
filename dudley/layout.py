@@ -1,306 +1,40 @@
 """Build and navigate a Dudley layout.
 
-The basic API builds and navigate a layout's dict/list container tree::
+Dudley predefines prefixed primitive types from 1 to 50 as follows::
+     1  |u1  |i1  |b1  |S1  |U1
+     6  |u2  |i2  |f2  |c4  |U2
+    11  |u4  |i4  |f4  |c8  |U4
+    16  |u8  |i8  |f8  |c16  -
+    21  <u2  <i2  <f2  <c4  <U2
+    26  <u4  <i4  <f4  <c8  <U4
+    31  <u8  <i8  <f8  <c16  -
+    36  >u2  >i2  >f2  >c4  >U2
+    41  >u4  >i4  >f4  >c8  >U4
+    46  >u8  >i8  >f8  >c16  -
+Type numbers 20, 35, and 50 are reserved for a quad precision `f16`, if numpy
+ever supports that datatype on all platforms.
 
-    root = layout(dudfile)  # return root dict, dudfile optional
-    dct = dct0.dict(name)  # create (or return) a dict dct in dict dct0
-    lst = dct0.list(name)  # create (or return) a list lst in dict dct0
-    dct = lst0.dict()  # create a dict dct in list lst0
-    lst = lst0.list()  # create a list lst in list lst0
-    item = container[key]  # key is name for dict, index for list container
-    for key in container:  # Also list(dct), len(container), etc.
-        ...
-    for key, item in container.items():
-        ...
-    # Declare data array - dshape, align, and filter are optional.
-    dat = dct.data(name, datatype, dshape, align, filter)
-    dat = lst.data(datatype, dshape, align, filter)
-    # Item properties:
-    itype = item.itype  # D_PRIM, D_DATA, D_PARAM, D_DICT, D_LIST or D_TYPE
-    container = item.parent  # dict, list, or datatype, None only for root
-    root = item.root  # root container (dict)
-    # Note that the root container of a dict within a list is the dict whose
-    # parent is the list, not the root dict of the layout.
-    name = item.name  # None if item.parent is not a dict or datatype
-    datatype = item.datatype  # None for non-data item
-    dshape = item.dshape  # None for non-data item, () for scalar data item
-    align = item.align  # None for non-data item, 0 for unspecified
-    filter = item.filter  # None for non-data item or unfiltered data item
+Dudley recognizes the 19 unprefixed datatypes, and automatically creates that
+unnamed datatype as a typedef to the same type with a "|" prefix in the root
+dict on the first reference in a data array or parameter declaration.
 
-In data array declarations, datatype can be the name of a Dudley primitive
-type, like "i4", "f8", etc., or a numpy dtype, or a Dudley compound or typedef
-created using this datatype API::
-
-    typ = dct0.datatype(typename)  # create a datatype
-    typ.data(memname, datatype, dshape, align)  # add member to datatype typ
-    typ.data()  # close datatype typ
-    # Alternatively, you can add all the members as additional arguments to
-    # the original call, in which case the returned typ is already closed:
-    typ = dct0.datatype(typename,
-                        (memname, datatype, dshape, align),
-                        ...)
-    # You can retrieve members using typ[memname] and iterate over members
-    # as if typ were a dict.  The parent of a member is the datatype, and the
-    # parent of the datatype is the dict dct0 where it was declared.
-    # All dict containers have a types property for retrieving datatypes
-    # declared in them:
-    typ = dct0.types[typename]
-    for typename in dct0.types:  # Also list(dct0.types), len(dct0.types), etc.
-        ...
-    for typename, datatype in dct0.types.items():
-        ...
-    dct0.types[typename] = dtype  # declare Dudley equivalent to numpy dtype
-
-The dshape and align arguments are always optional.  The typename may be None
-to create an anonymous datatype.  An anonymous datatype may be used only once,
-and must be used in its one container.data() declaration immediately after the
-anonymous datatype itself is declared.  If the datatype has only a single
-member, the memname may be None; this is a Dudley typedef datatype.
-
-The dshape in a data array declaration is a tuple analogous to an ndarray
-shape, except that dimension lengths may be parameter references in addition
-to integer values.  The Dudley parameter API is::
-
-    param = dct0.param(name, value)  # declare a fixed value parameter
-    param = dct0.param(name, datatype, align)  # declare a dynamic parameter
-    # The datatype must be an integer primitive type (or a typedef datatype
-    # equivalent to one).  The align argument is optional.
-    value = param.value  # value if fixed, None if dynamic
-    # All dict containers have a params property for retrieving datatypes
-    # declared in them, which works somewhat differently:
-    param = dct0.params[name]  # returned param may be in ancestor of dct0
-    for param in dct0.params:
-        ...  # param.name may not be unique in dct0
-    # Retrieve all the dynamic parameters in the layout with:
-    dynamic = list(dct0.params.dynamic)  # any dct0 in layout gives same list
-    # To use a parameter in a dshape:
-    dshape = dim0, dim1, ...  # dimX may be integer or parameter reference
-    # A parameter reference is simply the param item, or param+suffix or
-    # param-suffix, where suffix is the number of "+" or "-" suffixes in the
-    # equivalent Dudley layout shape.  Suffix is limited to -32<suffix<32.
-
-The align argument can accept an absolute address as well as an alignment.  To
-do that, pass an Address object instead of simply an integer value.  Address
-is a subclass of int which is equal to the alignment if non-negative (with 0
-meaning to use default alignment for the datatype).  Negative values encode an
-byte address (relative to the beginning of an instance for a datatype member,
-otherwise relative to the beginning of the binary data stream).  You can
-decode the byte address with the address property, which will be None if the
-align represents an alignment::
-
-    align = Address(byte_address)  # encode byte_address (>=0) as an Address
-    byte_address = align.address  # None if align >= 0
-
-You can duplicate the datatype and dshape of a previous element of a list
-with the dup method::
-
-    dat = lst.dup(index, align)  # align is optional
-
-You can create filters for data array declarations using::
-
-    filter = Filter(name, arg1, arg2, ...)  # all arguments are optional
-
-Any item in a layout can have documentation comments - an array of text strings
-- and attributes - a dict mapping attribute name keys to values.  These may be
-accessed as properties on the item::
-
-    item.docs += documentation_string  # append docuemntation string to item
-    docs = item.docs  # None or a list of strings
-    item.attribs[name] = value  # create attribute for item
-    attribs = item.attribs  # None or a dict of attributes
-
-Finally, you can dump a Dudley layout as a text file with::
-
-    root.dump(dudfile)
-
-In order to use a layout read from a dudfile or build with the preceding API,
-you need to open a binary data file or stream.  The Dudley stream API is
-designed so that you do not need to explicitly reference the layout if you do
-not care about sharing layouts among many streams, but simply want use Dudley
-to write native Dudley self-describing binary files::
-
-    # In the following bd_stream a binary I/O stream
-    s_root = openbd(bd_stream)
-    s_root = openbd(bd_stream, layout_root)
-    s_root = openbd(bd_stream, layout_root, param_values)
-    s_root.flush()  # writes all buffers and layout (any s_)
-    s_root.close()
-
-In the first case, the bd_stream must be a native Dudley file with a signature
-and its layout appended to the file.  If the stream is open for writing, then
-any additions to its layout will be written to the end of the file whenever it
-is flushed or closed.
-
-In the second case, the layout is given independently of the binary I/O stream,
-and the file need not have a Dudley signature.  However, if the file is newly
-created, it will be given a Dudley signature.  Use this form to open multiple
-files sharing a common layout, avoiding the need to parse the layout for each
-call to openbd.
-
-In the third case, not only the layout, but the specific values of all the
-dynamic parameters for this particular binary I/O stream are provided, avoiding
-the need to read them from the binary stream, in addition to avoid reading and
-parsing the layout.
-
-The s_root returned by openbd corresponds to the root dict of the layout, and
-the stream interface parallels the layout interface, but with stream containers
-instead of layout constainers::
-
-    value_or_item = s_container[key]  # reads data or returns s_container
-    values = s_container()  # reads entire dict or list (optional levels arg)
-    s_dict[name] = array_like  # write array (or dtype, shape to just declare)
-    s_dict.update({...})  # dict update method works
-    s_list.append(ndarray_or_dict_or_list)  # s_list.extend() also works
-    s_list[index] = array_like  # overwrite existing item
-    values = s_container()  # reads entire dict or list (optional levels arg)
-    s_container = s_container.parent  # navigation same as layout containers
-    s_root = s_container.root  # of whole stream, not just to s_list
-    container = s_container._  # return corresponding layout container
-    for name in s_dict:  # or names = list(s_dict)
-        ...
-    for name, value_or_item in s_dict.items():
-        ---
-    for value_or_item in s_list:
-        ...
-    # For example, you can use the _ property like this:
-    item = s_container._[key]  # query key by returning its layout item
-    typ = s_dict._.types[name] = dtype  # create named Dudley datatype
-    param = s_dict._.param(name, ...)  # or params to query
-
-Note that s_root.q returns the entire layout.  If you use (dtype, shape) to
-declare an array, you may use a Dudley typ or shape containing Dudley param
-references.  Arrays declared in this way will automatically set dynamic
-parameters on first use, subsequently checking other arrays using those
-parameters match.
-
-For item names that do not conflict with its method names, an s_dict supports
-python's attribute syntax instead of its [] item syntax::
-
-    value_or_item = s_dict.name  # same as s_dict["name"]
-    s_dict.name = array_like  # or (dtype, shape) or {...} or (list, [...])
-
-To handle method or keyword name conflicts, a trailing underscore in the name
-will be removed.  (Thus if you want a name ending with underscore you need to
-add an additional underscore.  Does not apply to dunder names.)
-
-Initially, assigning to an array will overwrite any previously written value in
-the file, or fail if the new value is not conformable.  However, the Dudley
-stream interface supports a record mode, in which writing any data array
-appends to (or creates) a list item with the given name.  You turn this on or
-off for any s_dict using the s_dict.record method::
-
-    s_dict.record(True)  # turn on record mode (s_dict any dict in the stream)
-    s_dict[name] = array0
-    s_dict[name] = array1
-    s_dict[name] = array2
-    # Above sequence is equivalent to:
-    s_dict.record(False)  # turn off record mode
-    s_dict[name] = list, [array0]
-    s_dict[name].append(array1)
-    s_dict[name].append(array2)
-
-    mode = s_dict.record()  # query record mode for s_dict
-
-Since the arrays are not being overwritten, array0, array1, and array2 need not
-be conformable.
-
-Note that in record mode, you can use the s_dict.update method to append to a
-whole collection of lists with a single call.
-
-The record mode is a shorthand for writing record lists.  The corresponding
-shorthand for reading them back is::
-
-    s_dict.goto(index)  # referencing any s_list gives s_list[index]
-    s_dict.goto(var=value)  # select index where s_dict["var"] closest to value
-    s_dict.goto(None)  # exit goto mode, an s_list is again a list
-    index = s_dict.goto()  # get current goto index, None if not in goto mode
-    with s_dict.goto(index):  # temporarily set goto index
-        ...
-"""
-
-
-""" ---------------------------------------------
-At the lowest level, a Dudley layout is a list of data arrays and containers,
-collectively referred to as "items".  To avoid circular references among these
-items, internally each item is referenced by its integer index into this list.
-Items appear in the order they are declared in a Dudley layout, and item 0 is
-always the implicitly declared root dict for the layout.  By default, this
-order coincides with address order in the file.  Thus, the fastest way to read
-or write multiple data items will usually be in order of their list index.
-
-The item list comprises five different kinds of object:
-
-1. DArray (datatype, shape, alignment)
-2. DDict (named objects)
-3. DList (anonymous objects)
-4. DParam (array dimension)
-   a. Static (fixed integer value)
-   b. Dynamic (scalar integer stored in stream)
-5. DType (array data type)
-   a. Compound (sequence of named DArray members - a C struct)
-   b. Typedef (single anonymous DArray member)
-
-The index of each of these objects in the low-level list is how other objects
-refer to it.  There are two kinds of object Dudley requires which do not
-correspond to any item in the low-level list: primitive data types and
-non-parametrized array dimensions.  Since the index representing any the other
-kinds of object are non-negative, negative integers are be used for these
-special cases.
-
-Parametrized array dimensions are indicated by the id of the parameter, which
-must be greater than zero, since id zero is the root dict.  Since no actual
-dimension can be less than zero, the negative of any non-parametrized dimension
-can therefore be distinguished from a parameter id, and that is what Dudley
-uses in array shapes.
-
-Dudley recognizes 19 primitive data types:
-u1 u2 u4 u8    unsigned integers (1, 2, 4, or 8 byte)
-i1 i2 i4 i8    signed integers (1, 2, 4, or 8 byte)
-b1             boolean (1 byte)
-   f2 f4 f8    IEEE 754 floats (2, 4, or 8 byte)
-S1             ASCII, CP1252, or Latin1 character (1 byte)
-   c4 c8 c16   IEEE 754 complex (2, 4, or 8 byte re,im pairs)
-U1 U2 U4       UTF-8, UTF-16, or UTF-32 character (1, 2, or 4 byte)
-
-Bigger floating point types - f12 or f16 - are not in this list because they
-may not be present or have a standard format for some numpy implementations.
-Note that the S and U suffixes are bytes per character, unlike in the numpy
-array protocol - the number of characters in the string is the fastest varying
-dimension in Dudley.
-
-Addresses are kept in a parallel list to the items to allow multiple streams
-to share the layout.  Dynamic parameter values are also stored in a separate
-list, as are document strings and item attributes.
-
-DDict: parent, name itemid map, paramid map, typeid map,  where map[name]->id
-DList: parent, name, items[i]->id
-DData: parent, name, typeid, align, shape
-DParam: parent, name, value   (static)
-        parent, name, typeid, align, pid=dynamic parameter index   (dynamic)
-    address, if any, kept in separate global address[id] list
-DType: parent, name, item_map[name]->id   (compound)
-       parent, name, dtype, align, shape   (typedef)
-
-A higher level API relies on temporary DItem objects which have both the items
-list and the index into items.
 """
 from __future__ import absolute_import
 
 import sys
 from io import StringIO
-
+from numbers import Integral
 PY2 = sys.version_info < (3,)
 if PY2:
     from collections import OrderedDict as dict
-
-# JSON.parse, JSON.stringify in javascript
-from ast import literal_eval  # literal_eval() is inverse of str.repr()
+else:
+    basestring = str
 
 
 D_PRIM, D_DATA, DPARAM, D_DICT, D_LIST, D_TYPE = 0, 1, 2, 3, 4, 5
 
 
-class DPrim(object):
+class _Prim(object):
     """A primitive datatype.  There are exactly 5 + 14*3 = 47 instances:
 
     Five single byte primitives for which the order is | (same as < or >):
@@ -362,1415 +96,757 @@ class DPrim(object):
         self.members = None  # for compatibility with DType
 
 
-class DLayout(list):
-    def __init__(self, stream=None, ignore=0):
-        super(DLayout, self).__init__((DDict(None)))  # self[0] is root dict
-        self.params = []  # params[pid] -> id of dynamic parameter pid
+class Layout(list):
+    def __init__(self):
+        super(Layout, self).__init__((_Dict(None),))  # self[0] is root dict
+        self.params = None  # params[pid] -> id of dynamic parameter pid
         # Stream instances with this layout will have two lists of the same
         # length as these: a list of addresses the same length as self, and
         # a list of dynamic parameter values the same length as params.
         # Optional lists the same length as items are also created if the
         # layout contains any attributes or documentatation.
-        self.atts = None  # atts[id] -> {attributes of item}
-        self.docs = None  # docs[id] -> [docstrings for item]
-        self.current = 0  # initially, root is the current container
-        if stream is not None:
-            self.parse(stream, ignore)
+        self._atts = None  # atts[id] -> {attributes of item}
+        self._docs = None  # docs[id] -> [docstrings for item]
 
-    # prim[-typeid] -> DPrim for that type
-    prim = [None] + [DPrim(t) for t in ("|u1", "|i1", "|b1", "|S1", "|U1")]
-    prim += [DPrim(t) for t in ("|u2", "|i2", "|f2", "|c4", "|U2")]
-    prim += [DPrim(t) for t in ("|u4", "|i4", "|f4", "|c8", "|U4")]
-    prim += [DPrim(t) for t in ("|u8", "|i8", "|f8", "|c16")] + [None]
-    prim += [DPrim(t) for t in ("<u2", "<i2", "<f2", "<c4", "<U2")]
-    prim += [DPrim(t) for t in ("<u4", "<i4", "<f4", "<c8", "<U4")]
-    prim += [DPrim(t) for t in ("<u8", "<i8", "<f8", "<c16")] + [None]
-    prim += [DPrim(t) for t in (">u2", ">i2", ">f2", ">c4", ">U2")]
-    prim += [DPrim(t) for t in (">u4", ">i4", ">f4", ">c8", ">U4")]
-    prim += [DPrim(t) for t in (">u8", ">i8", ">f8", ">c16")] + [None, None]
+    # prim[-typeid] -> _Prim for that type
+    prim = [None] + [_Prim(t) for t in ("|u1", "|i1", "|b1", "|S1", "|U1")]
+    prim += [_Prim(t) for t in ("|u2", "|i2", "|f2", "|c4", "|U2")]
+    prim += [_Prim(t) for t in ("|u4", "|i4", "|f4", "|c8", "|U4")]
+    prim += [_Prim(t) for t in ("|u8", "|i8", "|f8", "|c16")] + [None]
+    prim += [_Prim(t) for t in ("<u2", "<i2", "<f2", "<c4", "<U2")]
+    prim += [_Prim(t) for t in ("<u4", "<i4", "<f4", "<c8", "<U4")]
+    prim += [_Prim(t) for t in ("<u8", "<i8", "<f8", "<c16")] + [None]
+    prim += [_Prim(t) for t in (">u2", ">i2", ">f2", ">c4", ">U2")]
+    prim += [_Prim(t) for t in (">u4", ">i4", ">f4", ">c8", ">U4")]
+    prim += [_Prim(t) for t in (">u8", ">i8", ">f8", ">c16")] + [None, None]
     primid = {name: -i for i, name in enumerate(prim) if name}
 
-    def resolve_type(self, idtype):
-        t = self.prim[-idtype] if idtype <= 0 else self.items[idtype]
-        return t
+    def l_item(self, index):
+        return _LItem[self[index].itype](self, index)
 
-    def resolve_shape(self, shape):
-        pass
+    def encode_dim(self, d):
+        """Encode array dimension as int, including parameter references."""
+        if isinstance(d, Integral):
+            if d < -1:
+                raise ValueError("array dimension < -1 has no meaning")
+            return d
+        offset = 0
+        if isinstance(d, ParamRef):
+            d, offset = d.l_param, d.offset
+        elif not isinstance(d, LParam):
+            raise TypeError("array dimension must be integer or "
+                            "parameter reference")
+        if d.layout != self:
+            raise TypeError("parameter not in same layout as shape")
+        return ((-d.itemid) << 6) | (offset + 32)  # less than -64
 
-    def parse(self, stream, ignore):
-        pass
+    def decode_dim(self, d):
+        """Decode array dimension to int >= -1 or parameter reference."""
+        if d >= -1:
+            return d
+        offset = (d & 63) - 32  # (d & 63) != 0 since offset >= -31
+        paramid = -(d >> 6)  # note that arithmetic right shift is correct
+        l_param = LParam(layout, paramid)
+        return ParamRef(l_param, offset) if offset else l_param
+
+    def encode_shape(self, shape):
+        """Encode array shape as int tuple, including parameter references."""
+        if shape:
+            encode = self.encode_dim
+            return tuple(encode(n) for n in shape)
+        else:
+            return None
+
+    def decode_shape(self, shape):
+        """Decode array shape to tuple of ints and parameter references."""
+        if shape:
+            decode = self.decode_dim
+            return tuple(decode(n) for n in shape)
+        else:
+            return ()
+
+    def add_item(self, parent, name, *args):
+        """Append a new _Data, _Dict, or _List to this layout."""
+        pitem = self.l_item(parent)  # LItem for parent
+        ptype = pitem.itype
+        if ptype == D_DICT and parent.get(name):
+            raise TypeError("LDict item {} previously declared".format(name))
+        datatype, args = args[0], args[1:]
+        if issubclass(datatype, type({})):  # dict is OrderedDict here for PY2
+            if ptype == D_TYPE:
+                raise TypeError("attempt to add LDict as an LType member")
+            item = _Dict(parent, name)
+        elif issubclass(datatype, list):
+            if ptype == D_TYPE:
+                raise TypeError("attempt to add LList as an LType member")
+            return self.l_item(listid)
+            item = _List(parent, name)
+        elif ptype == D_TYPE and datatype is None:
+            raise TypeError("attempt to add None as an LType member")
+        else:
+            item = _Data(parent, name, pitem.get_typeid(datatype), *args)
+        itemid = len(self)  # id for the new item
+        self.append(item)
+        return itemid
+
+    def add_param(self, parent, name, typeid, align=None):
+        """Append a new _Param to this layout."""
+        itemid = len(self)  # id for the new item
+        if typeid is None:
+            if not isinstance(align, Integral):
+                raise TypeError("fixed parameter value must be integer")
+            if align < -1:
+                raise ValueError("fixed parameter value must not be negative")
+            pid, align = align, None  # pid is value
+        else:
+            params = self.params
+            if params is None:
+                self.params = params = []
+            pid = len(params)
+            params.append(itemid)
+        item = _Param(parent, name, pid, typeid, align)
+        self.append(item)
+        return itemid
+
+    def add_type(self, parent, name,
+                 datatype=Ellipsis, shape=None, align=None):
+        """Append a new _Type to this layout."""
+        if align and align > 0 and (align & (align-1)):
+            raise ValueError("illegal alignment {}, must be power of two"
+                             .format(align))
+        # parent is guaranteed to be a Dudley dict
+        itemid = len(self)  # id for the new _Type item
+        if datatype is not Ellipsis:  # this is a typedef
+            # append new _TYpe, then immediately its anonymous member
+            self.append(_Type(parent, name, itemid+1))
+            self.add_item(itemid, None, datatype, shape, align)
+            if not align:
+                align = layout.l_item(-1).alignment
+                # note: align cannot be None - add_item would have failed
+            elif align < 0:
+                raise ValueError("cannot specify @address in typedef")
+            layout[itemid].align = align
+        else:  # this is a compound
+            # negative align marks open compound
+            self.append(_Type(parent, name, {}, -1))
+        return itemid
 
 
-class DData(object):
-    __slots__ = "parent", "name", "datatype", "shape", "align", "filter"
+class LItem(object):
+    """Common features of LDict, LList, LType, LData and LParam"""
+    __slots__ = "layout", "itemid"
+
+    def __init__(self, layout, itemid):
+        # Shared because guaranteed to be called with item of correct itype.
+        self.layout = layout
+        self.itemid = itemid
+
+    @property
+    def root0(self):
+        """outermost root dict of entire layout"""
+        return self.layout.l_item(0)
+
+    @property
+    def root(self):
+        """dict ancestor whose parent is not a dict (either root0 or list)"""
+        raw = self.layout.raw
+        while True:
+            parent = raw(self.itemid)
+
+    @property
+    def parent(self):
+        """parent container (dict, list, or datatype) of item"""
+        layout = self.layout
+        parent = layout[self.itemid].parent
+        return None if parent is None else layout.l_item(parent)
+
+    @property
+    def name(self):
+        """name of item or None"""
+        return self.layout[self.itemid].name
+
+    def get_typeid(self, datatype):
+        """return itemid of datatype relative to this LItem"""
+        layout = self.layout
+        _item = layout[self.itemid]
+        while _item.itype != D_DICT:
+            _item = layout[_item.parent]
+        return _item._get_typeid(datatype, layout)
+
+
+class LData(LItem):
+    __slots__ = ()
+    itype = D_DATA  # duplicates _Data.itype
+
+    @property
+    def datatype(self):
+        layout = self.layout
+        typeid = layout[self.itemid].typeid
+        if typeid < 0:
+            return Layout.prim[-typeid]
+        return layout.l_item(typeid) if typeid else None
+    
+    @property
+    def shape(self):
+        layout = self.layout
+        return layout.decode_shape(layout[self.itemid].shape)
+
+    @property
+    def align(self):
+        return self.layout[self.itemid].align  # an Address instance
+
+    @property
+    def alignment(self):
+        """alignment of data array item or None if address specified"""
+        rawitem = self.layout[self.itemid]
+        align = rawitem.align
+        if align:
+            return align if align > 0 else None
+        # Alignment is determined by datatype.
+        typeid = layout[self.itemid].typeid
+        if typeid == 0:
+            return None  # this is {} (None) object which has no alignment
+        elif typeid < 0:
+            return Layout.prim[-typeid].size
+        return layout.l_item(typeid).align
+
+    @property
+    def filt(self):
+        return self.layout[self.itemid].filt
+
+
+class _Data(object):
+    __slots__ = "parent", "name", "typeid", "shape", "align", "filt"
     itype = D_DATA
 
-    def __init__(self, parent, name, datatype, shape=None, align=0,
-                 filter=None):
-        self.parent = parent
+    def __init__(self, parent, name, typeid, shape=None, align=0, filt=None):
+        self.parent = parent.itemid  # parent arg is LDict, LList, or LType
         self.name = name
-        self.datatype = datatype
-        self.shape = DShape(shape or ())
-        # self.align may hold either alignment or absolute address:
-        # If it is an absolute address, align = -2 - address
-        # The -2 is chosen so that address -1 can be used to represent
-        # an undetermined address or (as yet) non-existent data, like
-        # a zero pointer in C.  An address of 0 is a real address, so it
-        # cannot be used for this purpose.  Align of 0 means that this
-        # data has no special alignmnet, so the alignment is the default
-        # for the datatype.
-        self.align = align  # if < 0, this is -2-address
-        self.filter = filter
+        self.typeid = typeid
+        self.shape = shape
+        self.align = align
+        self.filt = filt
 
 
-class DDict(object):
-    __slots__ = "parent", "name", "itemid", "paramid", "typeid"
+class LDict(LItem):
+    __slots__ = ()
+    itype = D_DICT  # duplicates _Dict.itype
+
+    @property
+    def params(self):
+        return DictParams(self)
+
+    @property
+    def types(self):
+        return DictTypes(self)
+
+    def __getitem__(self, name):
+        layout = self.layout
+        items = layout[self.itemid].items
+        return layout.l_item(items[name])
+
+    def get(self, name, default=None):
+        try:
+            return self[name]
+        except KeyError:
+            return default
+
+    def __bool__(self):
+        layout = self.layout
+        items = layout[self.itemid].items
+        return bool(self.items)
+
+    def __len__(self):
+        layout = self.layout
+        items = layout[self.itemid].items
+        return len(self.items)
+
+    def __iter__(self):
+        layout = self.layout
+        items = layout[self.itemid].items
+        def _items():
+            for iid in items:
+                yield layout.l_item(iid)
+        return _items()
+
+    def items(self):
+        layout = self.layout
+        items = layout[self.itemid].items
+        def _items():
+            for name, iid in items.items():
+                yield name, layout.l_item(iid)
+        return _items()
+
+    def __contains__(self, name):
+        layout = self.layout
+        items = layout[self.itemid].items
+        return name in self.items
+
+    def __setitem__(self, name, value):
+        if not isinstance(name, basestring):
+            raise TypeError("item name must be a text string")
+        if not isinstance(value, tuple):
+            value = (value,)
+        layout = self.layout
+        layout.add_item(self.itemid, name, *value)
+
+    def getdict(self, name):
+        if not isinstance(name, basestring):
+            raise TypeError("dict name must be a text string")
+        item = self.get(name)
+        if not item:
+            layout = self.layout
+            item = layout.l_item(layout.add_item(self.itemid, name, type({})))
+        elif item.itype != D_DICT:
+            raise TypeError("item exists but is not a dict: {}".format(name))
+        return item
+
+    def getlist(self, name):
+        if not isinstance(name, basestring):
+            raise TypeError("dict name must be a text string")
+        item = self.get(name)
+        if not item:
+            layout = self.layout
+            item = layout.l_item(layout.add_item(self.itemid, name, list))
+        elif item.itype != D_LIST:
+            raise TypeError("item exists but is not a list: {}".format(name))
+        return item
+
+
+class DictParams(object):
+    __slots__ = "l_dict", "params"  # parent LDict
+
+    def __init__(self, l_dict):
+        self.l_dict = l_dict
+        layout = l_dict.layout
+        params = layout[l_dict.itemid].params
+        self.params = {} if params is None else params
+
+    def __getitem__(self, name):
+        params = self.params
+        paramid = params.get(name)
+        if paramid is None:
+            parent = self.l_dict.parent
+            while parent and parent.itype != D_DICT:
+                parent = parent.parent
+            if not parent:  # recursion always hits this eventually
+                raise KeyError("missing parameter {}".format(name))
+            paramid = parent.params[name]  # recurse through ancestor dicts
+        return paramid
+
+    def get(self, name, default=None):
+        try:
+            return self[name]
+        except KeyError:
+            return default
+
+    def __bool__(self):
+        return bool(self.params)
+
+    def __len__(self):
+        return len(self.params)
+
+    def __iter__(self):
+        return iter(self.params)
+
+    def items(self):
+        layout = self.l_dict.layout
+        params = self.params
+        def _items():
+            for name, pid in params.items():
+                yield name, layout.l_item(pid)
+        return _items()
+
+    def __contains__(self, name):
+        return name in self.params
+
+    def __call__(self, name, type_or_value, align=None):
+        """assign parameter value"""
+        if not isinstance(name, basestring):
+            raise TypeError("parameter name must be a text string")
+        l_dict = self.l_dict
+        layout = l_dict.layout
+        dictid = l_dict.itemid
+        _dict = layout[dictid]
+        if isinstance(type_or_value, Integral):  # create fixed parameter
+            paramid = layout.add_param(dictid, name, None, type_or_value)
+        else:
+            typeid, value = _dict._get_typeid(type_or_value, layout), None
+            tid = typeid
+            while tid > 0:  # check for typedef to scalar primitive
+                item = layout[tid]
+                members = None if item.itype != D_TYPE else item.members
+                if not isinstance(members, Integral):
+                    raise TypeError("parameter {} datatype cannot be compound"
+                                    .format(name))
+                item = layout[members]
+                tid = item.typeid
+                if item.shape or item.filt:
+                    raise TypeError("parameter {} datatype must be scalar"
+                                    .format(name))
+            if tid > -1 or tid < -50 or (-1 - tid)%5 > 1:
+                raise TypeError("parameter {} datatype must be integer"
+                                .format(name))
+            paramid = layout.add_param(dictid, name, typeid, align)
+        params = _dict.params
+        if params is None:
+            self.params = _dict.params = params = {}
+        params[name] = paramid  # may update previously used name
+        return layout.l_item(paramid)  # return newly added LParam
+
+
+class DictTypes(object):
+    __slots__ = "l_dict", "types"  # parent LDict
+
+    def __init__(self, l_dict):
+        self.l_dict = l_dict
+        layout = l_dict.layout
+        types = layout[l_dict.itemid].types
+        self.types = {} if types is None else types
+
+    def __getitem__(self, name):
+        types = self.types
+        typeid = types.get(name)
+        if typeid is None:
+            parent = self.l_dict.parent
+            while parent and parent.itype != D_DICT:
+                parent = parent.parent
+            if not parent:  # recursion always hits this eventually
+                raise KeyError("missing type {}".format(name))
+            typeid = parent.types[name]  # recurse through ancestor dicts
+        return typeid
+
+    def get(self, name, default=None):
+        try:
+            return self[name]
+        except KeyError:
+            return default
+
+    def __bool__(self):
+        return bool(self.types)
+
+    def __len__(self):
+        return len(self.types)
+
+    def __iter__(self):
+        return iter(self.types)
+
+    def items(self):
+        layout = self.l_dict.layout
+        types = self.types
+        def _items():
+            for name, tid in types.items():
+                yield name, layout.l_item(tid)
+        return _items()
+
+    def __contains__(self, name):
+        return name in self.types
+
+    def __call__(self, name, datatype=Ellipsis, shape=None, align=None):
+        l_dict = self.l_dict
+        layout = l_dict.layout
+        types = self.types
+        if name is not None:
+            if not isinstance(name, basestring):
+                raise TypeError("type name must be a text string or None")
+            if types is not None and name in types:
+                raise ValueError("type name previously declared: {}"
+                                 .format(name))
+        typeid = layout.add_type(l_dict.itemid, name, datatype, shape, align)
+        return layout.l_item(typeid)
+
+
+class _Dict(object):
+    __slots__ = "parent", "name", "items", "params", "types"
     itype = D_DICT
 
     def __init__(self, parent, name=None):
         self.parent = parent
         self.name = name
-        self.itemid = {}
-        self.paramid = {}
-        self.typeid = {}
+        self.items = {}
+        self.params = self.types = None
+
+    def _get_typeid(self, datatype, layout):
+        if isinstance(datatype, (LPrim, LType)):
+            return datatype.itemid
+        if not isinstance(datatype, basestring):
+            if datatype is None:
+                return 0
+            raise TypeError("expecting type as name, LPrim, or LType, got {}"
+                            .format(datatype))
+        _dict, types = self, self.types
+        while True:
+            if types is not None:
+                typeid = types.get(datatype)
+                if typeid is not None:
+                    return typeid
+            parent = _dict.parent
+            if parent is None:  # _dict is root dict of layout
+                # check for primitive type
+                name = datatype
+                if name[:1] not in "<>|":
+                    name = "|" + name
+                typeid = Layout.primid.get(name)
+                if typeid is not None:
+                    if name != datatype:
+                        # add unprefixed primitive datatype to layout root dict
+                        typeid = layout.add_prim(0, datatype, typeid)
+                    return typeid
+                raise KeyError("datatype {} not found in scope"
+                               .format(datatype))
+            _dict = layout[parent]
+            while _dict.itype != D_DICT:  # skip over list containers
+                _dict = layout[_dict.parent]
+            types = _dict.types
+
+    def _get_paramid(self, param, layout):
+        if isinstance(param, LParam):
+            return param.itemid
+        if not isinstance(param, basestring):
+            raise TypeError("expecting parameter as name or LParam, got {}"
+                            .format(param))
+        _dict, params = self, self.params
+        while True:
+            if params is not None:
+                paramid = params.get(param)
+                if paramid is not None:
+                    return paramid
+            parent = _dict.parent
+            if parent is None:  # _dict is root dict of layout
+                raise KeyError("parameter {} not found in scope".format(param))
+            _dict = layout[parent]
+            while _dict.itype != D_DICT:  # skip over list containers
+                _dict = layout[_dict.parent]
+            params = _dict.params
 
 
-class DList(list):
-    __slots__ = "parent", "name"
+class LList(LItem):
+    __slots__ = ()
+    itype = D_LIST
+
+    def __getitem__(self, index):
+        layout = self.layout
+        itemid = layout[self.itemid].items[index]
+        if isinstance(itemid, list):
+            return [layout.l_item(i) for i in itemid]
+        return layout.l_item(itemid)
+
+    def __len__(self):
+        layout = self.layout
+        return len(layout[self.itemid].items)
+
+    def __iter__(self):
+        layout = self.layout
+        items = layout[self.itemid].items
+        def _items():
+            for iid in items:
+                yield layout.l_item(iid)
+        return _items()
+
+    # No extend method for LList.
+    def append(self, datatype, *args):
+        if isinstance(datatype, LData):
+            # datatype is template for datatype and shape
+            args = (datatype.shape,) + args  # optional args is align
+            datatype = datatype.datatype
+        layout, selfid = self.layout, self.itemid
+        selfid.items.append(layout.add_item(selfid, None, datatype, *args))
+
+    def __iadd__(self, rop):
+        if not isinstance(rop, tuple):
+            rop = (rop,)
+        self.append(*rop)
+
+    def __add__(self, rop):
+        self += rop
+        return self[-1]
+
+    def getdict(self, index):
+        item = self[index]
+        if item.itype != D_DICT:
+            raise TypeError("list item {} is not a dict".format(index))
+        return item
+
+    def getlist(self, index):
+        item = self[index]
+        if item.itype != D_LIST:
+            raise TypeError("list item {} is not a list".format(index))
+        return item
+
+
+class _List(_Item):
+    __slots__ = "parent", "name", "items"
     itype = D_LIST
 
     def __init__(self, parent, name=None):
         self.parent = parent
         self.name = name
-        super(DList, self).__init__()
+        self.items = []
 
 
-class DParam(object):
-    __slots__ = "parent", "name", "datatype", "pid", "align"
-    itype = D_PARAM
-
-    def __init__(self, parent, name, datatype, pid, align=0):
-        self.parent = parent
-        self.name = name
-        self.datatype = datatype  # None for static, DType id for dynamic
-        self.pid = pid  # If datatype is None, this is static value
-        self.align = align  # ignored for static parameter
-
-
-class DShape(tuple):
-    """a tuple with shape(stream) method to expand parameter references"""
+class LParam(LItem):
     __slots__ = ()
-
-    def __new__(cls, *args):
-        shape = []
-        for arg in args:
-            try:
-                if arg >= 0:  # TypeError if arg is tuple or list
-                    shape.append(arg)  # plain non-negative integer
-                    continue
-                arg, sfx = -arg, 0  # assume <0 is minus paramid shorthand
-            except (TypeError, ValueError):  # ValueError if arg is ndarray
-                arg, sfx = arg  # (paramid, suffix) for P+ or P- references
-                if sfx < -31 or sfx > 31 or arg <= 0:
-                    raise ValueError("illegal parameter reference")
-            shape.append((arg, sfx))
-        super(DShape, self).__new__(cls, shape)
-
-    def shape(self, stream):
-        """return array shape with any parameter references expanded"""
-        shape = []
-        for dim in self:
-            if isinstance(dim, tuple):
-                paramid, sfx = dim
-                param = stream.layout[paramid]
-                pid = param.pid
-                if param.datatype is None:
-                    dim = pid  # fixed parameter value
-                else:
-                    dim = stream.param(pid)  # get dynamic parameter value
-                if dim < 0:
-                    continue  # dynamic dimension -1 omitted from shape
-                if dim:
-                    dim += sfx  # if dimension is non-zero, add suffix
-            shape.append(dim)
-        return tuple(shape)
-
-
-class DType(object):
-    __slots__ = "parent", "name", "members", "align"
-    itype = D_TYPE
-    # Note: Named types must have a dict as parent.
-    # Anonymous types must have the same parent as the (only) array with that
-    #   datatype, and that array aill immediately follow them.
-
-    def __init__(self, parent, name=None):
-        self.parent = parent
-        self.name = name
-        # Initialize to unfinished DType, must call DItem.finish_type
-        # to set members and align properly.
-        self.members = None  # dict for compound, int for typedef (DData id)
-        self.align = 0
-
-
-class DItem(object):
-    __slots__ = "layout", "item"
-    def __init__(self, layout, item):
-        self.layout = layout
-        self.item = item
-
-    @property
-    def itype(self):
-        return self.layout[self.item].itype
-
-    @property
-    def root(self):
-        return DItem(layout, 0)
-
-    @property
-    def parent(self):
-        layout = self.layout
-        return DItem(layout, layout[self.item].parent)
-
-    @property
-    def name(self):
-        return self.layout[self.item].name
-
-    @property
-    def items(self):
-        layout = self.layout
-        this = layout[self.item]
-        if this.itype == D_DICT:
-            return DItems(layout, this.itemid)
-        elif this.itype == D_LIST:
-            return DElements(layout, this)
-        raise TypeError("only dict and list have items")
-
-    @property
-    def param(self, name):
-        layout = self.layout
-        item = layout[self.item]
-        while item.itype != D_DICT or name not in item.paramid:
-            if not item:
-                return None
-            item = layout[item.parent]
-        return item.paramid[name]
-
-    @property
-    def types(self):
-        layout = self.layout
-        this = layout[self.item]
-        if this.itype == D_DICT:
-            return DItems(layout, this.typeid)
-        raise TypeError("only dict has types")
-
-    @property
-    def members(self):
-        layout = self.layout
-        this = layout[self.item]
-        if this.itype == D_TYPE:
-            members = this.members
-            if isinstance(members, dict):
-                return DItems(layout, members)
-            elif members is not None:
-                return DItem(layout, members)
-        raise TypeError("only struct type has members")
+    itype = D_PARAM
 
     @property
     def datatype(self):
         layout = self.layout
-        this = layout[self.item]
-        if this.itype not in (D_DATA, D_PARAM):
-            return None
-        typeid = this.datatype
-        if typeid > 0:
-            return DItem(layout, typeid)
-        return layout.primitives[-typeid]  # What are these objects?
+        typeid = layout[self.itemid].typeid
+        if typeid < 0:
+            return Layout.prim[-typeid]
+        return layout.l_item(typeid) if typeid else None
+    
+    @property
+    def align(self):
+        return self.layout[self.itemid].align  # an Address instance
 
     @property
-    def shape(self):
-        layout = self.layout
-        this = layout[self.item]
-        if this.itype != D_DATA:
-            return None
-        return this.shape  # always a DShape = tuple + shape(stream) method
+    def alignment(self):
+        """alignment of data array item or None if address specified"""
+        rawitem = self.layout[self.itemid]
+        align = rawitem.align
+        if align:
+            return align if align > 0 else None
+        # Alignment is determined by datatype.
+        typeid = layout[self.itemid].typeid
+        if typeid == 0:
+            return None  # this is {} (None) object which has no alignment
+        elif typeid < 0:
+            return Layout.prim[-typeid].size
+        return layout.l_item(typeid).align
 
-    @property
-    def align0(self):  # may be 0 if this is data or param
-        this = self.layout[self.item]
-        if this.itype not in (D_DATA, D_PARAM, D_TYPE):
-            return None
-        align = this.align
-        align = None if align < 0 else align
+    def __add__(self, rop):
+        if not isinstance(rop, Integral):
+            raise TypeError("parameter reference offset must be an integer")
+        if rop < -31 or rop > 31:
+            raise ValueError("parameter reference offset too large (>31)")
+        return ParamRef(self, rop)
 
-    @property
-    def align(self):   # true alignment, always > 0
-        layout = self.layout
-        this = layout[self.item]
-        if this.itype not in (D_DATA, D_PARAM, D_TYPE):
-            return None
-        align = this.align
-        if align < 0:
-            return 1  # absolute address specified
-        elif align:
-            return align  # alignment specified
-        # Otherwise, alignment is inherited from type
-        return DItem(layout, this.datatype).datatype.align0
-
-    @property
-    def address(self):
-        this = self.layout[self.item]
-        if this.itype not in (D_DATA, D_PARAM) or this.datatype is None:
-            return None
-        align = this.align
-        return -2 - align if align < 0 else None
-
-    def finish_type(self):
-        layout = self.layout
-        item = self.item
-        this = layout[item]
-        first = item + 1
-        last = len(layout)
-        if last == first + 1 and layout[first].name is None:  # typedef
-            this.members = first
-            this.align = layout[first].align
-        else:  # compound
-            members = {}
-            align = 0
-            for i in range(first, last):
-                member = layout[i]
-                if member.parent != item or member.itype != D_DATA:
-                    continue
-                member = DItem(layout, i)
-                members[member.name] = i
-                a = member.align
-                if a > align:
-                    align = a
-            this.members = members
-            this.align = align
+    def __sub__(self, rop):
+        return self + (-rop)
 
 
-class DItems(object):
-    __slots__ = "layout", "idmap"
-    def __init__(self, layout, idmap):
-        self.layout = layout
-        self.idmap = idmap
+class ParamRef(object):
+    __slots__ = "l_param", "offset"
 
-    def __len__(self):
-        return len(self.idmap)
-
-    def __getitem__(self, key):
-        return DItem(self.layout, self.idmap[key])
-
-    def __contains__(self, key):
-        return key in  self.idmap
-
-    def __iter__(self):
-        return iter(self.idmap)
-
-    def get(self, key, default=None):
-        return DItem(self.layout, self.idmap.get(key, default))
-
-    def items(self):
-        layout = self.layout
-        itit = self.idmap.items()
-        def iteritems():
-            for name, item in itit:
-                yield name, DItem(layout, item)
-        return iteritems()
+    def __init__(self, l_param, offset=0):
+        self.l_param = l_param
+        self.offset = offset
 
 
-class DElements(object):
-    __slots__ = "layout", "idlist"
-    def __init__(self, layout, idlist):
-        self.layout = layout
-        self.idlist = idlist
+class _Param(object):
+    __slots__ = "parent", "name", "pid", "typeid", "align"
+    itype = D_PARAM
 
-    def __len__(self):
-        return len(self.idlist)
-
-    def __getitem__(self, index):
-        return DItem(self.layout, self.idlist[index])
-
-    def __iter__(self):
-        return iter(self.idlist)
-
-
-
-
-
-# =============================== OBSOLETE =========================
-class DParam(object):
-    itype = D_PARAM  # item type
-
-    def __init__(self, layout, item):
-        self.layout = layout
-        self.item = item
-
-
-class DDict(object):
-    __slots__ = "parent", "itemid", "paramid", "typeid", "names"
-    itype = D_DICT  # item type
-
-    def __init__(self, parent):
+    def __init__(self, parent, name, pid, typeid=None, align=None):
         self.parent = parent
-        self.itemid = {}
-        self.names = {}
-        self.paramid = self.typeid = None
-
-    def insert(self, layout, name, item):
-        itype = item.itype
-        id_ = len(layout.items)
-        if itype == D_TYPE:
-            if not self.typeid:
-                self.typeid = {}
-            if name in self.typeid:
-                raise ValueError("type {} previously declared".format(name))
-            self.typeid[name] = id_
-        elif itype == D_PARAM:
-            if not self.paramid:
-                self.paramid = {}
-            self.paramid[name] = id_  # possibly replaces previous declaration
-        else:
-            if name in self.itemid:
-                raise ValueError("item {} previously declared".format(name))
-            self.itemid[name] = id_
-        self.names[id_] = name
-        layout.items.append(item)
+        self.name = name
+        self.pid = pid  # value if typeid is None
+        self.typeid = typeid  # fixed if None, else dynamic
+        self.align = align
 
 
-class DList(object):
-    __slots__ = "parent", "itemid"
-    itype = D_LIST  # item type
-
-    def __init__(self, parent):
-        self.parent = parent
-        self.itemid = []
-
-    def insert(self, layout, item):
-        if item.itype in (1, 4):
-            raise ValueError("cannot insert param or dtype into DList")
-        self.itemid.append(len(layout.items))
-        layout.items.append(item)
-
-
-class DType(object):
-    __slots__ = "parent", "itemid", "align", "closed"
-    itype = D_TYPE  # item type
-
-    def __init__(self, parent):
-        self.parent = parent
-        self.itemid = None
-        self.align = 1
-        self.closed = False
+class LType(LItem):
+    __slots__ = ()
+    itype = D_TYPE
 
     def close(self):
-        self.closed = True
+        layout = self.layout
+        item = layout[self.itemid]
+        align = item.align
+        if align >= 0:
+            raise TypeError("attempt to close LType that is not open")
+        item.align = -align  # align >= 0 marks closed compound
 
-    def insert(self, layout, name, item, offset=None):
-        if item.itype != D_DATA:
-            raise ValueError("can only insert data arrays into DType")
-        align = layout.resolve_dtype(item.idtype).align
-        id_ = len(layout.items)
-        if name is None:
-            if self.itemid is not None:
-                raise ValueError("anonymous DType member must be only member")
-            self.itemid = id_  # this DType is a typedef
-            self.align = align
-            self.closed = True
-        elif self.closed:
-            raise ValueError("cannot insert member in closed DType")
-        else:
-            if not self.itemid:
-                self.itemid = {}
-            self.itemid[name] = id_
-            if align > self.align:
-                self.align = align
-        layout.items.append(item)
+    @property
+    def _check_closed(self):
+        layout = self.layout
+        item = layout[self.itemid]
+        if item.align < 0:
+            raise TypeError("__setitem__ is only legal method for open LType")
+        return layout, item
 
+    @property
+    def typedef(self):
+        layout, item = self._check_closed
+        membs = item.members
+        return layout.l_item(membs) if isinstance(membs, Integral) else None
 
-class DLayout(list):
-    def __init__(self, filename=None, stream=None, text=None,
-                 ignore=0, order="|"):
-        super(DLayout, self).__init__()
-        self.filename = filename
-        self.default_order = order  # default is native order
-        self.ignore = ignore  # 1 bit attributes, 2 bit doc comments
-        self.attrs = None if ignore & 1 else []
-        self.docs = None if ignore & 2 else []
-        self.addrs = None  # created only if layout has explicit addresses
-        self.skeleton = []
-        DDict(self)  # create root dict as skeleton[0]
-        if filename is not None:
-            with open(filename) as stream:
-                self.parse(stream)
-        else:
-            if text is not None:
-                if PY2:
-                    if isinstance(text, str):
-                        try:
-                            text = text.decode("utf-8")
-                        except UnicodeDecodeError:
-                            text = text.decode("latin1")
-                stream = StringIO(text)
-            self.parse(stream)
-
-    primitives = set("f2", "f4", "f8", "i1", "i2", "i4", "i8",
-                     "u1", "u2", "u4", "u8", "S1", "U1", "U2", "U4",
-                     "b1", "c2", "c4", "c8")
-
-    def get_type(self, name):
-        dudtype = self.types.get(name)
-        if dudtype is not None:
-            return dudtype  # already seen this type
-        order = name[0]
-        if order in "><|":
-            name = name[1:]
-        else:
-            order = ""
-        if name in self.primitives:
-            dudtype = DType(self, (order or "|") + name)
-            self.types[order+name] = dudtype
-        elif order:
-            raise ValueError("illegal type name {}".format(order+name))
-        return dudtype
-
-    def parse(self, stream):
-        tokens = DTokenizer(stream, self.ignore)
-        default_order = None  # default byte order will come from binary file
-        if tokens.peek()[0] in ("<", ">"):  # e.g.- netCDF always >
-            self.default_order = tokens.next()[0]
-        self.summary = None
-        root = DDict(self)
-        if tokens.peek()[0] == "{":
-            # Summary block, if present, is both a struct datatype and the
-            # leading items in the root dict for the layout.
-            summary = DType(self)
-            summary.parse(tokens)  # parses everthing in {} as struct type
-            root.update(summary)  # summary items also begin the root group
-            self.summary = summary
-        
-        stack = []
-        containers = [layout.root]
-        errors = []
-
-    def add(self, item, parent=None, name=None):
-        skeleton = self.skeleton
-        me = len(skeleton)
-        if parent is None:
-            if me:
-                raise ValueError("only root dict has no parent")
-            p = None
-        else:
-            p = skeleton[parent]
-            if not (p.isdict or p.islist):
-                raise ValueError("dict parent must be either dict or list")
-        item.me = me  # index into skeleton
-        skeleton.append(item)
-        item.parent = parent  # index into skeleton or None for root
-        if p and parent.islist:
-            if item.isparam or item.istype:
-                raise ValueError("parameter or type cannot be child of list")
-            name = len(p)
-            p.append(me)
-        elif p:
-            if p.isdict:
-                if name is None:
-                    raise ValueError("child of dict cannot be anonymous")
-            elif item.isparam or item.istype:
-                raise ValueError("parent of parameter or type must be dict")
-            elif p.istype:
-                if not item.isdata:
-                    raise ValueError("only data can be child of type")
-                if name is None and len(p):
-                    raise ValueError("child of type cannot be anonymous")
-                elif p.get(None):
-                    raise ValueError("typedef type cannot have named member")
+    def __getitem__(self, name):
+        layout, item = self._check_closed
+        members = item.members
+        if isinstance(members, Integral):
+            if name == 0:
+                return layout.l_item(members)
             else:
-                raise ValueError("data or parameter cannot be parent")
-            p[name] = me
-        item.namex = name
+                raise KeyError("only legal key for typedef is integer 0")
+        return layout.l_item(members[name])
 
-    def add_data(self, parent, name, dtype, shape=None, filt=None, addr=None):
-        pass
+    def get(self, name, default=None):
+        try:
+            return self[name]
+        except KeyError:
+            return default
 
-    def open_dict(self, parent, name=None):
-        pass
+    def __bool__(self):
+        layout, item = self._check_closed
+        members = item.members
+        return True if isinstance(members, Integral) else bool(members)
 
-    def open_list(self, parent, name=None):
-        pass
+    def __len__(self):
+        layout, item = self._check_closed
+        members = item.members
+        return 1 if isinstance(members, Integral) else len(members)
 
-    def add_param(self, parent, name=None):
-        pass
+    def __iter__(self):
+        layout, item = self._check_closed
+        members = item.members
+        if isinstance(members, Integral):
+            return iter((0,))
+        else:
+            return iter(members)
 
-    def open_type(self, parent, name=None):
-        pass
+    def items(self):
+        layout, item = self._check_closed
+        members = item.members
+        if isinstance(members, Integral):
+            return iter(((0, layout.l_item(members)),))
+        def _items():
+            for name, iid in members.items():
+                yield name, layout.l_item(iid)
+        return _items()
 
-    def close_container(self, all=False):
-        pass
+    def __contains__(self, name):
+        layout, item = self._check_closed
+        members = item.members
+        if isinstance(members, Integral):
+            return name in (0,)
+        return name in members
+
+    def __setitem__(self, name, value):
+        layout = self.layout
+        item = layout[self.itemid]
+        if item.align >= 0:
+            raise TypeError("__setitem__ is illegal method for closed LType")
+        if not isinstance(name, basestring):
+            raise TypeError("item name must be a text string")
+        if not isinstance(value, tuple):
+            value = (value,)
+        layout.add_item(self.itemid, name, *value)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
 
 
-class DDict(dict):
-    isdict = True  # test flag for each of the five object types
-    islist = isdata = istype = isparam = False
+class _Type(object):
+    __slots__ = "parent", "name", "members", "align"
+    itype = D_TYPE
 
-    def __init__(self, layout, parent=None, name=None):
-        super(DDict, self).__init__()
-        layout.add(self, parent, name)  # sets me, parent, namex
-        self.types = self.params = None
-
-
-class DType(dict):
-    istype = True
-    isdict = islist = isdata = isparam = False
-
-    def __init__(self, layout, parent=None, name=None):
-        super(DType, self).__init__()
-        layout.add(self, parent, name)  # sets me, parent, namex
-
-
-class DList(list):
-    islist = True
-    isdict = isdata = istype = isparam = False
-
-    def __init__(self, layout, parent, name=None):
-        super(DList, self).__init__()
-        self.layout = layout
-        self.me = len(layout)
-        layout.append(self)
+    def __init__(self, parent, name, members, align=None):
         self.parent = parent
-        parent = layout[parent]
-        if parent.islist:
-            namex = len(parent)
-            parent.append(self.me)
-        elif parent.isdict:
-            namex = name
-            if name in parent:
-                raise ValueError("{} already declared".format(name))
-            parent[name] = self.me
-        else:
-            raise ValueError("DList parent must be DDict or DList")
-        self.namex = namex
-        self.doc = self.attrs = None
-
-
-class DData(object):
-    isdata = True
-    islist = isdict = istype = isparam = False
-
-    def __init__(self, layout, parent, name, dtype, shape=None, addr=None,
-                 filt=None):
-        self.layout = layout
-        self.me = len(layout)
-        layout.append(self)
-        self.parent = parent
-        parent = layout[parent]
-        if parent.islist and self.isdata:
-            namex = len(parent)
-            parent.append(self.me)
-        elif parent.isdict or parent.istype:
-            namex = name
-            defs = parent if self.isdata else parent.params
-            if name in defs:
-                raise ValueError("{} already declared".format(name))
-            defs[name] = self.me
-        else:
-            raise ValueError("illegal parent for DData or DParam")
-        self.namex = namex
-        if dtype >= 0:
-            if not layout[dtype].istype:
-                raise ValueError("illegal data type for DData or DParam")
-        self.dtype = dtype
-        self.shape = shape
-        self.addr = addr
-        self.filt = filt
-        self.doc = self.attrs = None
-
-
-class DParam(DData):
-    isparam = True
-    islist = isdata = isdict = istype = False
-
-    def __init__(self, layout, parent, name, dtype, addr=None):
-        super(DParam, self).__init__(layout, parent, name, dtype, None, addr)
-        dtype = self.dtype
-        if dtype >= 0:
-            dtype = layout[dtype]
-            dtype = dtype.primitive if dtype.istype else 32
-        else:
-            dtype = -dtype
-        order = dtype & 3
-        if dtype >> 2 > 7:
-            raise ValueError("DParam must have integer data type")
-
-
-class DudleySyntax(Exception):
-    def __init__(self, message):
-        self.message = message
-
-    def __str__(self):
-        return self.message
-
-
-class DParser(object):
-    def __init__(layout):
-        self.layout = layout
-
-    def __call__(stream):
-        # yacc error recovery:
-        # 1. discards previous tokens until error is acceptable
-        # 2. discards subsequent tokens until an error production matches
-        # 3. resumes parse from that point
-        # 4. no new errors until 3 tokens pushed successfully
-        """
-        0 $accept: layout $end
-
-        1 layout: dict_items
-        2       | preamble dict_items
-        3       | preamble
-        4       | <empty>
-
-        5 dict_items: dict_item
-        6           | dict_items dict_item
-        """
-        self.tokens = tokens = DTokenizer(stream)
-        self.state = []
-        self.errors = []
-        root = getattr(layout, "root")
-        if root is None:
-            layout.root = root = DGroup(layout)
-            self.preamble()
-        containers = [root]  # container stack: DDict, DList, DType objects
-        token = tokens.peek()
-        while token[0] != "eof":
-            current = containers[-1]
-            if current.isdict:
-                self.dict_item()
-            elif current.islist:
-                self.list_item()
-            elif current.istype:
-                self.struct_item()
-
-        # shift: push token as item, goto new state
-        # reduce: pop n tokens, push item from rule, goto new state
-
-    # reliable reduction rules are ones which accept error:
-    # dict_item, list_item, struct_item, dimension, filter_args
-    #   these always reduce to something and any backtracking is internal?
-
-    def preamble(self):  # ["<" | ">" | "|"] struct_def
-        """
-        51 order: LT
-        52      | GT
-
-        53 preamble: order
-        54         | order LCURLY template_params RCURLY
-        55         | LCURLY template_params RCURLY
-
-        56 template_params: SYMBOL COLON PRIMTYPE
-        57                | template_params SYMBOL COLON PRIMTYPE
-        58                | error
-        """
-        layout, tokens = self.layout, self.tokens
-        token = tokens.peek()
-        if token[0] in "<>":
-            layout.default_order = token[0]
-            tokens.next()
-            token = tokens.peek()
-        self.process_comments(root)
-        if token[0] == "{":
-            symb_quot_prim = self.symb_quot_prim
-            root = layout.root
-            layout.template = template = DType(layout)
-            param = None
-            token = symb_quot_prim(tokens.next())
-            recovering = False
-            while token[0] != "}":
-                try:
-                    self.process_comments(param if param else root)
-                    if token[0] in ("symbol", "quoted"):
-                        name = token[1]
-                    else:
-                        if token[0] in "@%":
-                            raise DudleySyntax("explicit address illegal"
-                                               " in template")
-                        else:
-                            raise DudleySyntax("expecting parameter name"
-                                               " in template")
-                    token = tokens.next()
-                    if token[0] != ":":
-                        raise DudleySyntax("expecting : after {} in template"
-                                           "".format(name))
-                    token = tokens.next()
-                    prim = token[0] if prim == "primtype" else None
-                    if prim:
-                        prim = token[1]
-                        i = 1 if prim[0] in "<>|" else 0
-                        if prim[i] not in "iu":
-                            prim = None
-                    if not prim:
-                        raise DudleySyntax("{} must be i or u primtype"
-                                           " in template".format(name))
-                    param = root.param_def(name, token[1])
-                    template.param_def(name, token[1])
-                    token = symb_quot_prim(tokens.next())
-                    recovering = False
-                except (DudleySyntax, ValueError) as e:
-                    if not recovering:
-                        recovering = True
-                        self.report_error(str(e))
-                    token = symb_quot_prim(tokens.next())
-            tokens.peek()  # process any comments after }
-            self.process_comments(template)
-
-    @staticmethod
-    def symb_quot(token):
-        return ("symbol", token[1]) if token[0] == "quoted" else token
-
-    @staticmethod
-    def symb_quot_prim(token):
-        t0 = token[0]
-        if t0 == "quoted" or (t0 == "primtype" and token[1][0] not in "<>|"):
-            return "symbol", token[1]
-        return token
-
-    def param_def(self):
-        tokens = self.tokens
-        dtype = addr = None
-        token = tokens.next()
-        if token[0] == "int":
-            dtype = token[1]  # an int value rather than a string primtype
-        elif token[0] == "primtype":
-            dtype = token[1]
-            i = 1 if dtype[0] in "<>|" else 0
-            token = tokens.peek()
-            if token[0] in "@%":
-                addr = self.address_align()
-            if dtype[i] not in  "iu" or token[0] == "[":
-                raise DudleySyntax("parameter must be scalar i or u type")
-        else:
-            raise DudleySyntax("expecting int parameter value or primtype")
-        return dtype, addr
-
-    def dict_item(self):
-        """
-         7 dict_item: data_param
-         8          | SYMBOL SLASH
-         9          | SYMBOL list_def
-        10          | SYMBOL struct_def
-        11          | SYMBOL list_extend
-        12          | SLASH
-        13          | DOTDOT
-        14          | AMP data_item
-        15          | error
-
-        16 data_param: SYMBOL EQ data_item
-        17           | SYMBOL COLON INTEGER
-        18           | SYMBOL COLON PRIMTYPE placement
-        """
-        layout, tokens, containers = self.layout, self.tokens, self.containers
-        symb_quot_prim, symb_quot = self.symb_quot_prim, self.sym_quot
-        current = containers[-1]  # guaranteed to be a DDict
-        try:
-            token = symb_quot_prim(tokens.peek())
-            if token[0] == "symbol":
-                name = tokens.next()[1]
-                token = tokens.peek()
-                if token[0] == "=":
-                    tokens.next()
-                    current.add(name, *self.data_item())
-                elif token[0] == ":":
-                    tokens.next()
-                    current.add_param(name, *self.param_def())
-                elif token[0] == "[":
-                    tokens.next()
-                    containers.append(current.open_list(name))
-                elif token[0] == "/":
-                    tokens.next()
-                    containers.append(current.open_dict(name))
-                elif token[0] == "{":
-                    tokens.next()
-                    containers.append(layout.open_type(name))
-                elif token[0] in "@%":
-                    addrs = self.list_extend()
-                    item = current.get(name)
-                    if item is None or not item.islist or not len(item):
-                        raise DudleySyntax("{} must be existing non-empty"
-                                           " list".format(name))
-                    while addr in addrs:
-                        item.duplicate_last(addr)
-                    self.process_comments(item)
-                else:
-                    raise DudleySyntax("one of =:[/{{@% must follow name {}"
-                                       "".format(name))
-            elif token[0] == "..":
-                tokens.next()
-                containers.pop()
-                if not containers or not containers[-1].isdict:
-                    containers.append(current)
-                    raise DudleySyntax("cannot .. from top level dict")
-                return
-            elif token[0] == "/":
-                tokens.next()
-                while len(containers) > 1 and containers[-1].isdict:
-                    containers.pop()
-            elif token[0] == ",":
-                while len(containers) > 1 and containers[-1].isdict:
-                    containers.pop()
-                if len(containers) > 1 and containers[-2].islist:
-                    containers.pop()
-                else:
-                    raise DudleySyntax("comma separator not allowed in a dict")
-            elif token[0] == "&":
-                tokens.next()
-                self.data_item()
-            else:
-                raise DudleySyntax("expecting dict item name or"
-                                   " cd-like command")
-        except (DudleySyntax, ValueError) as e:
-            self.report_error(str(e))
-
-    def data_item(self):
-        """
-        19 data_item: PRIMTYPE shape filter placement
-        20          | SYMBOL shape filter placement
-        21          | struct_def shape filter placement
-
-        22 shape: LBRACK dimensions RBRACK
-        23      | <empty>
-
-        24 dimensions: dimension
-        25           | dimensions COMMA dimension
-
-        26 dimension: INTEGER
-        27          | SYMBOL
-        28          | SYMBOL PLUSSES
-        29          | SYMBOL MINUSES
-        30          | error
-
-        31 placement: address_align
-        32          | <empty>
-        """
-        layout, tokens = self.layout, self.tokens
-        token = tokens.next()
-        if token[0] in ("primtype", "symbol", "quoted"):
-            dtype = layout.lookup_type(token[1])
-        elif token[0] == "{":
-            dtype = layout.open_type()  # anonymous type
-            containers.append(dtype)
-            n = len(containers)
-            while len(containers) == n and tokens.peek()[0] != "eof":
-                self.struct_item()
-        else:
-            raise DudleySyntax("expecting type name or anonymous struct")
-        shape = filt = addr = None
-        token = tokens.peek()
-        if token[0] == "[":
-            symb_quot = self.symb_quot
-            tokens.next()
-            shape = []
-            nerrs = 0
-            while True:
-                token = symb_quot(tokens.next(token))
-                if token[0] == "int":
-                    shape.append(token[1])
-                elif token[0] == "symbol":
-                    param = token[1]
-                    token = tokens.peek()
-                    if token[0] in "+-":
-                        tokens.next()
-                        param = (param, token[1])
-                    shape.append(param)
-                else:
-                    nerrs += 1
-                    if token[0] == "]":
-                        break
-                token = token.next()
-                if token[0] == "]":
-                    break
-                if token[0] != ",":
-                    nerrs += 1
-            if nerrs:
-                raise DudleySyntax("shape must be [dim1, dim2, ...]")
-        token = tokens.peek()
-        if token[0] in ("->", "<-"):
-            filt = self.filter()
-        token = tokens.peek()
-        if token[0] in "@%":
-            addr = self.address_align()
-        return dtype, shape, addr, filt
-
-    def address_align(self):
-        """
-        33 address_align: AT INTEGER
-        34              | PCNT INTEGER
-        """
-        # Assume @ or % was result of previous tokens.peek()
-        tokens = self.tokens
-        atype = tokens.next()[0]  # guaranteed to be @ or %
-        align = atype == "%"
-        value = tokens.next()
-        if value[0] != "int" or value[1] < 0:
-            raise DudleySyntax("expecting integer>=0 after {}".format(atype))
-        value = value[1]
-        if align:
-            if value == 0:
-                return None  # no address argument
-            value = -value
-        return value  # address/alignment argument
-
-    def list_item(self):
-        """
-        35 list_def: LBRACK list_items RBRACK
-    
-        36 list_items: list_item
-        37           | list_items COMMA list_item
-        38           | <empty>
-    
-        39 list_item: data_item
-        40          | list_def
-        41          | SLASH dict_items
-        42          | error
-        """
-        tokens = self.tokens
-        token = tokens.peek()
-        current = containers[-1]  # guaranteed to be a DList
-        try:
-            if token[0] == "[":
-                tokens.next()
-                containers.append(current.open_list())
-            elif token[0] == "/":
-                tokens.next()
-                containers.append(current.open_dict())
-            else:
-                current.add(*self.dict_item())
-            token = tokens.next()
-            if token[0] == "]":
-                containers.pop()
-            elif token[0] != ",":
-                raise DudleySyntax("expecting , or ] after list item")
-        except (DudleySyntax, ValueError) as e:
-            self.report_error(str(e))
-
-    def list_extend(self):
-        """
-        43 list_extend: address_align
-        44            | list_extend address_align
-        """
-        # Assume @ or % was result of previous tokens.peek()
-        tokens = self.tokens
-        addrs = []
-        while True:
-            addrs.append(self.address_align())
-            if tokens.peek()[0] not in "@%":
-                break
-        return addrs
-
-    def struct_item(self):
-        """
-        45 struct_def: LCURLY struct_items RCURLY
-
-        46 struct_items: PCNT INTEGER struct_item
-        47             | struct_items struct_item
-        48             | <empty>
-
-        49 struct_item: data_param
-        50            | error
-        """
-        tokens = self.tokens
-        token = tokens.peek()
-        current = containers[-1]  # guaranteed to be a DType
-        try:
-            token = symb_quot_prim(tokens.peek())
-            if token[0] == "symbol":
-                name = tokens.next()
-                token = tokens.peek()
-                if token[0] == "=":
-                    tokens.next()
-                    current.add(name, *self.data_item())
-                elif token[0] == ":":
-                    tokens.next()
-                    current.add_param(name, *self.param_def())
-                else:
-                    raise DudleySyntax("expecting = or : after item name {}"
-                                       "".format(name))
-            elif token[0] == "%":
-                if len(current):
-                    raise DudleySyntax("alignment must precede struct items")
-                current.align = self.address_align()
-            else:
-                raise DudleySyntax("expecting struct item name")
-        except (DudleySyntax, ValueError) as e:
-            self.report_error(str(e))
-
-
-    def filter(self):
-        """
-        59 filter: filterop SYMBOL
-        60       | filterop SYMBOL LPAREN filterarg RPAREN
-        61       | <empty>
-
-        62 filterop: LARROW
-        63         | RARROW
-
-        64 filterarg: INTEGER
-        65          | FLOATING
-        66          | error
-        """
-        # Assume -> or <- was result of previous tokens.peek()
-        tokens = self.tokens
-        ftype = tokens.next()[0]
-        token = symb_quot(tokens.next())
-        if token[0] != "symbol":
-            raise DudleySyntax("missing {} filter name".format(ftype))
-        name = token[1]
-        token = tokens.peek()
-        if token[0] != "(":
-            return name, None  # no arguments
-        tokens.next()
-        args = []
-        nerrs = 0
-        while True:
-            token = tokens.next()
-            if token[0] in ("int", "float"):
-                args.append(token[1])
-            token = tokens.next()
-            if token[0] == ")":
-                break
-            if token[0] != ",":
-                nerrs += 1
-        if nerrs:
-            raise DudleySyntax("misformatted filter argument list")
-        return name, args
-
-
-#    tokens (terminals of grammar):
-# symbol
-# quoted   (symbol if attribute name, otherwise text value)
-# fixed    (value is int)
-# floating (value is float)
-# = : [ ] , + - * / .. { } < > | @ % -> <-  (value is character as str)
-re_symbol = re.compile(r"[a-zA-Z_]\w*")
-re_quoted = re.compile(r'(?:"(?:\\.|[^"\\])*"'
-                       r"|(?:'(?:\\.|[^'\\])*')")
-re_fixed = re.compile(r"[+-]?([1-9]\d*|0x[[a-fA-F0-9]+|0o[0-7]+|0b[01]+|0+)")
-re_floating = re.compile(r"[+-]?(?:\d+\.\d*|\.\d+"
-                         r"|(?:\d+|\d+\.\d*|\.\d+)[eE][+-]?\d+)")
-re_punctuation = re.compile(r"(?:<-|->|\.\.|[][}{=:,+\-*@%><])")
-re_comment = re.compile(r"#.*$", re.M)
-re_spaces = re.compile(r"\s+")
-
-
-class DTokenizer(object):
-    def __init__(self, stream, ignore=0):
-        self.stream = stream
-        self.line = stream.readline()  # read first line
-        self.nline = 1
-        self.pos = 0  # first unconsumed character of line
-        self.ignore = ignore
-        self.lookahead = None
-        self.docs = self.attribs = self.errors = None
-
-    def next(self):
-        token = self.lookahead
-        if token:
-            if token[0] not in ("error", "eof"):
-                self.lookahead = None
-            return token
-        line, pos = self._skip_spaces_and_comments()
-        # Note that attribute and document comments, as well as
-        # errors while parsing attribute comments, are stored in self.
-        # These are cumulative until pop_docs_attrs_errs() called.
-        if not line:
-            return "eof",
-        match = re_symbol.match(line, pos)
-        if match:
-            self.pos = match.end()
-            return "symbol", match.group()
-        match = re_punctuation.match(line, pos)
-        if match:
-            self.pos = match.end()
-            return match.group(),
-        match = re_fixed.match(line, pos)
-        if match:
-            self.pos = match.end()
-            return "int", int(match.group(), 0)
-        match = re_quoted.match(line, pos)
-        if match:
-            self.pos = match.end()
-            return "symbol", literal_eval(match.group())
-        match = re_floating.match(line, pos)
-        if match:
-            self.pos = match.end()
-            return "float", float(match.group())
-        # cannot find a legal token
-        self.pos = pos + 1
-        return "error", pos
-    
-    def clear(self):
-        token = self.lookahead
-        if token and token[0] in ("error", "eof"):
-            self.lookahead = None
-
-    def peek(self):
-        token = self.next()
-        self.lookahead = token
-        return token
-
-    def pop_docs_attrs_errs(self):
-        docs, attribs = self.docs, self.attribs
-        self.docs = self.attribs = self.errors = None
-        return docs, attribs, errors
-
-    def _skip_spaces_and_comments(self):
-        line, pos, ignore = self.line, self.pos, self.ignore
-        errors = None
-        while True:
-            match = re_spaces.match(line, pos)
-            if match:
-                pos = match.end()
-            match = re_comment.match(line, pos)
-            if match:
-                c = match.group()
-                if c.startswith("#:") and not ignore & 1:
-                    attribs, dpos, errmsg = self._acomment(c[2:].rstrip())
-                    if errmsg is not None:
-                        err = self.line, self.nline, pos+2+dpos, errmsg
-                        if errors is None:
-                            errors = [err]
-                        else:
-                            errors.append(err)
-                    self.attribs.update(attribs)
-                if c.startswith("##") and not ignore & 2:
-                    docs = self.docs
-                    if docs:
-                        docs.append(c[2:].rstrip())
-                    else:
-                        self.docs = [c[2:].rstrip()]
-            elif pos < len(line):
-                self.errors = errors
-                return line, pos  # pos at a token on this line
-            self.line = stream.readline()
-            self.nline += 1
-            if not line:
-                self.errors = errors
-                return line, pos  # EOF because line is ""
-
-    def _acomment(self, string):
-        # Parse attribute comments on a single line.  A single attribute
-        # definition may not span multiple lines, and within a single line
-        # the definitions must be comma separated.
-        attribs = {}
-        pos = 0
-        posmax = len(string)
-        skip_spaces = self._skip_spaces
-        get_constant = self._get_constant
-        while True:
-            pos = skip_spaces(string, pos)
-            if pos >= posmax:
-                return attribs, None, None
-            name, pos = self.get_name(string, pos)
-            if name is None:
-                return attribs, pos, "expecting attribute name"
-            pos = skip_spaces(string, pos)
-            if pos < posmax and string[pos] not in "=,":
-                return attribs, pos, "expecting attribute name="
-            if pos >= posmax or string[pos] == ",":
-                attribs[name] = True  # only way to get boolean attribute value
-                if pos >= posmax:
-                    return attribs, None, None
-                pos += 1
-                continue
-            pos = skip_spaces(string, pos+1)  # skip past = sign
-            if pos < posmax and string[pos] == "[":
-                pos = skip_spaces(string, pos+1)
-                value, pos, expect = get_constant(string, pos)
-                if value is None:
-                    return attribs, pos, expect
-                value = [value]
-                while True:
-                    pos = skip_spaces(string, pos)
-                    if pos < posmax:
-                        if string[pos] == "]":
-                            attribs[name] = array(value)
-                            pos += 1
-                            break
-                        if string[pos] != ",":
-                            return (attribs. pos,
-                                    "missing , in attribute name=[v1,...]")
-                        pos = skip_spaces(string, pos)
-                        v, pos, expect = get_constant(string, pos, expect)
-                        if v is None:
-                            return attribs, pos, expect
-                        value.append(v)
-            else:
-                pos = skip_spaces(string, pos+1)
-                value, pos, expect = get_constant(string, pos)
-                if value is None:
-                    return attribs, pos, expect
-                attribs[name] = value
-            pos = skip_spaces(string, pos)
-            if pos >= posmax:
-                return attribs, None, None
-            if string[pos] != ",":
-                "expected , between attributes in attribute list"
-            pos += 1
-
-    def _skip_spaces(string, pos):
-        match = re_spaces.match(string, pos)
-        return match.end() if match else pos
-
-    def _get_name(self, string, pos=0):
-        name = None
-        match = re_symbol.match(string, pos)
-        if match:
-            pos = match.end()
-            name = match.group()
-        else:
-            match = re_quoted.match(string, pos)
-            if match:
-                pos = match.end()
-                name = literal_eval(match.group())
-        return name, pos
-
-    def _get_constant(string, pos, expect=None):
-        if expect:
-            expect = [expect==1, expect==2, expect==3]
-        else:
-            expect = [True, True, True]
-        match = expect[0] and re_fixed.match(string, pos)
-        if match:
-            return int(match.group(), 0), match.end(), 1
-        match = expect[1] and re_quoted.match(string, pos)
-        if match:
-            return literal_eval(match.group()), match.end(), 2
-        match = expect[2] and re_floating.match(string, pos)
-        if match:
-            return float(match.group()), match.end(), 3
-        if all(expect):
-            return None, pos, "expecting fixed, quoted, or float attrib value"
-        else:
-            return None, pos, "attribute array elements not all same type"
-
-"""BNF Grammar rules
-
-    0 $accept: layout $end
-
-    1 layout: dict_items
-    2       | preamble dict_items
-    3       | preamble
-    4       | <empty>
-
-    5 dict_items: dict_item
-    6           | dict_items dict_item
-
-    7 dict_item: data_param
-    8          | SYMBOL SLASH
-    9          | SYMBOL list_def
-   10          | SYMBOL struct_def
-   11          | SYMBOL list_extend
-   12          | SLASH
-   13          | DOTDOT
-   14          | AMP data_item
-   15          | error
-
-   16 data_param: SYMBOL EQ data_item
-   17           | SYMBOL COLON INTEGER
-   18           | SYMBOL COLON PRIMTYPE placement
-
-   19 data_item: PRIMTYPE shape filter placement
-   20          | SYMBOL shape filter placement
-   21          | struct_def shape filter placement
-
-   22 shape: LBRACK dimensions RBRACK
-   23      | <empty>
-
-   24 dimensions: dimension
-   25           | dimensions COMMA dimension
-
-   26 dimension: INTEGER
-   27          | SYMBOL
-   28          | SYMBOL PLUSSES
-   29          | SYMBOL MINUSES
-   30          | error
-
-   31 placement: address_align
-   32          | <empty>
-
-   33 address_align: AT INTEGER
-   34              | PCNT INTEGER
-
-   35 list_def: LBRACK list_items RBRACK
-
-   36 list_items: list_item
-   37           | list_items COMMA list_item
-   38           | <empty>
-
-   39 list_item: data_item
-   40          | list_def
-   41          | SLASH dict_items
-   42          | error
-
-   43 list_extend: address_align
-   44            | list_extend address_align
-
-   45 struct_def: LCURLY struct_items RCURLY
-
-   46 struct_items: PCNT INTEGER struct_item
-   47             | struct_items struct_item
-   48             | <empty>
-
-   49 struct_item: data_param
-   50            | error
-
-   51 order: LT
-   52      | GT
-
-   53 preamble: order
-   54         | order LCURLY template_params RCURLY
-   55         | LCURLY template_params RCURLY
-
-   56 template_params: SYMBOL COLON PRIMTYPE
-   57                | template_params SYMBOL COLON PRIMTYPE
-   58                | error
-
-   59 filter: filterop SYMBOL
-   60       | filterop SYMBOL LPAREN filterarg RPAREN
-   61       | <empty>
-
-   62 filterop: LARROW
-   63         | RARROW
-
-   64 filterarg: INTEGER
-   65          | FLOATING
-   66          | error
-
---------------
-Informal EBNF grammar ([...] optional, {...}* zero or more repeats):
-
-layout: [preamble] {dict_item}* ;
-preamble: ["<" | ">" | "|"] struct_def ;
-dict_item: SYMBOL (data_param | list_def | struct_def | "/" | address_align)
-           | "/" | ".." | "&" data_item | error ;
-data_param: SYMBOL ("=" data_item | ":" param_value) ;
-data_item: (primitive | SYMBOL | struct_def) [shape] [filter] [placement] ;
-param_value: INTEGER | primitive [placement] ;
-primitive: ["<" | ">" | "|"] PRIMTYPE ;
-shape: "[" dimension {"," dimension}* "]" ;
-dimension: INTEGER | SYMBOL [PLUSSES | MINUSES] | error ;
-filter: ("->" | "<-") SYMBOL ["(" (INTEGER | FLOATING | error) ")"] ;
-placement: ("@" | "%") INTEGER ;
-list_def: "[" [list_item {"," list_item}*] "]" ;
-list_item: data_item | list_def | "/" {dict_item}* | error ;
-struct_def: "{" ["%" INTEGER | error] struct_item {struct_item}* "}" ;
-struct_item: data_param | error ;
-
----------------
-Informal EBNF attribute grammar:
-
-attributes: [attribute] {[","] attribute}* ;
-attribute: SYMBOL "=" (INTEGER | FLOATING | QUOTED | array_value) | error ;
-array_value: "[" INTEGER {"," INTEGER}* "]"
-           | "[" FLOATING {"," FLOATING}* "]"
-           | "[" QUOTED {"," QUOTED}* "]"
-           | "[" error "]"
-"""
+        self.name = name
+        self.members = members
+        self.align = align  # align = -align < 0 marks open compound
