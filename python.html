@@ -378,11 +378,13 @@ items in the list, but rather returns an <cite>SList</cite> instance:</p>
 </div>
 <p>All of the python list indexing operations work for an <cite>SList</cite> (just as the
 dict key lookup operations work for an <cite>SDict</cite>).  The append and extend methods
-also work, as does the len function:</p>
+also work, as does the len function and other python list methods:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mylist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value3</span><span class="p">)</span>
-<span class="n">mylist</span> <span class="o">+=</span> <span class="n">value3</span>  <span class="c1"># SList += operator shorthand for append</span>
-<span class="n">mylist</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">value5</span><span class="p">,</span> <span class="n">value6</span><span class="p">])</span>
+<span class="n">mylist</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">value4</span><span class="p">,</span> <span class="n">value5</span><span class="p">])</span>
 <span class="n">nelements</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">mylist</span><span class="p">)</span>  <span class="c1"># note that len(mydict) works as well</span>
+<span class="c1"># The += operation can be used as a shorthand for extend (and append):</span>
+<span class="n">mylist</span> <span class="o">+=</span> <span class="n">value4</span><span class="p">,</span> <span class="n">value5</span>  <span class="c1"># same as mylist.extend([value4, value5])</span>
+<span class="n">mylist</span> <span class="o">+=</span> <span class="n">value3</span><span class="p">,</span>  <span class="c1"># (note trailing ,) same as mylist.append(value3)</span>
 </pre></div>
 </div>
 <p>But how do you declare that “mylist” is a Dudley list in the first place?  All
@@ -552,17 +554,26 @@ array without writing it in an <cite>SDict</cite> (or <cite>SList</cite>):</p>
 </pre></div>
 </div>
 <p>To create a dict or list container, you use the python “dict” or “list” class
-as if it were a datatype.  There are also a shortcuts to return the new layout
-container item:</p>
+(or any subclass) as if it were a datatype:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">l_dict</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">dict</span>  <span class="c1"># create a sub-dict called name</span>
 <span class="n">l_dict</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span>  <span class="c1"># create a list called name</span>
-<span class="n">mydict</span> <span class="o">=</span> <span class="n">l_dict</span><span class="p">[</span><span class="n">name</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]</span>  <span class="c1"># shortcut returns the new (or existing) dict</span>
-<span class="n">mylist</span> <span class="o">=</span> <span class="n">l_dict</span><span class="p">[</span><span class="n">name</span><span class="p">,</span> <span class="nb">list</span><span class="p">]</span>  <span class="c1"># shortcut returns the new (or existing) list</span>
+<span class="n">mydict</span> <span class="o">=</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">getdict</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>  <span class="c1"># create new or retrieve existing dict</span>
+<span class="n">mylist</span> <span class="o">=</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">getlist</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
 
-<span class="n">l_list</span> <span class="o">+=</span> <span class="nb">dict</span>  <span class="c1"># or l_list,append(dict)</span>
-<span class="n">l_list</span> <span class="o">+=</span> <span class="nb">list</span>  <span class="c1"># or l_list,append(list)</span>
-<span class="n">mydict</span> <span class="o">=</span> <span class="n">l_list</span> <span class="o">+</span> <span class="nb">dict</span>  <span class="c1"># shortcut returns the new dict</span>
-<span class="n">mylist</span> <span class="o">=</span> <span class="n">l_list</span> <span class="o">+</span> <span class="nb">list</span>  <span class="c1"># shortcut returns the new list</span>
+<span class="n">l_list</span> <span class="o">+=</span> <span class="nb">dict</span>  <span class="c1"># trailing comma unnecessary, or l_list.append(dict)</span>
+<span class="n">l_list</span> <span class="o">+=</span> <span class="nb">list</span>  <span class="c1"># trailing comma unnecessary, or l_list.append(list)</span>
+<span class="c1"># LList + operator behaves differently from python list:</span>
+<span class="c1"># item = l_list + something     is shortthand for</span>
+<span class="c1"># l_list += [something]; item = l_list[-1]</span>
+<span class="n">mydict</span> <span class="o">=</span> <span class="n">l_list</span> <span class="o">+</span> <span class="nb">dict</span>
+<span class="n">mylist</span> <span class="o">=</span> <span class="n">l_list</span> <span class="o">+</span> <span class="nb">list</span>
+</pre></div>
+</div>
+<p>The special Dudley syntax for duplicating previous data items in a list has an
+analog in the layout interface:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">l_list</span> <span class="o">+=</span> <span class="n">l_list</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>  <span class="c1"># &quot;l_list[%0]&quot; in a Dudley layout</span>
+<span class="n">l_list</span> <span class="o">+=</span> <span class="n">l_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>  <span class="c1"># &quot;l_list[i%0]&quot; in a Dudley layout</span>
+<span class="n">l_list</span> <span class="o">+=</span> <span class="n">l_list</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">align</span>  <span class="c1"># &quot;l_list[i%align]&quot; in a Dudley layout</span>
 </pre></div>
 </div>
 </section>
@@ -584,27 +595,42 @@ themselves dict-like objects:</p>
 </pre></div>
 </div>
 <p>In order to create a parameter, use one of:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">param</span> <span class="o">=</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">]</span>  <span class="c1"># create fixed parameter</span>
-<span class="n">param</span> <span class="o">=</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">name</span><span class="p">,</span> <span class="n">datatype</span><span class="p">,</span> <span class="n">align</span><span class="p">]</span>  <span class="c1"># create dynamic parameter</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">param</span> <span class="o">=</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">params</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>  <span class="c1"># create fixed parameter</span>
+<span class="n">param</span> <span class="o">=</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">params</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">datatype</span><span class="p">,</span> <span class="n">align</span><span class="p">)</span>  <span class="c1"># create dynamic parameter</span>
     <span class="c1"># datatype must be integer primitive, align is optional</span>
 </pre></div>
 </div>
 <p>To reference a parameter in a shape, simply include an <cite>LParam</cite> object in its
 shape list.  You can add or subtract a small integer value from an <cite>LParam</cite>
 reference in order to indicate Dudley “+” or “-” suffixes.  For example:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">NZONES</span> <span class="o">=</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;NZONES&quot;</span><span class="p">,</span> <span class="s2">&quot;i8&quot;</span><span class="p">]</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">NZONES</span> <span class="o">=</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">params</span><span class="p">(</span><span class="s2">&quot;NZONES&quot;</span><span class="p">,</span> <span class="s2">&quot;i8&quot;</span><span class="p">)</span>
 <span class="o">...</span>
 <span class="n">l_dict</span><span class="p">[</span><span class="s2">&quot;rho&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;f8&quot;</span><span class="p">,</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">NZONES</span><span class="p">)</span>  <span class="c1"># rho is 3xNZONES array of doubles</span>
 <span class="n">l_dict</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;f8&quot;</span><span class="p">,</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="n">NZONES</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># x is 3x(NZONES+1) array of doubles</span>
 </pre></div>
 </div>
+<p>When you retrieve a data array with <cite>l_dict[name]</cite> or <cite>l_list[index]</cite>, you get
+a <cite>DData</cite> object, which you can query to determine the datatype, shape, align,
+and filt parameters used to create it:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">l_data</span> <span class="o">=</span> <span class="n">l_container</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+<span class="n">datatype</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">align</span><span class="p">,</span> <span class="n">filt</span> <span class="o">=</span> <span class="n">l_data</span>
+<span class="n">datatype</span> <span class="o">=</span> <span class="n">l_data</span><span class="o">.</span><span class="n">datatype</span>
+<span class="n">shape</span> <span class="o">=</span> <span class="n">l_data</span><span class="o">.</span><span class="n">shape</span>
+<span class="n">align</span> <span class="o">=</span> <span class="n">l_data</span><span class="o">.</span><span class="n">align</span>  <span class="c1"># 1 if address specified, 0 if defaulted</span>
+<span class="n">address</span> <span class="o">=</span> <span class="n">l_data</span><span class="o">.</span><span class="n">address</span>  <span class="c1"># None if alignment specified</span>
+<span class="n">filt</span> <span class="o">=</span> <span class="n">l_data</span><span class="o">.</span><span class="n">filt</span>
+</pre></div>
+</div>
+<p>The <cite>shape</cite> is a tuple of dimensions, which may contain <cite>ParamRef</cite> objects as
+well as integer dimension lengths.  A <cite>ParamRef</cite> has <cite>param</cite> and <cite>suffix</cite>
+properties.</p>
 <p>In order to create a typedef datatype, you can use (shape and align are
 optional):</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">datatype</span> <span class="o">=</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">types</span><span class="p">[</span><span class="n">name</span><span class="p">,</span> <span class="n">datatype</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">align</span><span class="p">]</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">datatype</span> <span class="o">=</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">types</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">datatype</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">align</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>To create a compound datatype, use a python “with” statement:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">types</span><span class="p">[</span><span class="n">name</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="k">as</span> <span class="n">datatype</span><span class="p">:</span>  <span class="c1"># ... here really is Ellipsis</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">types</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="k">as</span> <span class="n">datatype</span><span class="p">:</span>
     <span class="c1"># Inside the block, datatype acts like a dict container.</span>
     <span class="n">datatype</span><span class="p">[</span><span class="n">mname0</span><span class="p">]</span> <span class="o">=</span> <span class="n">datatype0</span><span class="p">,</span> <span class="n">shape0</span><span class="p">,</span> <span class="n">align0</span>
     <span class="n">datatype</span><span class="p">[</span><span class="n">mname1</span><span class="p">]</span> <span class="o">=</span> <span class="n">datatype1</span><span class="p">,</span> <span class="n">shape1</span><span class="p">,</span> <span class="n">align1</span>
@@ -640,6 +666,38 @@ an <cite>align</cite> value with a special <cite>Address</cite> object instead o
 the file.  Such an address ignores the default datatype alignment restriction
 (just as it would be ignored if you specified a non-zero <cite>align</cite>).</p>
 </section>
+<section id="filters">
+<h3>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h3>
+<p>Data array declarations, except for datatype members, may include an optional
+filter argument.  There are two filter classes; <cite>CFilter</cite> is compression
+filters, while <cite>RFilter</cite> is reference filters:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cfilt</span> <span class="o">=</span> <span class="n">CFilter</span><span class="p">(</span><span class="n">filtname</span><span class="p">,</span> <span class="n">arg1</span><span class="p">,</span> <span class="n">arg2</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>  <span class="c1"># arguments are optional</span>
+<span class="n">rfilt</span> <span class="o">=</span> <span class="n">RFilter</span><span class="p">(</span><span class="n">filtname</span><span class="p">,</span> <span class="n">arg1</span><span class="p">,</span> <span class="n">arg2</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>  <span class="c1"># arguments are optional</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="stream-and-layout">
+<h2>Stream and layout<a class="headerlink" href="#stream-and-layout" title="Link to this heading">¶</a></h2>
+<p>You can open a stream without without reading the layout from the stream by
+passing <cite>opendb</cite> a layout parameter.  This paramter may be either a layout
+root dict, or another stream root dict (to use the layout associated with that
+stream).  You may also optionally pass a 1D array_like list of all the dynamic
+parameter values for the stream you are opening, to avoid reading them from the
+file as well:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">s_root</span> <span class="o">=</span> <span class="n">openbd</span><span class="p">(</span><span class="n">bdfile</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">l_root</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+<span class="n">l_dict</span> <span class="o">=</span> <span class="n">s_dict</span><span class="o">.</span><span class="n">dudley</span>  <span class="c1"># get the `LDict` associated with an `SDict`</span>
+<span class="n">l_list</span> <span class="o">=</span> <span class="n">s_list</span><span class="o">.</span><span class="n">dudley</span>  <span class="c1"># get the `LList` associated with an `SList`</span>
+</pre></div>
+</div>
+<p>In this form, the <cite>mode</cite> argument may have a “&lt;” or “&gt;” prefix to indicate a
+little or big endian byte order without reading the file.</p>
+<p>You can also retrieve shape information with expanded parameter values:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">value</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">value</span><span class="p">(</span><span class="n">s_container</span><span class="p">)</span>  <span class="c1"># param value in stream of s_container</span>
+<span class="n">shapex</span> <span class="o">=</span> <span class="n">s_container</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">l_data</span><span class="p">)</span>  <span class="c1"># shape of l_data, params expanded</span>
+<span class="n">dtype</span> <span class="o">=</span> <span class="n">datatype</span><span class="o">.</span><span class="n">dtype</span><span class="p">(</span><span class="n">s_container</span><span class="p">)</span>  <span class="c1"># expand any parameters in datqatype</span>
+</pre></div>
+</div>
 </section>
 </section>
 
@@ -708,8 +766,10 @@ the file.  Such an address ignores the default datatype alignment restriction
 <li><a class="reference internal" href="#dicts-lists-and-data">Dicts, lists, and data</a></li>
 <li><a class="reference internal" href="#datatypes-and-parameters">Datatypes and parameters</a></li>
 <li><a class="reference internal" href="#alignment-and-address">Alignment and address</a></li>
+<li><a class="reference internal" href="#filters">Filters</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#stream-and-layout">Stream and layout</a></li>
 </ul>
 </li>
 </ul>

@@ -146,12 +146,14 @@ items in the list, but rather returns an `SList` instance::
 
 All of the python list indexing operations work for an `SList` (just as the
 dict key lookup operations work for an `SDict`).  The append and extend methods
-also work, as does the len function::
+also work, as does the len function and other python list methods::
 
     mylist.append(value3)
-    mylist += value3  # SList += operator shorthand for append
-    mylist.extend([value5, value6])
+    mylist.extend([value4, value5])
     nelements = len(mylist)  # note that len(mydict) works as well
+    # The += operation can be used as a shorthand for extend (and append):
+    mylist += value4, value5  # same as mylist.extend([value4, value5])
+    mylist += value3,  # (note trailing ,) same as mylist.append(value3)
 
 But how do you declare that "mylist" is a Dudley list in the first place?  All
 of these examples assume that `s_root.my_list` already exists, and::
@@ -324,18 +326,27 @@ array without writing it in an `SDict` (or `SList`)::
     l_list.append(datatype, shape, align, filt)  # this adds a single item
 
 To create a dict or list container, you use the python "dict" or "list" class
-as if it were a datatype.  There are also a shortcuts to return the new layout
-container item::
+(or any subclass) as if it were a datatype::
 
     l_dict[name] = dict  # create a sub-dict called name
     l_dict[name] = list  # create a list called name
-    mydict = l_dict[name, dict]  # shortcut returns the new (or existing) dict
-    mylist = l_dict[name, list]  # shortcut returns the new (or existing) list
+    mydict = l_dict.getdict(name)  # create new or retrieve existing dict
+    mylist = l_dict.getlist(name)
 
-    l_list += dict  # or l_list,append(dict)
-    l_list += list  # or l_list,append(list)
-    mydict = l_list + dict  # shortcut returns the new dict
-    mylist = l_list + list  # shortcut returns the new list
+    l_list += dict  # trailing comma unnecessary, or l_list.append(dict)
+    l_list += list  # trailing comma unnecessary, or l_list.append(list)
+    # LList + operator behaves differently from python list:
+    # item = l_list + something     is shortthand for
+    # l_list += [something]; item = l_list[-1]
+    mydict = l_list + dict
+    mylist = l_list + list
+
+The special Dudley syntax for duplicating previous data items in a list has an
+analog in the layout interface::
+
+    l_list += l_list[-1]  # "l_list[%0]" in a Dudley layout
+    l_list += l_list[i]  # "l_list[i%0]" in a Dudley layout
+    l_list += l_list[i], align  # "l_list[i%align]" in a Dudley layout
 
 Datatypes and parameters
 ........................
@@ -357,27 +368,43 @@ themselves dict-like objects::
     
 In order to create a parameter, use one of::
 
-    param = l_dict.params[name, value]  # create fixed parameter
-    param = l_dict.params[name, datatype, align]  # create dynamic parameter
+    param = l_dict.params(name, value)  # create fixed parameter
+    param = l_dict.params(name, datatype, align)  # create dynamic parameter
         # datatype must be integer primitive, align is optional
 
 To reference a parameter in a shape, simply include an `LParam` object in its
 shape list.  You can add or subtract a small integer value from an `LParam`
 reference in order to indicate Dudley "+" or "-" suffixes.  For example::
 
-    NZONES = l_dict.params["NZONES", "i8"]
+    NZONES = l_dict.params("NZONES", "i8")
     ...
     l_dict["rho"] = "f8", (3, NZONES)  # rho is 3xNZONES array of doubles
     l_dict["x"] = "f8", (3, NZONES+1)  # x is 3x(NZONES+1) array of doubles
 
+When you retrieve a data array with `l_dict[name]` or `l_list[index]`, you get
+a `DData` object, which you can query to determine the datatype, shape, align,
+and filt parameters used to create it::
+
+    l_data = l_container[key]
+    datatype, shape, align, filt = l_data
+    datatype = l_data.datatype
+    shape = l_data.shape
+    align = l_data.align  # 1 if address specified, 0 if defaulted
+    address = l_data.address  # None if alignment specified
+    filt = l_data.filt
+
+The `shape` is a tuple of dimensions, which may contain `ParamRef` objects as
+well as integer dimension lengths.  A `ParamRef` has `param` and `suffix`
+properties.
+
 In order to create a typedef datatype, you can use (shape and align are
 optional)::
 
-    datatype = l_dict.types[name, datatype, shape, align]
+    datatype = l_dict.types(name, datatype, shape, align)
 
 To create a compound datatype, use a python "with" statement::
 
-    with l_dict.types[name, ...] as datatype:  # ... here really is Ellipsis
+    with l_dict.types(name) as datatype:
         # Inside the block, datatype acts like a dict container.
         datatype[mname0] = datatype0, shape0, align0
         datatype[mname1] = datatype1, shape1, align1
@@ -413,3 +440,36 @@ an `align` value with a special `Address` object instead of an integer::
 declares that the data array "mydata" begins at exactly byte address 12345 of
 the file.  Such an address ignores the default datatype alignment restriction
 (just as it would be ignored if you specified a non-zero `align`).
+
+Filters
+.......
+
+Data array declarations, except for datatype members, may include an optional
+filter argument.  There are two filter classes; `CFilter` is compression
+filters, while `RFilter` is reference filters::
+
+    cfilt = CFilter(filtname, arg1, arg2, ...)  # arguments are optional
+    rfilt = RFilter(filtname, arg1, arg2, ...)  # arguments are optional
+    
+Stream and layout
+-----------------
+
+You can open a stream without without reading the layout from the stream by
+passing `opendb` a layout parameter.  This paramter may be either a layout
+root dict, or another stream root dict (to use the layout associated with that
+stream).  You may also optionally pass a 1D array_like list of all the dynamic
+parameter values for the stream you are opening, to avoid reading them from the
+file as well::
+
+    s_root = openbd(bdfile, mode, l_root, params)
+    l_dict = s_dict.dudley  # get the `LDict` associated with an `SDict`
+    l_list = s_list.dudley  # get the `LList` associated with an `SList`
+
+In this form, the `mode` argument may have a "<" or ">" prefix to indicate a
+little or big endian byte order without reading the file.
+
+You can also retrieve shape information with expanded parameter values::
+
+    value = param.value(s_container)  # param value in stream of s_container
+    shapex = s_container.shape(l_data)  # shape of l_data, params expanded
+    dtype = datatype.dtype(s_container)  # expand any parameters in datqatype
