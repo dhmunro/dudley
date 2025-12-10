@@ -37,17 +37,23 @@ using the `dudley.openbd` function::
     from dudley import openbd
     s_root = openbd(bdfile, mode)
 
-In this simple form `bdfile` is a filename, and `mode` can be "r" (read only),
-"w" (create for read-write, clobber if exists), "a" (create or open for
-update), "r+" (open for update), or "w-" (create for read-write, error if
-exists).  If `bdfile` already exists, it must begin with a Dudley signature,
-and have its Dudley layout appended to the end of the file.  If `openbd` is
-creating the file, it will have this format.  In other words, Dudley acts like
-HDF5 or ather self-describing binary file formats after this `openbd` call.
+In this simple form `bdfile` is a filename, and `mode` is one of:
+
+* **"r"** open read-only (the default)
+* **"w"** create read-write, first delete file if present
+* **"a"** open read-write, create if file not present
+* **"r+"** open read-write, error if file not present
+* **"w-"** create read-write, error if file present
+
+Except for the "w" modes, if `bdfile` already exists, it must begin with a
+Dudley signature, and have its Dudley layout appended to the end of the file.
+If `openbd` is creating the file, it will have this format.  In other words,
+Dudley acts like HDF5 or ather self-describing binary file format libraries
+for this `openbd` call.
 
 (More complex scenarios involve optional `dud` and `params` arguments to
 `openbd`, which set the Dudley layout and any dynamic parameter values without
-needing to read them from the file.)
+needing to read them from the file, as described later.)
 
 The `s_root` object returned by `openbd` is the root dict of the stream, an
 instance of the `SDict` container class.  `SDict` instances behave for the
@@ -277,18 +283,18 @@ Dicts, lists, and data
 Usually, the best way to build a Dudley layout that is not associated with any
 binary data file is to write a ".dud" text file, then parse it with::
 
-    l_root = dudley(dudfile, mode)
+    l_root = opendud(dudfile, mode)
 
 The `dudfile` argument can be the name of a text file or a python `TextIOBase`
-text stream object.  The `dudley` function parses this text according to the
+text stream object.  The `opendud` function parses this text according to the
 Dudley language, returning an `LDict` object representing the root dict of the
 layout.  Unlike an `SDict`, the `LDict` is not associated with any particular
 binary data stream - you cannot use it to read or write data.  However, every
 `SDict` or `SList` container has an associated `LDict` or `LList` container
 which is the description of its contents in the Dudley data model.  You can
-retrieve this description using the read-only `dudley` property::
+retrieve this description using the read-only `dud` property::
 
-    l_root = s_root.dudley  # get entire layout for a binary stream
+    l_root = s_root.dud  # get entire layout for a binary stream
 
 Unlike the stream interface, the layout interface is not designed for casual
 interactive use.  There is no syntactic sugar like mapping attribute names to

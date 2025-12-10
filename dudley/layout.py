@@ -1,24 +1,7 @@
-"""Build and navigate a Dudley layout.
+"""Build, navigate, and query a Dudley layout."""
 
-Dudley predefines prefixed primitive types from 1 to 50 as follows::
-     1  |u1  |i1  |b1  |S1  |U1
-     6  |u2  |i2  |f2  |c4  |U2
-    11  |u4  |i4  |f4  |c8  |U4
-    16  |u8  |i8  |f8  |c16  -
-    21  <u2  <i2  <f2  <c4  <U2
-    26  <u4  <i4  <f4  <c8  <U4
-    31  <u8  <i8  <f8  <c16  -
-    36  >u2  >i2  >f2  >c4  >U2
-    41  >u4  >i4  >f4  >c8  >U4
-    46  >u8  >i8  >f8  >c16  -
-Type numbers 20, 35, and 50 are reserved for a quad precision `f16`, if numpy
-ever supports that datatype on all platforms.
+__all__ = "Address"
 
-Dudley recognizes the 19 unprefixed datatypes, and automatically creates that
-unnamed datatype as a typedef to the same type with a "|" prefix in the root
-dict on the first reference in a data array or parameter declaration.
-
-"""
 from __future__ import absolute_import
 
 import sys
@@ -30,8 +13,10 @@ if PY2:
 else:
     basestring = str
 
+from numpy import array
 
-D_PRIM, D_DATA, DPARAM, D_DICT, D_LIST, D_TYPE = 0, 1, 2, 3, 4, 5
+
+D_PRIM, D_DATA, D_PARAM, D_DICT, D_LIST, D_TYPE = 0, 1, 2, 3, 4, 5
 
 
 class _Prim(object):
@@ -52,8 +37,10 @@ class _Prim(object):
     most significant byte first (big-endian).
     
     There are three different byte sizes for each: 2, 4, or 8 bytes per value
-    (but for complex values these are a total of 4, 8, or 16 bytes per value),
-    except for the `U` kind, which has only 2 and 4 byte sizes.
+    (except complex have 4, 8, or 16 bytes per floating point pair), except
+    for the `U` unicode kind, which has only 2 and 4 byte sizes.  (Note that
+    for `U1` and `U2` the number of bytes may be greater than the number of
+    characters, and not all possible arrays are legal unicode.)
 
     Dudley numbers these primitives from 1 to 50 as follows::
 
@@ -79,8 +66,8 @@ class _Prim(object):
     `None` in python or `null` in javascript/JASON and takes no space in the
     data stream.  (Note that 0 root dict, never a datatype.)
 
-    All 47 instances are kept in the prims attribute of the DLayout class, so
-    that DLayout.prims[iprim] is primitive number iprim.
+    All 47 instances are kept in the prim attribute of the Layout class, so
+    that Layout.prim[iprim] is primitive number iprim.
     """
     itype = D_PRIM
 
@@ -97,6 +84,35 @@ class _Prim(object):
 
 
 class Layout(list):
+    """Raw Layout objects are not part of the Dudley API.
+
+    The LItem objects, LDict, LList, LData, LType, and LParam, each contain
+    a layout attribute which is the Layout object; these are the user-facing
+    objects for the Dudley layout interface.
+
+    A Layout is a list of items (in fact list is the base class of Layout).
+    Each list item is one of the five kinds of low-level object: _Dict,
+    _List, _Data, _Type, or _Param, corresponding to the five kinds of
+    object in a Dudley layout.  A sixth low-level object is the _Prim -
+    corresponding to a Dudley primitive datatype - but these are global
+    objects shared among all layouts rather than element of the Layout list.
+
+    Since every item has its own index in the Layout list, that index serves
+    as an identifier or `itemid` for the object.  The low-level objects in the
+    list use an `itemid` to refer to other objects in the Layout, like parent
+    or child containers, non-primitive datatypes or parameter references in
+    array declarations, etc.  The root _Dict always has `itemid=0`.
+    
+    This strategy avoids a tangle of circular object references among the
+    containers and data.  However, it would make a very clumsy layout
+    interface.  Therefore, the actual user interface is the LItem objects,
+    which are very lightweight temporary objects consisting of nothing more
+    than a `(layout, itemid)` pair.  As long as a single LItem object is in
+    use, or a stream interface object like an SDict or SList, there
+    will be at least one reference to the Layout, keeping it alive.
+    Each LItem wraps the corresponding low-level object: an LDict wraps a
+    _Dict, an LData wraps a _Data, and so on.
+    """
     def __init__(self):
         super(Layout, self).__init__((_Dict(None),))  # self[0] is root dict
         self.params = None  # params[pid] -> id of dynamic parameter pid
@@ -211,24 +227,25 @@ class Layout(list):
     def add_type(self, parent, name,
                  datatype=Ellipsis, shape=None, align=None):
         """Append a new _Type to this layout."""
-        if align and align > 0 and (align & (align-1)):
-            raise ValueError("illegal alignment {}, must be power of two"
-                             .format(align))
+        if align:
+            if align > 0 and (align & (align-1)):
+                raise ValueError("illegal alignment {}, must be power of two"
+                                 .format(align))
+            elif align < 0:
+                raise ValueError("cannot specify @address in typedef")
         # parent is guaranteed to be a Dudley dict
         itemid = len(self)  # id for the new _Type item
         if datatype is not Ellipsis:  # this is a typedef
             # append new _TYpe, then immediately its anonymous member
             self.append(_Type(parent, name, itemid+1))
             self.add_item(itemid, None, datatype, shape, align)
-            if not align:
-                align = layout.l_item(-1).alignment
-                # note: align cannot be None - add_item would have failed
-            elif align < 0:
-                raise ValueError("cannot specify @address in typedef")
-            layout[itemid].align = align
+            member = layout.l_item(-1)
+            item = layout[itemid]
+            item.size = member.size
+            # Note: align cannot be None - add_item exception if datatype None
+            item.align = align if align else member.alignment
         else:  # this is a compound
-            # negative align marks open compound
-            self.append(_Type(parent, name, {}, -1))
+            self.append(_Type(parent, name, {}))
         return itemid
 
 
@@ -273,6 +290,78 @@ class LItem(object):
             _item = layout[_item.parent]
         return _item._get_typeid(datatype, layout)
 
+    def doc(self, *args):
+        """retrieve or append to document comments for this item
+        
+        Parameters
+        ----------
+        *args : str
+            Each argument, if any, appends one line of documentation text
+            for this item.
+
+        Returns
+        -------
+        list
+            Each element of the list is one documentation line.
+        """
+        layout, itemid = self.layout, self.itemid
+        docs = layout.docs
+        if args:
+            while a in args:
+                if not isinstance(a, basestr):
+                    raise TypeError("Each documentation line must be text")
+            args = list(*args)
+            if not docs:
+                layout.docs = docs = [None]*(itemid + 1)
+            elif len(docs) <= itemid:
+                docs.extend([None]*(itemid + 1 - len(docs)))
+            doc = docs[itemid]
+            if not doc:
+                docs[itemid] = doc = args
+            else:
+                doc += args
+        elif not docs or len(docs)<=itemid:
+            doc = []
+        else:
+            doc = docs[itemid] or []
+        return doc
+
+    def attrs(self, attributes=None, **kwargs):
+        if isinstance(arg, type({})):
+            for name in attributes:
+                if not isinstance(name, basestr):
+                    raise TypeError("attribute name must be text")
+            attributes.update(kwargs)
+        else:
+            arg = kwargs
+        for name, value in attributes.items():
+            if value is None or isinstance(value, basestr):
+                continue
+            value = array(value + 0)
+            if value.ndim > 1:
+                raise ValueError("attribute value must be scalar or 1D array")
+            if value.dtype.kind not in "if":
+                raise ValueError("attribute value must be type int or float")
+            if value.ndim == 0:
+                value = value[()]
+        layout, itemid = self.layout, self.itemid
+        atts = layout.atts
+        if attributes:
+            if atts is None:
+                layout.atts = atts = [None]*(itemid + 1)
+            elif len(atts) <= itemid:
+                atts.extend([None]*(itemid + 1 - len(atts)))
+            attribs = atts[itemid]
+            if not attribs:
+                atts[itemid] = attribs = attributes
+            else:
+                attribs = attribs.update(attributes)
+        elif not atts or len(atts)<=itemid:
+            attribs = {}
+        else:
+            attribs = atts[itemid] or {}
+        return attribs
+
 
 class LData(LItem):
     __slots__ = ()
@@ -296,10 +385,18 @@ class LData(LItem):
         return self.layout[self.itemid].align  # an Address instance
 
     @property
+    def address(self):
+        align = self.layout[self.itemid].align
+        try:
+            return align.address
+        except AttributeError:
+            return -1  # not specified, thus unallocated or NULL
+
+    @property
     def alignment(self):
         """alignment of data array item or None if address specified"""
-        rawitem = self.layout[self.itemid]
-        align = rawitem.align
+        item = self.layout[self.itemid]
+        align = item.align
         if align:
             return align if align > 0 else None
         # Alignment is determined by datatype.
@@ -311,6 +408,26 @@ class LData(LItem):
         return layout.l_item(typeid).align
 
     @property
+    def size(self):
+        """byte size of data array item or None if address specified"""
+        layout = self.layout
+        item = layout[self.itemid]
+        if item.typeid is None:
+            return 0
+        typeid = layout[self.itemid].typeid
+        if typeid == 0:
+            return 0  # this is {} (None) object which has no size
+        elif typeid < 0:
+            return Layout.prim[-typeid].size
+        size = layout.l_item(typeid).size
+        if size is not None:  # typedef, compound may have indeterminate size
+            for d in self.shape:
+                if isinstance(d, (LParam, ParamRef)):
+                    return None  # size is indeterminate
+                size *= d
+        return size  # no dynamic parameter references
+
+    @property
     def filt(self):
         return self.layout[self.itemid].filt
 
@@ -320,6 +437,9 @@ class _Data(object):
     itype = D_DATA
 
     def __init__(self, parent, name, typeid, shape=None, align=0, filt=None):
+        if align and align > 0 and (align & (align-1)):
+            raise ValueError("illegal alignment {}, must be power of two"
+                             .format(align))
         self.parent = parent.itemid  # parent arg is LDict, LList, or LType
         self.name = name
         self.typeid = typeid
@@ -692,19 +812,37 @@ class LParam(LItem):
     def datatype(self):
         layout = self.layout
         typeid = layout[self.itemid].typeid
-        if typeid < 0:
+        if typeid is None:
+            return None
+        elif typeid < 0:
             return Layout.prim[-typeid]
-        return layout.l_item(typeid) if typeid else None
-    
+        else:
+            return layout.l_item(typeid) if typeid else None
+
     @property
     def align(self):
-        return self.layout[self.itemid].align  # an Address instance
+        layout = self.layout
+        item = layout[self.itemid]
+        if item.typeid is None:
+            return None
+        return item.align  # int or Address
+
+    @property
+    def address(self):
+        align = self.align
+        try:
+            return align.address
+        except AttributeError:
+            return -1  # not specified, thus unallocated or NULL
 
     @property
     def alignment(self):
-        """alignment of data array item or None if address specified"""
-        rawitem = self.layout[self.itemid]
-        align = rawitem.align
+        """alignment of dynamic parameter or None if address specified"""
+        layout = self.layout
+        item = layout[self.itemid]
+        if item.typeid is None:
+            return None
+        align = item.align
         if align:
             return align if align > 0 else None
         # Alignment is determined by datatype.
@@ -714,6 +852,20 @@ class LParam(LItem):
         elif typeid < 0:
             return Layout.prim[-typeid].size
         return layout.l_item(typeid).align
+
+    @property
+    def size(self):
+        """byte size of data array item or None if address specified"""
+        layout = self.layout
+        item = layout[self.itemid]
+        if item.typeid is None:
+            return 0
+        typeid = layout[self.itemid].typeid
+        if typeid == 0:
+            return 0  # this is {} (None) object which has no size
+        elif typeid < 0:
+            return Layout.prim[-typeid].size
+        return layout.l_item(typeid).size
 
     def __add__(self, rop):
         if not isinstance(rop, Integral):
@@ -739,6 +891,9 @@ class _Param(object):
     itype = D_PARAM
 
     def __init__(self, parent, name, pid, typeid=None, align=None):
+        if align and align > 0 and (align & (align-1)):
+            raise ValueError("illegal alignment {}, must be power of two"
+                             .format(align))
         self.parent = parent
         self.name = name
         self.pid = pid  # value if typeid is None
@@ -824,15 +979,35 @@ class LType(LItem):
         return name in members
 
     def __setitem__(self, name, value):
-        layout = self.layout
-        item = layout[self.itemid]
-        if item.align >= 0:
+        layout, itemid = self.layout, self.itemid
+        item = layout[itemid]
+        align = -item.align  # negative of current alignment is open marker
+        if item.align <= 0:
             raise TypeError("__setitem__ is illegal method for closed LType")
         if not isinstance(name, basestring):
             raise TypeError("item name must be a text string")
         if not isinstance(value, tuple):
             value = (value,)
-        layout.add_item(self.itemid, name, *value)
+        layout.add_item(itemid, name, *value)
+        # remains to compute alignment and size
+        # While compound is open, size is byte after end of previous member
+        # and align is negative of maximum member alignment so far.
+        member = layout.l_item(-1)
+        malign = member.align
+        if malign > align:
+            align = malign
+        item.align = -align
+        # Is size unnnecessary?  Really only need it for stream interface.
+        size = item.size
+        if size is not None:
+            msize = member.size
+            if msize is not None:
+                rem = size & (malign-1)
+                if rem:
+                    size += malign - rem
+                item.size = size + msize
+            else:
+                item.size = None
 
     def __enter__(self):
         return self
@@ -842,11 +1017,25 @@ class LType(LItem):
 
 
 class _Type(object):
-    __slots__ = "parent", "name", "members", "align"
+    __slots__ = "parent", "name", "members", "size", "align"
     itype = D_TYPE
 
-    def __init__(self, parent, name, members, align=None):
+    def __init__(self, parent, name, members):
         self.parent = parent
         self.name = name
         self.members = members
-        self.align = align  # align = -align < 0 marks open compound
+        self.size = 0
+        self.align = -1  # align < 0 marks open compound
+
+
+class Address(int):
+    __slots__ = ()
+
+    def __new__(cls, address):
+        if address < -1:  # address -1 means "not allocated" or NULL
+            raise ValueError("Address cannot be less than -1")
+        return super(Address, cls).__new__(cls, -2 - address)
+
+    @property
+    def address(self):
+        return -2 - self
