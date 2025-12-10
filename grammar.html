@@ -245,19 +245,21 @@
 <h2>Terminals<a class="headerlink" href="#terminals" title="Link to this heading">¶</a></h2>
 <p>Besides punctuation, the Dudley grammar has these terminals:</p>
 <dl class="simple">
-<dt><strong>name</strong>:</dt><dd><p>Any text comprising ASCII alphanumeric characters or underscores whose first
-character is not a digit.  Additionally, any quoted Unicode text excluding
-the NUL charcter is a legal name; Dudley has no keywords.  Names may be
-quoted with either single or double quotes, “<strong>&quot;</strong>” or “<strong>`</strong>”, and escape
-sequences “<strong>\&quot;</strong>”, “<strong>\`</strong>” and “<strong>\\</strong>” can be used inside quoted
-strings.  (Dudley does not recognize any other escape sequences; a quoted
-string only ends with the matching unescaped close quote.)</p>
+<dt><strong>SYMBOL</strong>:</dt><dd><p>Any text comprising ASCII alphanumeric characters or underscores whose first
+character is not a digit.</p>
 </dd>
-<dt><strong>integer</strong>:</dt><dd><p>A string of decimal digits not beginning with 0 (except for the single digit
-0), or a string or hex digits prefixed by “0x”.  The digits may be prefixed
+<dt><strong>QUOTED</strong></dt><dd><p>Any quoted Unicode text excluding the NUL character is a legal name.  Either
+single or double quotes, “<strong>&quot;</strong>” or “<strong>`</strong>” may be used, and escape
+sequences “<strong>\&quot;</strong>”, “<strong>\`</strong>” and “<strong>\\</strong>” inside quoted strings can be
+used to get a quote or backslash into the string.  Dudley does not recognize
+any other escape sequences.  A quoted string only ends with the matching
+unescaped close quote.</p>
+</dd>
+<dt><strong>INTEGER</strong>:</dt><dd><p>A string of decimal digits not beginning with 0 (except for the single digit
+0), or a string of hex digits prefixed by “0x”.  The digits may be prefixed
 with a “-” or “+” sign.</p>
 </dd>
-<dt><strong>primitive</strong>:</dt><dd><p>A three or four character shorthand name for the predefined primitive
+<dt><strong>PRIMITIVE</strong>:</dt><dd><p>A three or four character shorthand name for the predefined primitive
 datatypes, similar to the numpy array protocol, consisting of one of three
 prefixes, followed by a single character indicating the kind of encoding,
 followed by one or two digits specifying the number of bytes per item.
@@ -266,21 +268,24 @@ The prefixes are “<strong>&lt;</strong>” (little endian), “<strong>&gt;</s
 or signed integer, 1, 2, 4, or 8 bytes), “f” (IEEE754 floating point, 2, 4
 or 8 bytes), “c” (complex, 4, 8, or 16 bytes), “b” (boolean,   1 byte), “S”
 (ASCII or CP1252 or Latin1 character, 1 byte), “U” (Unicode character, 1, 2,
-or 4 bytes).</p>
+or 4 bytes).  These prefixed strings are the only reserved words in Dudley.</p>
 </dd>
-<dt><strong>float</strong>:</dt><dd><p>A floating point number recognized by C or python (including an
+<dt><strong>FLOAT</strong>:</dt><dd><p>A floating point number recognized by C or python (including an
 optional sign prefix).  It must include a decimal point to distinguish it
 from an integer.</p>
 </dd>
 </dl>
+<p>Here “?” denotes zero or one occurrence, “+” denotes one or more occurrence,
+and “*” denotes zero or more occurrences.</p>
 </section>
 <section id="container-specification">
 <h2>Container specification<a class="headerlink" href="#container-specification" title="Link to this heading">¶</a></h2>
-<p>Here “?” denotes zero or one occurrence, “+” denotes one or more occurrence,
-and “*” denotes zero or more occurrences.</p>
 <p>Note that the entire layout is a <strong>dict</strong>, namely the root dict.</p>
 <dl>
 <dt><strong>dict</strong>:</dt><dd><p>dictitem*</p>
+</dd>
+<dt><strong>name</strong></dt><dd><p>SYMBOL</p>
+<p>QUOTED</p>
 </dd>
 <dt><strong>dictitem</strong>:</dt><dd><p>name “<strong>:</strong>” data</p>
 <p>name “<strong>/</strong>” dict</p>
@@ -296,9 +301,9 @@ and “*” denotes zero or more occurrences.</p>
 <p>listitem “<strong>,</strong>” listitems</p>
 </dd>
 <dt><strong>listitem</strong>:</dt><dd><p>data</p>
-<p>integer? address</p>
-<p>integer? “<strong>/</strong>” dict</p>
-<p>integer? “<strong>[</strong>” list “<strong>]</strong>”</p>
+<p>INTEGER? address</p>
+<p>INTEGER? “<strong>/</strong>” dict</p>
+<p>INTEGER? “<strong>[</strong>” list “<strong>]</strong>”</p>
 </dd>
 </dl>
 </section>
@@ -310,11 +315,11 @@ and “*” denotes zero or more occurrences.</p>
 </dd>
 <dt><strong>data</strong>:</dt><dd><p>array filter?</p>
 </dd>
-<dt><strong>parameter</strong>:</dt><dd><p>integer</p>
-<p>primitive address?</p>
+<dt><strong>parameter</strong>:</dt><dd><p>INTEGER</p>
+<p>PRIMITIVE address?</p>
 <p>name address?</p>
 </dd>
-<dt><strong>datatype</strong>:</dt><dd><p>primitive</p>
+<dt><strong>datatype</strong>:</dt><dd><p>PRIMITIVE</p>
 <p>name</p>
 </dd>
 <dt><strong>struct</strong>:</dt><dd><p>“<strong>{</strong>” structbody “<strong>}</strong>”</p>
@@ -329,13 +334,13 @@ and “*” denotes zero or more occurrences.</p>
 <dt><strong>dimensions</strong>:</dt><dd><p>dimension</p>
 <p>dimension “<strong>,</strong>” dimensions</p>
 </dd>
-<dt><strong>dimension</strong>:</dt><dd><p>integer</p>
+<dt><strong>dimension</strong>:</dt><dd><p>INTEGER</p>
 <p>name</p>
 <p>name “<strong>+</strong>”+</p>
 <p>name “<strong>-</strong>“+</p>
 </dd>
-<dt><strong>address</strong>:</dt><dd><p>“<strong>&#64;</strong>” integer</p>
-<p>“<strong>%</strong>” integer</p>
+<dt><strong>address</strong>:</dt><dd><p>“<strong>&#64;</strong>” INTEGER</p>
+<p>“<strong>%</strong>” INTEGER</p>
 </dd>
 <dt><strong>filter</strong>:</dt><dd><p>“<strong>-&gt;</strong>” name arguments?</p>
 <p>“<strong>&lt;-</strong>” name arguments?</p>
@@ -345,8 +350,8 @@ and “*” denotes zero or more occurrences.</p>
 <dt><strong>arglist</strong>:</dt><dd><p>argument</p>
 <p>argument “<strong>,</strong>” arglist</p>
 </dd>
-<dt><strong>argument</strong>:</dt><dd><p>integer</p>
-<p>float</p>
+<dt><strong>argument</strong>:</dt><dd><p>INTEGER</p>
+<p>FLOAT</p>
 </dd>
 </dl>
 </section>
@@ -370,15 +375,13 @@ datatype) currently being defined.</p>
 <p>name “<strong>=</strong>” “<strong>[</strong>” integers “<strong>]</strong>”</p>
 <p>name “<strong>=</strong>” “<strong>[</strong>” floats “<strong>]</strong>”</p>
 </dd>
-<dt><strong>attrvalue</strong>:</dt><dd><p>integer</p>
-<p>float</p>
-<p>string</p>
+<dt><strong>attrvalue</strong>:</dt><dd><p>INTEGER</p>
+<p>FLOAT</p>
+<p>QUOTED</p>
 </dd>
-<dt><strong>integers</strong>:</dt><dd><p>integer “<strong>,</strong>” integers</p>
+<dt><strong>integers</strong>:</dt><dd><p>INTEGER “<strong>,</strong>” integers</p>
 </dd>
-<dt><strong>floats</strong>:</dt><dd><p>float “<strong>,</strong>” floats</p>
-</dd>
-<dt><strong>string</strong>:</dt><dd><p>A terminal like the <strong>name</strong> terminal, except that it must be quoted.</p>
+<dt><strong>floats</strong>:</dt><dd><p>FLOAT “<strong>,</strong>” floats</p>
 </dd>
 </dl>
 </section>

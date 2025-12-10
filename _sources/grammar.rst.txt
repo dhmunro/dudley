@@ -6,21 +6,24 @@ Terminals
 
 Besides punctuation, the Dudley grammar has these terminals:
 
-**name**:
+**SYMBOL**:
   Any text comprising ASCII alphanumeric characters or underscores whose first
-  character is not a digit.  Additionally, any quoted Unicode text excluding
-  the NUL charcter is a legal name; Dudley has no keywords.  Names may be
-  quoted with either single or double quotes, "**\"**" or "**`**", and escape
-  sequences "**\\\"**", "**\\`**" and "**\\\\**" can be used inside quoted
-  strings.  (Dudley does not recognize any other escape sequences; a quoted
-  string only ends with the matching unescaped close quote.)
+  character is not a digit.
 
-**integer**:
+**QUOTED**
+  Any quoted Unicode text excluding the NUL character is a legal name.  Either
+  single or double quotes, "**\"**" or "**`**" may be used, and escape
+  sequences "**\\\"**", "**\\`**" and "**\\\\**" inside quoted strings can be
+  used to get a quote or backslash into the string.  Dudley does not recognize
+  any other escape sequences.  A quoted string only ends with the matching
+  unescaped close quote.
+
+**INTEGER**:
   A string of decimal digits not beginning with 0 (except for the single digit
-  0), or a string or hex digits prefixed by "0x".  The digits may be prefixed
+  0), or a string of hex digits prefixed by "0x".  The digits may be prefixed
   with a "-" or "+" sign.
 
-**primitive**:
+**PRIMITIVE**:
   A three or four character shorthand name for the predefined primitive
   datatypes, similar to the numpy array protocol, consisting of one of three
   prefixes, followed by a single character indicating the kind of encoding,
@@ -30,23 +33,28 @@ Besides punctuation, the Dudley grammar has these terminals:
   or signed integer, 1, 2, 4, or 8 bytes), "f" (IEEE754 floating point, 2, 4
   or 8 bytes), "c" (complex, 4, 8, or 16 bytes), "b" (boolean,   1 byte), "S"
   (ASCII or CP1252 or Latin1 character, 1 byte), "U" (Unicode character, 1, 2,
-  or 4 bytes).
+  or 4 bytes).  These prefixed strings are the only reserved words in Dudley.
 
-**float**:
+**FLOAT**:
   A floating point number recognized by C or python (including an
   optional sign prefix).  It must include a decimal point to distinguish it
   from an integer.
 
-Container specification
-------------------------
-
 Here "?" denotes zero or one occurrence, "+" denotes one or more occurrence,
 and "*" denotes zero or more occurrences.
+
+Container specification
+------------------------
 
 Note that the entire layout is a **dict**, namely the root dict.
 
 **dict**:
   dictitem*
+
+**name**
+  SYMBOL
+
+  QUOTED
 
 **dictitem**:
   name "**:**" data
@@ -74,11 +82,11 @@ Note that the entire layout is a **dict**, namely the root dict.
 **listitem**:
   data
 
-  integer? address
+  INTEGER? address
 
-  integer? "**/**" dict
+  INTEGER? "**/**" dict
 
-  integer? "**[**" list "**]**"
+  INTEGER? "**[**" list "**]**"
 
 Data specification
 ------------------
@@ -92,14 +100,14 @@ Data specification
   array filter?
 
 **parameter**:
-  integer
+  INTEGER
 
-  primitive address?
+  PRIMITIVE address?
 
   name address?
 
 **datatype**:
-  primitive
+  PRIMITIVE
 
   name
 
@@ -123,7 +131,7 @@ Data specification
   dimension "**,**" dimensions
 
 **dimension**:
-  integer
+  INTEGER
 
   name
 
@@ -132,9 +140,9 @@ Data specification
   name "**-**"+
 
 **address**:
-  "**@**" integer
+  "**@**" INTEGER
 
-  "**%**" integer
+  "**%**" INTEGER
 
 **filter**:
   "**->**" name arguments?
@@ -150,9 +158,9 @@ Data specification
   argument "**,**" arglist
 
 **argument**:
-  integer
+  INTEGER
 
-  float
+  FLOAT
 
 Comments
 --------
@@ -184,17 +192,14 @@ datatype) currently being defined.
   name "**=**" "**[**" floats "**]**"
 
 **attrvalue**:
-  integer
+  INTEGER
 
-  float
+  FLOAT
 
-  string
+  QUOTED
 
 **integers**:
-  integer "**,**" integers
+  INTEGER "**,**" integers
 
 **floats**:
-  float "**,**" floats
-
-**string**:
-  A terminal like the **name** terminal, except that it must be quoted.
+  FLOAT "**,**" floats

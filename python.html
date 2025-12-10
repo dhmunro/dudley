@@ -272,16 +272,22 @@ using the <cite>dudley.openbd</cite> function:</p>
 <span class="n">s_root</span> <span class="o">=</span> <span class="n">openbd</span><span class="p">(</span><span class="n">bdfile</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>In this simple form <cite>bdfile</cite> is a filename, and <cite>mode</cite> can be “r” (read only),
-“w” (create for read-write, clobber if exists), “a” (create or open for
-update), “r+” (open for update), or “w-” (create for read-write, error if
-exists).  If <cite>bdfile</cite> already exists, it must begin with a Dudley signature,
-and have its Dudley layout appended to the end of the file.  If <cite>openbd</cite> is
-creating the file, it will have this format.  In other words, Dudley acts like
-HDF5 or ather self-describing binary file formats after this <cite>openbd</cite> call.</p>
+<p>In this simple form <cite>bdfile</cite> is a filename, and <cite>mode</cite> is one of:</p>
+<ul class="simple">
+<li><p><strong>“r”</strong> open read-only (the default)</p></li>
+<li><p><strong>“w”</strong> create read-write, first delete file if present</p></li>
+<li><p><strong>“a”</strong> open read-write, create if file not present</p></li>
+<li><p><strong>“r+”</strong> open read-write, error if file not present</p></li>
+<li><p><strong>“w-”</strong> create read-write, error if file present</p></li>
+</ul>
+<p>Except for the “w” modes, if <cite>bdfile</cite> already exists, it must begin with a
+Dudley signature, and have its Dudley layout appended to the end of the file.
+If <cite>openbd</cite> is creating the file, it will have this format.  In other words,
+Dudley acts like HDF5 or ather self-describing binary file format libraries
+for this <cite>openbd</cite> call.</p>
 <p>(More complex scenarios involve optional <cite>dud</cite> and <cite>params</cite> arguments to
 <cite>openbd</cite>, which set the Dudley layout and any dynamic parameter values without
-needing to read them from the file.)</p>
+needing to read them from the file, as described later.)</p>
 <p>The <cite>s_root</cite> object returned by <cite>openbd</cite> is the root dict of the stream, an
 instance of the <cite>SDict</cite> container class.  <cite>SDict</cite> instances behave for the
 most part like python dict instances, except that their keys must be text
@@ -505,18 +511,18 @@ be anything.</p>
 <h3>Dicts, lists, and data<a class="headerlink" href="#dicts-lists-and-data" title="Link to this heading">¶</a></h3>
 <p>Usually, the best way to build a Dudley layout that is not associated with any
 binary data file is to write a “.dud” text file, then parse it with:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">l_root</span> <span class="o">=</span> <span class="n">dudley</span><span class="p">(</span><span class="n">dudfile</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">l_root</span> <span class="o">=</span> <span class="n">opendud</span><span class="p">(</span><span class="n">dudfile</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>The <cite>dudfile</cite> argument can be the name of a text file or a python <cite>TextIOBase</cite>
-text stream object.  The <cite>dudley</cite> function parses this text according to the
+text stream object.  The <cite>opendud</cite> function parses this text according to the
 Dudley language, returning an <cite>LDict</cite> object representing the root dict of the
 layout.  Unlike an <cite>SDict</cite>, the <cite>LDict</cite> is not associated with any particular
 binary data stream - you cannot use it to read or write data.  However, every
 <cite>SDict</cite> or <cite>SList</cite> container has an associated <cite>LDict</cite> or <cite>LList</cite> container
 which is the description of its contents in the Dudley data model.  You can
-retrieve this description using the read-only <cite>dudley</cite> property:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">l_root</span> <span class="o">=</span> <span class="n">s_root</span><span class="o">.</span><span class="n">dudley</span>  <span class="c1"># get entire layout for a binary stream</span>
+retrieve this description using the read-only <cite>dud</cite> property:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">l_root</span> <span class="o">=</span> <span class="n">s_root</span><span class="o">.</span><span class="n">dud</span>  <span class="c1"># get entire layout for a binary stream</span>
 </pre></div>
 </div>
 <p>Unlike the stream interface, the layout interface is not designed for casual
