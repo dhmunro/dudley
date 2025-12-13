@@ -290,7 +290,7 @@ class LItem(object):
             _item = layout[_item.parent]
         return _item._get_typeid(datatype, layout)
 
-    def doc(self, *args):
+    def docs(self, *args):
         """retrieve or append to document comments for this item
         
         Parameters
@@ -409,22 +409,25 @@ class LData(LItem):
 
     @property
     def size(self):
-        """byte size of data array item or None if address specified"""
+        """byte size of data array item or None if parametrized shape"""
         layout = self.layout
         item = layout[self.itemid]
         if item.typeid is None:
             return 0
         typeid = layout[self.itemid].typeid
         if typeid == 0:
-            return 0  # this is {} (None) object which has no size
+            return 0  # this is {} (None) object which has 0 size
         elif typeid < 0:
             return Layout.prim[-typeid].size
         size = layout.l_item(typeid).size
         if size is not None:  # typedef, compound may have indeterminate size
             for d in self.shape:
                 if isinstance(d, (LParam, ParamRef)):
-                    return None  # size is indeterminate
-                size *= d
+                    d = d.value
+                    if d is None:
+                        return None  # size is indeterminate
+                if d >= 0:
+                    size *= d
         return size  # no dynamic parameter references
 
     @property
@@ -830,10 +833,12 @@ class LParam(LItem):
     @property
     def address(self):
         align = self.align
+        if align is None:
+            return None
         try:
             return align.address
         except AttributeError:
-            return -1  # not specified, thus unallocated or NULL
+            return -1  # not specified (initially unallocated or NULL)
 
     @property
     def alignment(self):
@@ -852,6 +857,13 @@ class LParam(LItem):
         elif typeid < 0:
             return Layout.prim[-typeid].size
         return layout.l_item(typeid).align
+
+    @property
+    def value(self):
+        """value of fixed parameter or None for dynamic parameter"""
+        layout = self.layout
+        item = layout[self.itemid]
+        return item.pid if item.typeid is None else None
 
     @property
     def size(self):
@@ -884,6 +896,17 @@ class ParamRef(object):
     def __init__(self, l_param, offset=0):
         self.l_param = l_param
         self.offset = offset
+
+    @property
+    def value(self):
+        """value of fixed parameter or None for dynamic parameter"""
+        value = self.l_param.value
+        if value is None:
+            return None
+        if value <= 0:
+            return value
+        value += self.offset
+        return value if value > 0 else 0
 
 
 class _Param(object):
