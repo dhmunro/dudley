@@ -447,6 +447,41 @@ declares that the data array "mydata" begins at exactly byte address 12345 of
 the file.  Such an address ignores the default datatype alignment restriction
 (just as it would be ignored if you specified a non-zero `align`).
 
+Attributes and documentation
+............................
+
+Each item in the layout may have a list of documentation lines or a dict of
+attributes or both, corresponding to any documentation or attribute comments in
+the Dudley layout language.  You access these using the `docs` and `attrs`
+methods of any LItem (LData, LDict, LList, LParam, or LType).
+
+To append to the list of documentation lines, use::
+
+    l_item.docs("Text of first line of documentation.",
+                "Text of second line of documenation.", ...)
+
+To retrieve the list of documenation lines associated with an l_item, just
+call the `docs` method with no arguments::
+
+    docs = l_item.docs()  # ["line1", "line2", ...] or []
+
+To add to the doct of attributes, use::
+
+    l_item.attrs({"attname1": value1, "attname2": value2},
+                 attname3=value3, attname4=value4)
+
+That is, you may add new attribute either by passing the `attrs` method a dict
+containing them, or by using keyword arguments directly.  To retrieve the dict
+of attributes, just call the `attrs` method with no arguments::
+
+    attrs l_item.attrs()  # {"name1": value1, "name2": value2, ...} or {}
+
+(If the list returned by `docs` or the dict returned by `attrs` is not empty,
+it is the actual mutable list or dict stored in the Layout, so be careful not
+to modify it.  On the other hand, an empty list or dict returned is *not*
+stored in the Layout, so modifying that temporary object will have no effect
+on the Layout.)
+
 Filters
 .......
 
