@@ -5,10 +5,10 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="File Names and Signatures" href="signatures.html"><link rel="prev" title="Filters" href="filters.html">
 
-    <!-- Generated with Sphinx 8.2.3 and Furo 2025.09.25 -->
+    <!-- Generated with Sphinx 9.0.4 and Furo 2025.12.19 -->
         <title>Dudley Grammar - Dudley Data Description Language</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
-    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=580074bf" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
     
     
@@ -294,6 +294,7 @@ and “*” denotes zero or more occurrences.</p>
 <p>name struct</p>
 <p>“<strong>/</strong>”</p>
 <p>“<strong>..</strong>”</p>
+<p>“<strong>^</strong>” data</p>
 </dd>
 <dt><strong>list</strong>:</dt><dd><p>listitems?</p>
 </dd>
@@ -304,6 +305,10 @@ and “*” denotes zero or more occurrences.</p>
 <p>INTEGER? address</p>
 <p>INTEGER? “<strong>/</strong>” dict</p>
 <p>INTEGER? “<strong>[</strong>” list “<strong>]</strong>”</p>
+<p>ref_items</p>
+</dd>
+<dt><strong>ref_items</strong></dt><dd><p>“<strong>^</strong>” data</p>
+<p>ref_items “<strong>^</strong>” data</p>
 </dd>
 </dl>
 </section>
@@ -313,7 +318,8 @@ and “*” denotes zero or more occurrences.</p>
 <dt><strong>array</strong>:</dt><dd><p>datatype shape? address?</p>
 <p>struct shape? address?</p>
 </dd>
-<dt><strong>data</strong>:</dt><dd><p>array filter?</p>
+<dt><strong>data</strong>:</dt><dd><p>datatype shape? filter? address?</p>
+<p>struct shape? filter? address?</p>
 </dd>
 <dt><strong>parameter</strong>:</dt><dd><p>INTEGER</p>
 <p>PRIMITIVE address?</p>
@@ -325,7 +331,7 @@ and “*” denotes zero or more occurrences.</p>
 <dt><strong>struct</strong>:</dt><dd><p>“<strong>{</strong>” structbody “<strong>}</strong>”</p>
 </dd>
 <dt><strong>structbody</strong>:</dt><dd><p>structmember*</p>
-<p>“<strong>:</strong>” array</p>
+<p>“<strong>:</strong>” data</p>
 </dd>
 <dt><strong>structmember</strong>:</dt><dd><p>name “<strong>:</strong>” array</p>
 </dd>
@@ -466,8 +472,8 @@ datatype) currently being defined.</p>
     </aside>
   </div>
 </div><script src="_static/documentation_options.js?v=f2a433a1"></script>
-    <script src="_static/doctools.js?v=9bcbadda"></script>
-    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/scripts/furo.js?v=46bd48cc"></script>
     </body>
 </html>

@@ -5,10 +5,10 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="prev" title="File Names and Signatures" href="signatures.html">
 
-    <!-- Generated with Sphinx 8.2.3 and Furo 2025.09.25 -->
+    <!-- Generated with Sphinx 9.0.4 and Furo 2025.12.19 -->
         <title>Python API - Dudley Data Description Language</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
-    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=580074bf" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
     
     
@@ -680,7 +680,11 @@ the Dudley layout language.  You access these using the <cite>docs</cite> and <c
 methods of any LItem (LData, LDict, LList, LParam, or LType).</p>
 <p>To append to the list of documentation lines, use:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">l_item</span><span class="o">.</span><span class="n">docs</span><span class="p">(</span><span class="s2">&quot;Text of first line of documentation.&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;Text of second line of documenation.&quot;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+            <span class="s2">&quot;Text of second line of documentation.&quot;</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+<span class="c1"># Multiline strings will be split at newlines, so this is equivalent:</span>
+<span class="n">l_item</span><span class="o">.</span><span class="n">docs</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span><span class="se">\</span>
+<span class="s2">Text of first line of documentation.</span>
+<span class="s2">Text of second line of documentation.&quot;&quot;&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>To retrieve the list of documenation lines associated with an l_item, just
@@ -688,22 +692,20 @@ call the <cite>docs</cite> method with no arguments:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">docs</span> <span class="o">=</span> <span class="n">l_item</span><span class="o">.</span><span class="n">docs</span><span class="p">()</span>  <span class="c1"># [&quot;line1&quot;, &quot;line2&quot;, ...] or []</span>
 </pre></div>
 </div>
-<p>To add to the doct of attributes, use:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">l_item</span><span class="o">.</span><span class="n">attrs</span><span class="p">({</span><span class="s2">&quot;attname1&quot;</span><span class="p">:</span> <span class="n">value1</span><span class="p">,</span> <span class="s2">&quot;attname2&quot;</span><span class="p">:</span> <span class="n">value2</span><span class="p">},</span>
+<p>To add to the dict of attributes, use:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">l_item</span><span class="o">.</span><span class="n">attrs</span><span class="p">([(</span><span class="s2">&quot;attname1&quot;</span><span class="p">,</span> <span class="n">value1</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;attname2&quot;</span><span class="p">,</span> <span class="n">value2</span><span class="p">)],</span>
              <span class="n">attname3</span><span class="o">=</span><span class="n">value3</span><span class="p">,</span> <span class="n">attname4</span><span class="o">=</span><span class="n">value4</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>That is, you may add new attribute either by passing the <cite>attrs</cite> method a dict
-containing them, or by using keyword arguments directly.  To retrieve the dict
-of attributes, just call the <cite>attrs</cite> method with no arguments:</p>
+or item list containing them, or by using keyword arguments directly.  To
+retrieve the dict of attributes, call the <cite>attrs</cite> method with no arguments:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">attrs</span> <span class="n">l_item</span><span class="o">.</span><span class="n">attrs</span><span class="p">()</span>  <span class="c1"># {&quot;name1&quot;: value1, &quot;name2&quot;: value2, ...} or {}</span>
 </pre></div>
 </div>
-<p>(If the list returned by <cite>docs</cite> or the dict returned by <cite>attrs</cite> is not empty,
-it is the actual mutable list or dict stored in the Layout, so be careful not
-to modify it.  On the other hand, an empty list or dict returned is <em>not</em>
-stored in the Layout, so modifying that temporary object will have no effect
-on the Layout.)</p>
+<p>(If the list returned by <cite>docs</cite> is not empty, it is the actual mutable list or
+dict stored in the Layout, so be careful not to modify it.  On the other hand,
+the dict returned by <cite>attrs</cite> is a copy of what is stored in the Layout.)</p>
 </section>
 <section id="filters">
 <h3>Filters<a class="headerlink" href="#filters" title="Link to this heading">¶</a></h3>
@@ -822,8 +824,8 @@ little or big endian byte order without reading the file.</p>
     </aside>
   </div>
 </div><script src="_static/documentation_options.js?v=f2a433a1"></script>
-    <script src="_static/doctools.js?v=9bcbadda"></script>
-    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/scripts/furo.js?v=46bd48cc"></script>
     </body>
 </html>

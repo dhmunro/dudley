@@ -5,10 +5,10 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Special Comments" href="comments.html"><link rel="prev" title="Overview" href="overview.html">
 
-    <!-- Generated with Sphinx 8.2.3 and Furo 2025.09.25 -->
+    <!-- Generated with Sphinx 9.0.4 and Furo 2025.12.19 -->
         <title>Dudley Syntax - Dudley Data Description Language</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
-    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=580074bf" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
     
     
@@ -282,8 +282,8 @@ among all layouts, and indeed among all binary streams Dudley can describe.)</p>
 a datatype to declare a simple scalar value, but optionally a shape, an
 address, and a filter (in that order) may follow the datatype:</p>
 <dl class="simple">
-<dt><strong>data</strong>:</dt><dd><p>datatype shape<sub>opt</sub> address<sub>opt</sub>
-filter<sub>opt</sub></p>
+<dt><strong>data</strong>:</dt><dd><p>datatype shape<sub>opt</sub> filter<sub>opt</sub>
+address<sub>opt</sub></p>
 </dd>
 </dl>
 <p>A <strong>shape</strong> is a comma delimited list of dimensions enclosed in square
@@ -298,6 +298,16 @@ To be clear, shape <cite>[3, 2]</cite> in Dudley means three pairs, <em>not</em>
 Each dimension in the shape may be either an integer value or a parameter
 name.  (The parameter name may optionally have <cite>+</cite> or <cite>-</cite> suffixes as will be
 descibed below.)</p>
+<p>A <strong>filter</strong> begins with either <cite>-&gt;</cite> or <cite>&lt;-</cite>, followed by a
+name (e.g.- <cite>gzip</cite>) and an optional comma delimited argument list in
+parentheses <cite>(arg1, …, argN)</cite>, where each argument is either a number (int
+or float) or a quoted string.  Filters indicate compressed data (<cite>-&gt;</cite>) or
+references to other items (<cite>&lt;-</cite>).</p>
+<p>Any filter prevents a layout from describing more than one binary file
+or stream.  Lossless compression doesn’t work very well for most binary data
+(since low order bits of floats are already random), while references can and
+should be avoided when you are designing the layout of stored data.  Although
+you should avoid them, filters will be described in detail elsewhere.</p>
 <p>An <strong>address</strong> is either an absolute byte address in the binary stream, or
 an alignment to specify that a few undefined padding bytes will be added to
 bring the absolute address up to some even multiple of two (the value of the
@@ -313,16 +323,6 @@ previous item.  The very first item in the layout goes at address 0 in the
 stream, but the entire stream may be offset from byte 0 of the file it is in.
 (For example, the offset is 16 bytes for binary files which begin with a native
 Dudley file signature.)</p>
-<p>A <strong>filter</strong> begins with either <cite>-&amp;gt;</cite> or <cite>&amp;lt;-</cite>, followed by a
-name (e.g.- <cite>gzip</cite>) and an optional comma delimited argument list in
-parentheses <cite>(arg1, …, argN)</cite>, where each argument is either a number (int
-or float) or a quoted string.  Filters indicate compressed data (<cite>-&amp;gt;</cite>) or
-references to other items (<cite>&amp;lt;-</cite>).</p>
-<p>Any filter prevents a layout from describing more than one binary file
-or stream.  Lossless compression doesn’t work very well for most binary data
-(since low order bits of floats are already random), while references can and
-should be avoided when you are designing the layout of stored data.  Although
-you should avoid them, filters will be described in detail elsewhere.</p>
 </section>
 <section id="dict-item">
 <h2>Dict item<a class="headerlink" href="#dict-item" title="Link to this heading">¶</a></h2>
@@ -337,13 +337,18 @@ character that determines which of the five kinds of items is being declared:</p
 <p>param_name = param</p>
 <p><cite>..</cite></p>
 <p><cite>/</cite></p>
+<p>referenced_data</p>
 </dd>
 </dl>
-<p>The last two possibilities are actually not dict items; “..” opens the
+<p>The “..” and “/”” are actually not dict items; “..” opens the
 parent dict (a no-op if the current dict is root), while “/” opens the root
 dict.  Subsequent dict item declarations go into that newly opened dict.
 (A “,” or a “]” also closes the current dict, but that case is discussed in the
 section on list items below.)</p>
+<p>The final possibility, <cite>referenced_data</cite> is a special case needed for reference
+filters (pointer data), described in the section on anonymous items below.
+Although it may appear syntactically in any <strong>dict</strong> or <strong>list</strong>, the
+anonymous item it declares is always in the root <strong>dict</strong>.</p>
 <p>If the parent container of the current dict is a list rather than a dict, then
 it counts as the root of a separate tree for the purposes of “..” and “/” -
 that is “..” is a no-op and “/” in any descendant dict pops back to the
@@ -394,17 +399,19 @@ square brackets “[]”.</p>
 <p>number / dict_item1 dict_item2 … dict_itemN</p>
 <p>number [ list_item1, list_item2, …, list_itemN ]</p>
 <p>number<sub>opt</sub> address</p>
+<p>referenced_data1 referenced_data2 …</p>
 </dd>
 </dl>
 <p>An optional trailing comma between the final item in a list (<cite>list_itemN</cite>) and
 the closing “]” is ignored.</p>
 <p>As mentioned above, the comma “,” or “]” separating or terminating the list
 declaration also terminates a dict item in the list.</p>
-<p>In the second two cases, the leading number is the integer index of a
+<p>A leading number is the integer index of a
 previous list item to be extended.  That item must have been a dict in the “/”
 case, or a list in the “[” case.  Neither form appends a new item to the list,
 instead modifiying an existing item.</p>
-<p>The final case is a shortcut for duplicating a previously data item declaration
+<p>Just an <cite>address</cite> (optionally preceded by a number) is a shortcut for
+duplicating a previously data item declaration
 as the next item of the list.  If number is not present, the previous list item
 is the default thing to duplicate.  In either case, the referenced item must be
 a data array, not a dict or a list.  With an <cite>address</cite> of <cite>%0</cite>, this makes it
@@ -437,6 +444,12 @@ overridden by a <cite>%alignment</cite>).</p>
 a C typedef, allowing you to give a name to an arbitrary array type and shape.
 This form also permits you to change the alignment of a datatype, which might
 occasionally be useful to change the alignment of predefined primitives.</p>
+<p>In a compound datatype, the <cite>dataN</cite> may not include any filters.  In a
+typedef datatype, the <cite>data</cite> may include a reference filter, but not a
+compression filter, which suffices to permit a datatype to contain arbitrary
+arrays of reference pointers.  This is primarily for compatibility with HDF5
+and PDB files; using pointers in native Dudley files is probably never a
+good idea.</p>
 <p>The fourth form - an empty compound - is a special case which gives Dudley a
 way to declare variables whose value is <cite>None</cite> in python or <cite>null</cite> in
 javascript.  This isn’t useful in Dudley layouts intended to describe
@@ -624,18 +637,18 @@ corresponding to every individual instance of the reference declared.  These
 must actually appear in the Dudley layout.  An automatically generated
 referenced array declaration in a Dudley layout looks like this:</p>
 <dl class="simple">
-<dt><strong>referenced_data</strong></dt><dd><p>: datatype shape<sub>opt</sub> address<sub>opt</sub></p>
+<dt><strong>referenced_data</strong></dt><dd><p>^ datatype shape<sub>opt</sub> address<sub>opt</sub></p>
 </dd>
 </dl>
-<p>This looks like an ordinary dict data item declaration but without a
+<p>This looks similar to an ordinary data item declaration but without a
 <cite>data_name</cite>.  However, there are additional restrictions on the <cite>datatype</cite> and
 <cite>shape</cite> of a referenced array.  Namely, it may use only named datatypes
 declared in the root dict, and its shape may include only explicit integer
 dimension lengths - parameter names are not permitted in referenced array
 shapes.</p>
 <p>The other big difference bewteen a referenced data declaration and an ordinary
-declaration for data in a dict is that the referenced declaration automatically
-goes in the root dict, without affecting the current working dict.</p>
+declaration for data in a dict or list is that the referenced declaration
+automatically goes in the root dict, without affecting the current working dict.</p>
 </section>
 </section>
 
@@ -723,8 +736,8 @@ goes in the root dict, without affecting the current working dict.</p>
     </aside>
   </div>
 </div><script src="_static/documentation_options.js?v=f2a433a1"></script>
-    <script src="_static/doctools.js?v=9bcbadda"></script>
-    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/scripts/furo.js?v=46bd48cc"></script>
     </body>
 </html>
