@@ -458,29 +458,31 @@ methods of any LItem (LData, LDict, LList, LParam, or LType).
 To append to the list of documentation lines, use::
 
     l_item.docs("Text of first line of documentation.",
-                "Text of second line of documenation.", ...)
+                "Text of second line of documentation.", ...)
+    # Multiline strings will be split at newlines, so this is equivalent:
+    l_item.docs("""\
+    Text of first line of documentation.
+    Text of second line of documentation.""")
 
 To retrieve the list of documenation lines associated with an l_item, just
 call the `docs` method with no arguments::
 
     docs = l_item.docs()  # ["line1", "line2", ...] or []
 
-To add to the doct of attributes, use::
+To add to the dict of attributes, use::
 
-    l_item.attrs({"attname1": value1, "attname2": value2},
+    l_item.attrs([("attname1", value1), ("attname2", value2)],
                  attname3=value3, attname4=value4)
 
 That is, you may add new attribute either by passing the `attrs` method a dict
-containing them, or by using keyword arguments directly.  To retrieve the dict
-of attributes, just call the `attrs` method with no arguments::
+or item list containing them, or by using keyword arguments directly.  To
+retrieve the dict of attributes, call the `attrs` method with no arguments::
 
     attrs l_item.attrs()  # {"name1": value1, "name2": value2, ...} or {}
 
-(If the list returned by `docs` or the dict returned by `attrs` is not empty,
-it is the actual mutable list or dict stored in the Layout, so be careful not
-to modify it.  On the other hand, an empty list or dict returned is *not*
-stored in the Layout, so modifying that temporary object will have no effect
-on the Layout.)
+(If the list returned by `docs` is not empty, it is the actual mutable list or
+dict stored in the Layout, so be careful not to modify it.  On the other hand,
+the dict returned by `attrs` is a copy of what is stored in the Layout.)
 
 Filters
 .......

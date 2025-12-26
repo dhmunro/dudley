@@ -71,6 +71,8 @@ Note that the entire layout is a **dict**, namely the root dict.
 
   "**..**"
 
+  "**^**" data
+
 **list**:
   listitems?
 
@@ -88,6 +90,13 @@ Note that the entire layout is a **dict**, namely the root dict.
 
   INTEGER? "**[**" list "**]**"
 
+  ref_items
+
+**ref_items**
+  "**^**" data
+
+  ref_items "**^**" data
+
 Data specification
 ------------------
 
@@ -97,7 +106,9 @@ Data specification
   struct shape? address?
 
 **data**:
-  array filter?
+  datatype shape? filter? address?
+ 
+  struct shape? filter? address?
 
 **parameter**:
   INTEGER
@@ -117,7 +128,7 @@ Data specification
 **structbody**:
   structmember*
 
-  "**:**" array
+  "**:**" data
 
 **structmember**:
   name "**:**" array

@@ -1,8 +1,8 @@
 /* Dudley grammar
   23 terminals
-  21 non-terminals
-  60 rules
-  90 states
+  22 non-terminals
+  63 rules
+  95 states
 
   Does not include mini-grammar for attribute comments (or document comments)
   - expect to handler those in lexer.
@@ -21,10 +21,10 @@
 %token<realnum> FLOATING
 %token EQ COLON SLASH DOTDOT LBRACK RBRACK COMMA AT PCNT LCURLY RCURLY
 /*     =    :     /     ..      [      ]     ,   @   %     {      }   */
-%token LARROW RARROW LPAREN RPAREN
-/*       <-     ->     (      )   */
-%token<num> PLUSSES MINUSES
-/*             +       -   */
+%token LARROW RARROW LPAREN RPAREN CARAT
+/*       <-     ->     (      )      ^  */
+%token<num> PARAMSFX
+/*           + or -   */
 
 %%
 
@@ -47,7 +47,7 @@ dict_item:
 | SYMBOL struct_def
 | SLASH
 | DOTDOT
-| COLON data_item
+| CARAT data_item
 | error
 ;
 
@@ -70,8 +70,7 @@ dimensions:
 dimension:
   INTEGER
 | SYMBOL
-| SYMBOL PLUSSES
-| SYMBOL MINUSES
+| SYMBOL PARAMSFX
 | error
 ;
 
@@ -108,12 +107,19 @@ list_item:
 | INTEGER list_def
 | INTEGER SLASH dict_items
 | address_align
+| INTEGER address_align
+| ref_items
 | error
+;
+
+ref_items:
+  CARAT data_item
+| ref_items CARAT data_item
 ;
 
 struct_def:
   LCURLY struct_items RCURLY
-| LCURLY EQ data_item RCURLY
+| LCURLY COLON data_item RCURLY
 ;
 
 struct_items:
@@ -122,7 +128,7 @@ struct_items:
 ;
 
 struct_item:
-  SYMBOL EQ data_item
+  SYMBOL COLON data_item
 | error
 ;
 

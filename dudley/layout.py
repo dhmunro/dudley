@@ -1,20 +1,19 @@
 """Build, navigate, and query a Dudley layout."""
+from __future__ import absolute_import
 
 __all__ = "Address"
 
-from __future__ import absolute_import
-
 import sys
-from io import StringIO
 from numbers import Integral
-PY2 = sys.version_info < (3,)
-if PY2:
-    from collections import OrderedDict as dict
-else:
-    basestring = str
 
 from numpy import array
 
+PY2 = sys.version_info < (3,)
+if PY2:
+    from collections import OrderedDict as odict
+else:
+    odict = dict
+    basestring = str
 
 D_PRIM, D_DATA, D_PARAM, D_DICT, D_LIST, D_TYPE = 0, 1, 2, 3, 4, 5
 
@@ -35,7 +34,7 @@ class _Prim(object):
     indeterminate (not quite the same meaning as in the numpy array protocol),
     '<' means least significant byte first (little-endian), and `>` means
     most significant byte first (big-endian).
-    
+
     There are three different byte sizes for each: 2, 4, or 8 bytes per value
     (except complex have 4, 8, or 16 bytes per floating point pair), except
     for the `U` unicode kind, which has only 2 and 4 byte sizes.  (Note that
@@ -102,7 +101,7 @@ class Layout(list):
     list use an `itemid` to refer to other objects in the Layout, like parent
     or child containers, non-primitive datatypes or parameter references in
     array declarations, etc.  The root _Dict always has `itemid=0`.
-    
+
     This strategy avoids a tangle of circular object references among the
     containers and data.  However, it would make a very clumsy layout
     interface.  Therefore, the actual user interface is the LItem objects,
@@ -138,7 +137,7 @@ class Layout(list):
     primid = {name: -i for i, name in enumerate(prim) if name}
 
     def l_item(self, index):
-        return _LItem[self[index].itype](self, index)
+        return _LItems[self[index].itype](self, index)
 
     def encode_dim(self, d):
         """Encode array dimension as int, including parameter references."""
@@ -162,7 +161,7 @@ class Layout(list):
             return d
         offset = (d & 63) - 32  # (d & 63) != 0 since offset >= -31
         paramid = -(d >> 6)  # note that arithmetic right shift is correct
-        l_param = LParam(layout, paramid)
+        l_param = LParam(self, paramid)
         return ParamRef(l_param, offset) if offset else l_param
 
     def encode_shape(self, shape):
@@ -188,14 +187,13 @@ class Layout(list):
         if ptype == D_DICT and parent.get(name):
             raise TypeError("LDict item {} previously declared".format(name))
         datatype, args = args[0], args[1:]
-        if issubclass(datatype, type({})):  # dict is OrderedDict here for PY2
+        if issubclass(datatype, dict):
             if ptype == D_TYPE:
                 raise TypeError("attempt to add LDict as an LType member")
             item = _Dict(parent, name)
         elif issubclass(datatype, list):
             if ptype == D_TYPE:
                 raise TypeError("attempt to add LList as an LType member")
-            return self.l_item(listid)
             item = _List(parent, name)
         elif ptype == D_TYPE and datatype is None:
             raise TypeError("attempt to add None as an LType member")
@@ -239,13 +237,13 @@ class Layout(list):
             # append new _TYpe, then immediately its anonymous member
             self.append(_Type(parent, name, itemid+1))
             self.add_item(itemid, None, datatype, shape, align)
-            member = layout.l_item(-1)
-            item = layout[itemid]
+            member = self.l_item(-1)
+            item = self[itemid]
             item.size = member.size
             # Note: align cannot be None - add_item exception if datatype None
             item.align = align if align else member.alignment
         else:  # this is a compound
-            self.append(_Type(parent, name, {}))
+            self.append(_Type(parent, name, odict()))
         return itemid
 
 
@@ -266,9 +264,21 @@ class LItem(object):
     @property
     def root(self):
         """dict ancestor whose parent is not a dict (either root0 or list)"""
-        raw = self.layout.raw
-        while True:
-            parent = raw(self.itemid)
+        layout = self.layout
+        parentid = layout[self.itemid].parent
+        if parentid is None:
+            return self
+        parent = layout[parentid]
+        while parent.itype != D_DICT:  # first find an LDict parent
+            parent = layout[parent.parent]
+        while True:  # parent is an LDict, continue until its parent is not
+            parentid = parent.parent
+            if parentid is None:
+                return parent  # parent is root
+            p = layout[parentid]  # p is parent of parent
+            if p.itype != D_DICT:
+                return parent  # parent of parent is not an LDict
+            parent = p
 
     @property
     def parent(self):
@@ -292,7 +302,7 @@ class LItem(object):
 
     def docs(self, *args):
         """retrieve or append to document comments for this item
-        
+
         Parameters
         ----------
         *args : str
@@ -307,35 +317,40 @@ class LItem(object):
         layout, itemid = self.layout, self.itemid
         docs = layout.docs
         if args:
-            while a in args:
-                if not isinstance(a, basestr):
+            lines = []
+            for a in args:
+                if not isinstance(a, basestring):
                     raise TypeError("Each documentation line must be text")
-            args = list(*args)
+                lines.extend(a.split("\n"))
             if not docs:
                 layout.docs = docs = [None]*(itemid + 1)
             elif len(docs) <= itemid:
                 docs.extend([None]*(itemid + 1 - len(docs)))
             doc = docs[itemid]
             if not doc:
-                docs[itemid] = doc = args
+                docs[itemid] = doc = lines
             else:
-                doc += args
-        elif not docs or len(docs)<=itemid:
+                doc.extend(lines)
+        elif not docs or len(docs) <= itemid:
             doc = []
         else:
             doc = docs[itemid] or []
         return doc
 
     def attrs(self, attributes=None, **kwargs):
-        if isinstance(arg, type({})):
-            for name in attributes:
-                if not isinstance(name, basestr):
-                    raise TypeError("attribute name must be text")
-            attributes.update(kwargs)
+        if attributes is None:
+            args = []
+        elif isinstance(attributes, dict):
+            args = list(attributes.items())
         else:
-            arg = kwargs
-        for name, value in attributes.items():
-            if value is None or isinstance(value, basestr):
+            args = list(attributes)
+        if kwargs:  # Note that kwargs is not ordered in PY2.
+            args += list(kwargs.items())
+        attributes = []
+        for name, value in args:
+            if not isinstance(name, basestring):
+                raise TypeError("attribute name must be text")
+            if value is None or isinstance(value, basestring):
                 continue
             value = array(value + 0)
             if value.ndim > 1:
@@ -344,6 +359,7 @@ class LItem(object):
                 raise ValueError("attribute value must be type int or float")
             if value.ndim == 0:
                 value = value[()]
+            attributes.append((name, value))
         layout, itemid = self.layout, self.itemid
         atts = layout.atts
         if attributes:
@@ -355,12 +371,12 @@ class LItem(object):
             if not attribs:
                 atts[itemid] = attribs = attributes
             else:
-                attribs = attribs.update(attributes)
-        elif not atts or len(atts)<=itemid:
-            attribs = {}
+                attribs += attributes
+        elif not atts or len(atts) <= itemid:
+            attribs = odict()
         else:
-            attribs = atts[itemid] or {}
-        return attribs
+            attribs = odict(atts[itemid] or [])
+        return odict(attribs)
 
 
 class LData(LItem):
@@ -374,7 +390,7 @@ class LData(LItem):
         if typeid < 0:
             return Layout.prim[-typeid]
         return layout.l_item(typeid) if typeid else None
-    
+
     @property
     def shape(self):
         layout = self.layout
@@ -395,7 +411,8 @@ class LData(LItem):
     @property
     def alignment(self):
         """alignment of data array item or None if address specified"""
-        item = self.layout[self.itemid]
+        layout = self.layout
+        item = layout[self.itemid]
         align = item.align
         if align:
             return align if align > 0 else None
@@ -475,35 +492,33 @@ class LDict(LItem):
             return default
 
     def __bool__(self):
-        layout = self.layout
-        items = layout[self.itemid].items
-        return bool(self.items)
+        return bool(self.layout[self.itemid].items)
 
     def __len__(self):
-        layout = self.layout
-        items = layout[self.itemid].items
-        return len(self.items)
+        return len(self.layout[self.itemid].items)
 
     def __iter__(self):
         layout = self.layout
         items = layout[self.itemid].items
+
         def _items():
             for iid in items:
                 yield layout.l_item(iid)
+
         return _items()
 
     def items(self):
         layout = self.layout
         items = layout[self.itemid].items
+
         def _items():
             for name, iid in items.items():
                 yield name, layout.l_item(iid)
+
         return _items()
 
     def __contains__(self, name):
-        layout = self.layout
-        items = layout[self.itemid].items
-        return name in self.items
+        return name in self.layout[self.itemid].items
 
     def __setitem__(self, name, value):
         if not isinstance(name, basestring):
@@ -519,7 +534,7 @@ class LDict(LItem):
         item = self.get(name)
         if not item:
             layout = self.layout
-            item = layout.l_item(layout.add_item(self.itemid, name, type({})))
+            item = layout.l_item(layout.add_item(self.itemid, name, dict))
         elif item.itype != D_DICT:
             raise TypeError("item exists but is not a dict: {}".format(name))
         return item
@@ -575,9 +590,11 @@ class DictParams(object):
     def items(self):
         layout = self.l_dict.layout
         params = self.params
+
         def _items():
             for name, pid in params.items():
                 yield name, layout.l_item(pid)
+
         return _items()
 
     def __contains__(self, name):
@@ -594,7 +611,7 @@ class DictParams(object):
         if isinstance(type_or_value, Integral):  # create fixed parameter
             paramid = layout.add_param(dictid, name, None, type_or_value)
         else:
-            typeid, value = _dict._get_typeid(type_or_value, layout), None
+            typeid = _dict._get_typeid(type_or_value, layout)
             tid = typeid
             while tid > 0:  # check for typedef to scalar primitive
                 item = layout[tid]
@@ -607,13 +624,13 @@ class DictParams(object):
                 if item.shape or item.filt:
                     raise TypeError("parameter {} datatype must be scalar"
                                     .format(name))
-            if tid > -1 or tid < -50 or (-1 - tid)%5 > 1:
+            if tid > -1 or tid < -50 or (-1 - tid) % 5 > 1:
                 raise TypeError("parameter {} datatype must be integer"
                                 .format(name))
             paramid = layout.add_param(dictid, name, typeid, align)
         params = _dict.params
         if params is None:
-            self.params = _dict.params = params = {}
+            self.params = _dict.params = params = {}  # okay if order lost?
         params[name] = paramid  # may update previously used name
         return layout.l_item(paramid)  # return newly added LParam
 
@@ -625,7 +642,7 @@ class DictTypes(object):
         self.l_dict = l_dict
         layout = l_dict.layout
         types = layout[l_dict.itemid].types
-        self.types = {} if types is None else types
+        self.types = {} if types is None else types  # okay if order lost?
 
     def __getitem__(self, name):
         types = self.types
@@ -657,9 +674,11 @@ class DictTypes(object):
     def items(self):
         layout = self.l_dict.layout
         types = self.types
+
         def _items():
             for name, tid in types.items():
                 yield name, layout.l_item(tid)
+
         return _items()
 
     def __contains__(self, name):
@@ -686,11 +705,11 @@ class _Dict(object):
     def __init__(self, parent, name=None):
         self.parent = parent
         self.name = name
-        self.items = {}
+        self.items = odict()
         self.params = self.types = None
 
     def _get_typeid(self, datatype, layout):
-        if isinstance(datatype, (LPrim, LType)):
+        if isinstance(datatype, LType):
             return datatype.itemid
         if not isinstance(datatype, basestring):
             if datatype is None:
@@ -761,9 +780,11 @@ class LList(LItem):
     def __iter__(self):
         layout = self.layout
         items = layout[self.itemid].items
+
         def _items():
             for iid in items:
                 yield layout.l_item(iid)
+
         return _items()
 
     # No extend method for LList.
@@ -797,7 +818,7 @@ class LList(LItem):
         return item
 
 
-class _List(_Item):
+class _List(object):
     __slots__ = "parent", "name", "items"
     itype = D_LIST
 
@@ -989,9 +1010,11 @@ class LType(LItem):
         members = item.members
         if isinstance(members, Integral):
             return iter(((0, layout.l_item(members)),))
+
         def _items():
             for name, iid in members.items():
                 yield name, layout.l_item(iid)
+
         return _items()
 
     def __contains__(self, name):
@@ -1049,6 +1072,9 @@ class _Type(object):
         self.members = members
         self.size = 0
         self.align = -1  # align < 0 marks open compound
+
+
+_LItems = _Prim, _Data, _Param, _Dict, _List, _Type
 
 
 class Address(int):

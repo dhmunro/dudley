@@ -51,8 +51,8 @@ address, and a filter (in that order) may follow the datatype:
 .. https://stackoverflow.com/questions/11984652/bold-italic-in-restructuredtext
 
 **data**:
-  datatype shape\ :subscript:`opt` address\ :subscript:`opt`
-  filter\ :subscript:`opt`
+  datatype shape\ :subscript:`opt` filter\ :subscript:`opt`
+  address\ :subscript:`opt`
 
 A **shape** is a comma delimited list of dimensions enclosed in square
 brackets `[dim1, ..., dimN]`.  Each dimension in the shape may be either an
@@ -67,6 +67,18 @@ To be clear, shape `[3, 2]` in Dudley means three pairs, *not* two triples.
 Each dimension in the shape may be either an integer value or a parameter
 name.  (The parameter name may optionally have `+` or `-` suffixes as will be
 descibed below.)
+
+A **filter** begins with either `->` or `<-`, followed by a
+name (e.g.- `gzip`) and an optional comma delimited argument list in
+parentheses `(arg1, ..., argN)`, where each argument is either a number (int
+or float) or a quoted string.  Filters indicate compressed data (`->`) or
+references to other items (`<-`).
+
+Any filter prevents a layout from describing more than one binary file
+or stream.  Lossless compression doesn't work very well for most binary data
+(since low order bits of floats are already random), while references can and
+should be avoided when you are designing the layout of stored data.  Although
+you should avoid them, filters will be described in detail elsewhere.
 
 An **address** is either an absolute byte address in the binary stream, or
 an alignment to specify that a few undefined padding bytes will be added to
@@ -84,18 +96,6 @@ previous item.  The very first item in the layout goes at address 0 in the
 stream, but the entire stream may be offset from byte 0 of the file it is in.
 (For example, the offset is 16 bytes for binary files which begin with a native
 Dudley file signature.)
-
-A **filter** begins with either `-&gt;` or `&lt;-`, followed by a
-name (e.g.- `gzip`) and an optional comma delimited argument list in
-parentheses `(arg1, ..., argN)`, where each argument is either a number (int
-or float) or a quoted string.  Filters indicate compressed data (`-&gt;`) or
-references to other items (`&lt;-`).
-
-Any filter prevents a layout from describing more than one binary file
-or stream.  Lossless compression doesn't work very well for most binary data
-(since low order bits of floats are already random), while references can and
-should be avoided when you are designing the layout of stored data.  Although
-you should avoid them, filters will be described in detail elsewhere.
 
 Dict item
 ---------
@@ -119,11 +119,18 @@ character that determines which of the five kinds of items is being declared:
 
   `/`
 
-The last two possibilities are actually not dict items; ".." opens the
+  referenced_data
+
+The ".." and "/"" are actually not dict items; ".." opens the
 parent dict (a no-op if the current dict is root), while "/" opens the root
 dict.  Subsequent dict item declarations go into that newly opened dict.
 (A "," or a "]" also closes the current dict, but that case is discussed in the
 section on list items below.)
+
+The final possibility, `referenced_data` is a special case needed for reference
+filters (pointer data), described in the section on anonymous items below.
+Although it may appear syntactically in any **dict** or **list**, the
+anonymous item it declares is always in the root **dict**.
 
 If the parent container of the current dict is a list rather than a dict, then
 it counts as the root of a separate tree for the purposes of ".." and "/" -
@@ -188,18 +195,21 @@ square brackets "[]".
 
   number\ :subscript:`opt` address
 
+  referenced_data1 referenced_data2 ...
+
 An optional trailing comma between the final item in a list (`list_itemN`) and
 the closing "]" is ignored.
 
 As mentioned above, the comma "," or "]" separating or terminating the list
 declaration also terminates a dict item in the list.
 
-In the second two cases, the leading number is the integer index of a
+A leading number is the integer index of a
 previous list item to be extended.  That item must have been a dict in the "/"
 case, or a list in the "[" case.  Neither form appends a new item to the list,
 instead modifiying an existing item.
 
-The final case is a shortcut for duplicating a previously data item declaration
+Just an `address` (optionally preceded by a number) is a shortcut for
+duplicating a previously data item declaration
 as the next item of the list.  If number is not present, the previous list item
 is the default thing to duplicate.  In either case, the referenced item must be
 a data array, not a dict or a list.  With an `address` of `%0`, this makes it
@@ -238,6 +248,13 @@ The third form, in which the type has a single anonymous member, is similar to
 a C typedef, allowing you to give a name to an arbitrary array type and shape.
 This form also permits you to change the alignment of a datatype, which might
 occasionally be useful to change the alignment of predefined primitives.
+
+In a compound datatype, the `dataN` may not include any filters.  In a
+typedef datatype, the `data` may include a reference filter, but not a
+compression filter, which suffices to permit a datatype to contain arbitrary
+arrays of reference pointers.  This is primarily for compatibility with HDF5
+and PDB files; using pointers in native Dudley files is probably never a
+good idea.
 
 The fourth form - an empty compound - is a special case which gives Dudley a
 way to declare variables whose value is `None` in python or `null` in
@@ -450,9 +467,9 @@ must actually appear in the Dudley layout.  An automatically generated
 referenced array declaration in a Dudley layout looks like this:
 
 **referenced_data**
-  : datatype shape\ :subscript:`opt` address\ :subscript:`opt`
+  ^ datatype shape\ :subscript:`opt` address\ :subscript:`opt`
 
-This looks like an ordinary dict data item declaration but without a
+This looks similar to an ordinary data item declaration but without a
 `data_name`.  However, there are additional restrictions on the `datatype` and
 `shape` of a referenced array.  Namely, it may use only named datatypes
 declared in the root dict, and its shape may include only explicit integer
@@ -460,5 +477,5 @@ dimension lengths - parameter names are not permitted in referenced array
 shapes.
 
 The other big difference bewteen a referenced data declaration and an ordinary
-declaration for data in a dict is that the referenced declaration automatically
-goes in the root dict, without affecting the current working dict.
+declaration for data in a dict or list is that the referenced declaration
+automatically goes in the root dict, without affecting the current working dict.
