@@ -40,138 +40,132 @@ Besides punctuation, the Dudley grammar has these terminals:
   optional sign prefix).  It must include a decimal point to distinguish it
   from an integer.
 
+A sixth pseudo-terminal, **ERROR**, indicates an alternative whose action
+attempts to resynchronize the parser after a syntax error.  Effectively,
+anything matches the **ERROR** terminal up until the parser can resynchronize
+and continue parsing input.
+
+Dudley is a very simple PEG (Parsing Expression Grammar), although it does not
+depend on the ordered alternative semantics that defines PEGs.
 Here "?" denotes zero or one occurrence, "+" denotes one or more occurrence,
-and "*" denotes zero or more occurrences.
+and "*" denotes zero or more occurrences.  Punctuation that is part of the
+grammar is shown is double quotes.
 
-Container specification
-------------------------
+Note that the entire layout is a **dict_body**, namely the root dict.
 
-Note that the entire layout is a **dict**, namely the root dict.
+**dict_body**:
+  dict_element*
 
-**dict**:
-  dictitem*
+  ERROR
 
-**name**
+**dict_element**:
+  name named_item
+
+  "**..**"
+
+  "**/**"
+
+  "**&**" ref_item
+
+**name**:
   SYMBOL
 
   QUOTED
 
-**dictitem**:
-  name "**:**" data
-
-  name "**/**" dict
-
-  name "**[**" list "**]**"
-
-  name "**=**" parameter
-
-  name struct
+**named_item**:
+  "**:**" data_item
 
   "**/**"
 
-  "**..**"
+  "**[**" list_body? "**]**"
 
-  "**^**" data
+  "**{**" struct_body? "**}**"
 
-**list**:
-  listitems?
+  "**=**" param_item
 
-**listitems**:
-  listitem
+**data_item**
+  datatype shape? (cfilter | rfilter)? placement?
 
-  listitem "**,**" listitems
+**list_body**:
+  list_element ("**,**" list_element)* "**,**"?
 
-**listitem**:
-  data
+  ERROR
 
-  INTEGER? address
+**struct_body**:
+  "**:**" datatype shape? rfilter? placement?
 
-  INTEGER? "**/**" dict
+  (name "**:**" datatype shape? placement?)+
 
-  INTEGER? "**[**" list "**]**"
+  ERROR
 
-  ref_items
-
-**ref_items**
-  "**^**" data
-
-  ref_items "**^**" data
-
-Data specification
-------------------
-
-**array**:
-  datatype shape? address?
- 
-  struct shape? address?
-
-**data**:
-  datatype shape? filter? address?
- 
-  struct shape? filter? address?
-
-**parameter**:
+**param_item**:
   INTEGER
 
-  PRIMITIVE address?
-
-  name address?
+  datatype placement?
 
 **datatype**:
   PRIMITIVE
 
   name
 
-**struct**:
-  "**{**" structbody "**}**"
-
-**structbody**:
-  structmember*
-
-  "**:**" data
-
-**structmember**:
-  name "**:**" array
+  "**{**" struct_body? "**}**"
 
 **shape**:
-  "**[**" dimensions "**]**"
-
-**dimensions**:
-  dimension
-
-  dimension "**,**" dimensions
+  "**(**" dimension ("**,**" dimension)* "**)**"
 
 **dimension**:
   INTEGER
 
-  name
+  name PARAMSFX?
 
-  name "**+**"+
-
-  name "**-**"+
-
-**address**:
+**placement**:
   "**@**" INTEGER
 
   "**%**" INTEGER
 
-**filter**:
-  "**->**" name arguments?
+**list_element**:
+  data_item
 
-  "**<-**" name arguments?
+  INTEGER? "**[**" list_body? "**]**"
 
-**arguments**:  
-  "**(**" arglist "**)**"
+  INTEGER? "**/**" dict_body
 
-**arglist**:
-  argument
+  INTEGER? placement
 
-  argument "**,**" arglist
+  ("**&**" ref_item)+
 
-**argument**:
+**cfilter**:
+  "**->**" name ("**(**" filt_arg ("**,**" filt_arg)* "**)**")?
+
+**rfilter**:
+  "**<-**" name ("**(**" filt_arg ("**,**" filt_arg)* "**)**")?
+
+**filt_arg**:
   INTEGER
 
   FLOAT
+
+  QUOTED
+
+**ref_item**
+  INTEGER* ref_datatype ref_shape? placement?
+
+**ref_datatype**:
+  PRIMITIVE
+
+  name
+
+  "**{**" refstruct_body? "**}**"
+
+**ref_shape**:
+  "**(**" INTEGER ("**,**" INTEGER)* "**)**"
+
+**ref_struct_body**:
+  "**:**" ref_datatype ref_shape? rfilter? placement?
+
+  (name "**:**" ref_datatype ref_shape? placement?)+
+
+  ERROR
 
 Comments
 --------
@@ -189,18 +183,12 @@ datatype) currently being defined.
   The parser keeps a dict of attributes associated with each item.
 
 **attributes**:
-  attribute
-
-  attribute attributes
+  attribute*
 
 **attribute**:
   name
 
   name "**=**" attrvalue
-
-  name "**=**" "**[**" integers "**]**"
-
-  name "**=**" "**[**" floats "**]**"
 
 **attrvalue**:
   INTEGER
@@ -209,8 +197,6 @@ datatype) currently being defined.
 
   QUOTED
 
-**integers**:
-  INTEGER "**,**" integers
+  "**[**" INTEGER ("**,**" INTEGER)* "**]**"
 
-**floats**:
-  FLOAT "**,**" floats
+  "**[**" FLOAT ("**,**" FLOAT)* "**]**"

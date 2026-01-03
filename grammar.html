@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="File Names and Signatures" href="signatures.html"><link rel="prev" title="Filters" href="filters.html">
 
-    <!-- Generated with Sphinx 9.0.4 and Furo 2025.12.19 -->
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
         <title>Dudley Grammar - Dudley Data Description Language</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
@@ -275,89 +275,83 @@ optional sign prefix).  It must include a decimal point to distinguish it
 from an integer.</p>
 </dd>
 </dl>
-<p>Here “?” denotes zero or one occurrence, “+” denotes one or more occurrence,
-and “*” denotes zero or more occurrences.</p>
-</section>
-<section id="container-specification">
-<h2>Container specification<a class="headerlink" href="#container-specification" title="Link to this heading">¶</a></h2>
-<p>Note that the entire layout is a <strong>dict</strong>, namely the root dict.</p>
+<p>A sixth pseudo-terminal, <strong>ERROR</strong>, indicates an alternative whose action
+attempts to resynchronize the parser after a syntax error.  Effectively,
+anything matches the <strong>ERROR</strong> terminal up until the parser can resynchronize
+and continue parsing input.</p>
+<p>Dudley is a very simple PEG (Parsing Expression Grammar), although it does not
+depend on the ordered alternative semantics that defines PEGs.
+Here “?” denotes zero or one occurrence, “+” denotes one or more occurrence,
+and “*” denotes zero or more occurrences.  Punctuation that is part of the
+grammar is shown is double quotes.</p>
+<p>Note that the entire layout is a <strong>dict_body</strong>, namely the root dict.</p>
 <dl>
-<dt><strong>dict</strong>:</dt><dd><p>dictitem*</p>
+<dt><strong>dict_body</strong>:</dt><dd><p>dict_element*</p>
+<p>ERROR</p>
 </dd>
-<dt><strong>name</strong></dt><dd><p>SYMBOL</p>
+<dt><strong>dict_element</strong>:</dt><dd><p>name named_item</p>
+<p>“<strong>..</strong>”</p>
+<p>“<strong>/</strong>”</p>
+<p>“<strong>&amp;</strong>” ref_item</p>
+</dd>
+<dt><strong>name</strong>:</dt><dd><p>SYMBOL</p>
 <p>QUOTED</p>
 </dd>
-<dt><strong>dictitem</strong>:</dt><dd><p>name “<strong>:</strong>” data</p>
-<p>name “<strong>/</strong>” dict</p>
-<p>name “<strong>[</strong>” list “<strong>]</strong>”</p>
-<p>name “<strong>=</strong>” parameter</p>
-<p>name struct</p>
+<dt><strong>named_item</strong>:</dt><dd><p>“<strong>:</strong>” data_item</p>
 <p>“<strong>/</strong>”</p>
-<p>“<strong>..</strong>”</p>
-<p>“<strong>^</strong>” data</p>
+<p>“<strong>[</strong>” list_body? “<strong>]</strong>”</p>
+<p>“<strong>{</strong>” struct_body? “<strong>}</strong>”</p>
+<p>“<strong>=</strong>” param_item</p>
 </dd>
-<dt><strong>list</strong>:</dt><dd><p>listitems?</p>
+<dt><strong>data_item</strong></dt><dd><p>datatype shape? (cfilter | rfilter)? placement?</p>
 </dd>
-<dt><strong>listitems</strong>:</dt><dd><p>listitem</p>
-<p>listitem “<strong>,</strong>” listitems</p>
+<dt><strong>list_body</strong>:</dt><dd><p>list_element (”<strong>,</strong>” list_element)* “<strong>,</strong>”?</p>
+<p>ERROR</p>
 </dd>
-<dt><strong>listitem</strong>:</dt><dd><p>data</p>
-<p>INTEGER? address</p>
-<p>INTEGER? “<strong>/</strong>” dict</p>
-<p>INTEGER? “<strong>[</strong>” list “<strong>]</strong>”</p>
-<p>ref_items</p>
+<dt><strong>struct_body</strong>:</dt><dd><p>“<strong>:</strong>” datatype shape? rfilter? placement?</p>
+<p>(name “<strong>:</strong>” datatype shape? placement?)+</p>
+<p>ERROR</p>
 </dd>
-<dt><strong>ref_items</strong></dt><dd><p>“<strong>^</strong>” data</p>
-<p>ref_items “<strong>^</strong>” data</p>
-</dd>
-</dl>
-</section>
-<section id="data-specification">
-<h2>Data specification<a class="headerlink" href="#data-specification" title="Link to this heading">¶</a></h2>
-<dl>
-<dt><strong>array</strong>:</dt><dd><p>datatype shape? address?</p>
-<p>struct shape? address?</p>
-</dd>
-<dt><strong>data</strong>:</dt><dd><p>datatype shape? filter? address?</p>
-<p>struct shape? filter? address?</p>
-</dd>
-<dt><strong>parameter</strong>:</dt><dd><p>INTEGER</p>
-<p>PRIMITIVE address?</p>
-<p>name address?</p>
+<dt><strong>param_item</strong>:</dt><dd><p>INTEGER</p>
+<p>datatype placement?</p>
 </dd>
 <dt><strong>datatype</strong>:</dt><dd><p>PRIMITIVE</p>
 <p>name</p>
+<p>“<strong>{</strong>” struct_body? “<strong>}</strong>”</p>
 </dd>
-<dt><strong>struct</strong>:</dt><dd><p>“<strong>{</strong>” structbody “<strong>}</strong>”</p>
-</dd>
-<dt><strong>structbody</strong>:</dt><dd><p>structmember*</p>
-<p>“<strong>:</strong>” data</p>
-</dd>
-<dt><strong>structmember</strong>:</dt><dd><p>name “<strong>:</strong>” array</p>
-</dd>
-<dt><strong>shape</strong>:</dt><dd><p>“<strong>[</strong>” dimensions “<strong>]</strong>”</p>
-</dd>
-<dt><strong>dimensions</strong>:</dt><dd><p>dimension</p>
-<p>dimension “<strong>,</strong>” dimensions</p>
+<dt><strong>shape</strong>:</dt><dd><p>“<strong>(</strong>” dimension (”<strong>,</strong>” dimension)* “<strong>)</strong>”</p>
 </dd>
 <dt><strong>dimension</strong>:</dt><dd><p>INTEGER</p>
-<p>name</p>
-<p>name “<strong>+</strong>”+</p>
-<p>name “<strong>-</strong>“+</p>
+<p>name PARAMSFX?</p>
 </dd>
-<dt><strong>address</strong>:</dt><dd><p>“<strong>&#64;</strong>” INTEGER</p>
+<dt><strong>placement</strong>:</dt><dd><p>“<strong>&#64;</strong>” INTEGER</p>
 <p>“<strong>%</strong>” INTEGER</p>
 </dd>
-<dt><strong>filter</strong>:</dt><dd><p>“<strong>-&gt;</strong>” name arguments?</p>
-<p>“<strong>&lt;-</strong>” name arguments?</p>
+<dt><strong>list_element</strong>:</dt><dd><p>data_item</p>
+<p>INTEGER? “<strong>[</strong>” list_body? “<strong>]</strong>”</p>
+<p>INTEGER? “<strong>/</strong>” dict_body</p>
+<p>INTEGER? placement</p>
+<p>(”<strong>&amp;</strong>” ref_item)+</p>
 </dd>
-<dt><strong>arguments</strong>:</dt><dd><p>“<strong>(</strong>” arglist “<strong>)</strong>”</p>
+<dt><strong>cfilter</strong>:</dt><dd><p>“<strong>-&gt;</strong>” name (”<strong>(</strong>” filt_arg (”<strong>,</strong>” filt_arg)* “<strong>)</strong>”)?</p>
 </dd>
-<dt><strong>arglist</strong>:</dt><dd><p>argument</p>
-<p>argument “<strong>,</strong>” arglist</p>
+<dt><strong>rfilter</strong>:</dt><dd><p>“<strong>&lt;-</strong>” name (”<strong>(</strong>” filt_arg (”<strong>,</strong>” filt_arg)* “<strong>)</strong>”)?</p>
 </dd>
-<dt><strong>argument</strong>:</dt><dd><p>INTEGER</p>
+<dt><strong>filt_arg</strong>:</dt><dd><p>INTEGER</p>
 <p>FLOAT</p>
+<p>QUOTED</p>
+</dd>
+<dt><strong>ref_item</strong></dt><dd><p>INTEGER* ref_datatype ref_shape? placement?</p>
+</dd>
+<dt><strong>ref_datatype</strong>:</dt><dd><p>PRIMITIVE</p>
+<p>name</p>
+<p>“<strong>{</strong>” refstruct_body? “<strong>}</strong>”</p>
+</dd>
+<dt><strong>ref_shape</strong>:</dt><dd><p>“<strong>(</strong>” INTEGER (”<strong>,</strong>” INTEGER)* “<strong>)</strong>”</p>
+</dd>
+<dt><strong>ref_struct_body</strong>:</dt><dd><p>“<strong>:</strong>” ref_datatype ref_shape? rfilter? placement?</p>
+<p>(name “<strong>:</strong>” ref_datatype ref_shape? placement?)+</p>
+<p>ERROR</p>
 </dd>
 </dl>
 </section>
@@ -373,21 +367,16 @@ datatype) currently being defined.</p>
 </dd>
 <dt><strong>#: attributes</strong>:</dt><dd><p>The parser keeps a dict of attributes associated with each item.</p>
 </dd>
-<dt><strong>attributes</strong>:</dt><dd><p>attribute</p>
-<p>attribute attributes</p>
+<dt><strong>attributes</strong>:</dt><dd><p>attribute*</p>
 </dd>
 <dt><strong>attribute</strong>:</dt><dd><p>name</p>
 <p>name “<strong>=</strong>” attrvalue</p>
-<p>name “<strong>=</strong>” “<strong>[</strong>” integers “<strong>]</strong>”</p>
-<p>name “<strong>=</strong>” “<strong>[</strong>” floats “<strong>]</strong>”</p>
 </dd>
 <dt><strong>attrvalue</strong>:</dt><dd><p>INTEGER</p>
 <p>FLOAT</p>
 <p>QUOTED</p>
-</dd>
-<dt><strong>integers</strong>:</dt><dd><p>INTEGER “<strong>,</strong>” integers</p>
-</dd>
-<dt><strong>floats</strong>:</dt><dd><p>FLOAT “<strong>,</strong>” floats</p>
+<p>“<strong>[</strong>” INTEGER (”<strong>,</strong>” INTEGER)* “<strong>]</strong>”</p>
+<p>“<strong>[</strong>” FLOAT (”<strong>,</strong>” FLOAT)* “<strong>]</strong>”</p>
 </dd>
 </dl>
 </section>
@@ -457,8 +446,6 @@ datatype) currently being defined.</p>
             <ul>
 <li><a class="reference internal" href="#">Dudley Grammar</a><ul>
 <li><a class="reference internal" href="#terminals">Terminals</a></li>
-<li><a class="reference internal" href="#container-specification">Container specification</a></li>
-<li><a class="reference internal" href="#data-specification">Data specification</a></li>
 <li><a class="reference internal" href="#comments">Comments</a></li>
 </ul>
 </li>

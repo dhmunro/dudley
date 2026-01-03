@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Special Comments" href="comments.html"><link rel="prev" title="Overview" href="overview.html">
 
-    <!-- Generated with Sphinx 9.0.4 and Furo 2025.12.19 -->
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
         <title>Dudley Syntax - Dudley Data Description Language</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
@@ -245,7 +245,7 @@
 whitespace only where necessary to separate tokens.  Newline characters
 terminate comments (opened by a <cite>#</cite> character), but are otherwise treated like
 any other whitespace.  Each token is a name (possibly in quotes), a number
-(possibly signed), or punctuation.</p>
+(possibly signed or floating point), or punctuation.</p>
 <p>Fundamentally, a Dudley layout is a sequence of items.  Each item can be one of
 five different things:</p>
 <dl class="simple">
@@ -262,15 +262,15 @@ five different things:</p>
 <li><p>typedef, a single anonymous data array</p></li>
 </ul>
 </dd>
-<dt><strong>parameter</strong></dt><dd><p>a named integer value that can be used as a data array dimension length,
+<dt><strong>param</strong></dt><dd><p>a named integer value that can be used as a data array dimension length,
 may be:</p>
 <ul class="simple">
 <li><p>fixed value, set in the layout</p></li>
-<li><p>variable value, stored as a scalar integer value in the binary stream</p></li>
+<li><p>dynamic value, stored as a scalar integer value in the binary stream</p></li>
 </ul>
 </dd>
 </dl>
-<p>Only data and variable parameters occupy space in the binary stream the
+<p>Only data and dynamic parameters occupy space in the binary stream the
 layout describes.</p>
 <p>The first item (item 0) of every layout is its implicitly defined root dict.
 Every other item in the layout has a parent container, except for the
@@ -279,46 +279,47 @@ among all layouts, and indeed among all binary streams Dudley can describe.)</p>
 <section id="data-item">
 <h2>Data item<a class="headerlink" href="#data-item" title="Link to this heading">¶</a></h2>
 <p>A data array is the most complicated item.  It may consist of as little as
-a datatype to declare a simple scalar value, but optionally a shape, an
-address, and a filter (in that order) may follow the datatype:</p>
+a datatype to declare a simple scalar value, but optionally a shape, a
+filter, and a placement (in that order) may follow the datatype:</p>
 <dl class="simple">
 <dt><strong>data</strong>:</dt><dd><p>datatype shape<sub>opt</sub> filter<sub>opt</sub>
-address<sub>opt</sub></p>
+placement<sub>opt</sub></p>
 </dd>
 </dl>
-<p>A <strong>shape</strong> is a comma delimited list of dimensions enclosed in square
-brackets <cite>[dim1, …, dimN]</cite>.  Each dimension in the shape may be either an
-integer value or a parameter name.  (The parameter name may optionally have
-<cite>+</cite> or <cite>-</cite> suffixes as will be descibed later.)</p>
+<p>A <strong>shape</strong> is a comma delimited list of dimensions enclosed in parentheses
+<cite>(dim1, …, dimN)</cite>.  Each dimension in the shape may be either an
+integer value or a parameter name.  The parameter name may optionally have
+<cite>+</cite> or <cite>-</cite> suffixes, as explained later.</p>
 <p>In Dudley, the first dimension varies slowest,
 the last dimension varies fastest, and there is intentionally no way to
 specify reversed array index order.  This is the default ordering in numpy
 (and arguably in C) but opposite to the index ordering in a FORTRAN array.
-To be clear, shape <cite>[3, 2]</cite> in Dudley means three pairs, <em>not</em> two triples.
-Each dimension in the shape may be either an integer value or a parameter
-name.  (The parameter name may optionally have <cite>+</cite> or <cite>-</cite> suffixes as will be
-descibed below.)</p>
+To be clear, shape <cite>(3, 2)</cite> in Dudley means three pairs, <em>not</em> two triples.
+(This matches the <cite>dtype.shape</cite> tuple in a default order numpy <cite>ndarray</cite>.)</p>
 <p>A <strong>filter</strong> begins with either <cite>-&gt;</cite> or <cite>&lt;-</cite>, followed by a
 name (e.g.- <cite>gzip</cite>) and an optional comma delimited argument list in
 parentheses <cite>(arg1, …, argN)</cite>, where each argument is either a number (int
 or float) or a quoted string.  Filters indicate compressed data (<cite>-&gt;</cite>) or
-references to other items (<cite>&lt;-</cite>).</p>
-<p>Any filter prevents a layout from describing more than one binary file
-or stream.  Lossless compression doesn’t work very well for most binary data
+references to other items (<cite>&lt;-</cite>).  The idea is that the arrow points from the
+form of the data in memory to what is stored in the file.  Compression
+filters map a known form in memory to an unknown size object in the file, while
+reference filters map an an arbitrary object in memory to a known form of
+reference (or pointer) in the file.</p>
+<p>Lossless compression doesn’t work very well for most binary data
 (since low order bits of floats are already random), while references can and
-should be avoided when you are designing the layout of stored data.  Although
-you should avoid them, filters will be described in detail elsewhere.</p>
-<p>An <strong>address</strong> is either an absolute byte address in the binary stream, or
+should be avoided when you are designing the layout of stored data.  Dudley
+supports filters primarily for feature compatibility with HDF5 and PDB.</p>
+<p>A <strong>placement</strong> is either an absolute byte address in the binary stream, or
 an alignment to specify that a few undefined padding bytes will be added to
 bring the absolute address up to some even multiple of two (the value of the
 alignment).  An address is <cite>&#64;number</cite> in the layout, while an alignment is
 <cite>%number</cite>.  As a special case, <cite>%0</cite> is a no-op, that is, the same as no
-explicit address specification, which is useful in peculiar situations.</p>
-<p>If no address field (or <cite>%0</cite>) is specified, the data array is located immediately
-after the previous (data or variable parameter) item in the layout, possibly
+explicit placement specification, which is useful in peculiar situations.</p>
+<p>If no placement field (or <cite>%0</cite>) is specified, new data is located immediately
+after the previous (data or dynamic parameter) item in the layout, possibly
 adjusted by the default alignment for its datatype.  An address can be any
 non-negative integer, while an alignment must be a (small) power of two (or 0).
-Either kind of address field overrides the automatic placement after the
+Either kind of placement field overrides the automatic placement after the
 previous item.  The very first item in the layout goes at address 0 in the
 stream, but the entire stream may be offset from byte 0 of the file it is in.
 (For example, the offset is 16 bytes for binary files which begin with a native
@@ -330,17 +331,17 @@ Dudley file signature.)</p>
 whitespace.  The item name always comes first, followed by a punctuation
 character that determines which of the five kinds of items is being declared:</p>
 <dl>
-<dt><strong>dict</strong> item is one of:</dt><dd><p>data_name : data</p>
-<p>dict_name / item1 …</p>
-<p>list_name [item1, …, itemN]</p>
-<p>type_name {member1 … memberN}</p>
-<p>param_name = param</p>
-<p><cite>..</cite></p>
-<p><cite>/</cite></p>
-<p>referenced_data</p>
+<dt><strong>dict</strong> item is one of:</dt><dd><p>data_name <strong>:</strong> data</p>
+<p>dict_name <strong>/</strong> item1 …</p>
+<p>list_name <strong>[</strong> item1, …, itemN <strong>]</strong></p>
+<p>type_name <strong>{</strong> member1 … memberN <strong>}</strong></p>
+<p>param_name <strong>=</strong> param</p>
+<p><strong>..</strong></p>
+<p><strong>/</strong></p>
+<p><strong>&amp;</strong> referenced_data</p>
 </dd>
 </dl>
-<p>The “..” and “/”” are actually not dict items; “..” opens the
+<p>The “..” and “/” are actually not dict items; “..” opens the
 parent dict (a no-op if the current dict is root), while “/” opens the root
 dict.  Subsequent dict item declarations go into that newly opened dict.
 (A “,” or a “]” also closes the current dict, but that case is discussed in the
@@ -348,7 +349,7 @@ section on list items below.)</p>
 <p>The final possibility, <cite>referenced_data</cite> is a special case needed for reference
 filters (pointer data), described in the section on anonymous items below.
 Although it may appear syntactically in any <strong>dict</strong> or <strong>list</strong>, the
-anonymous item it declares is always in the root <strong>dict</strong>.</p>
+parent of the anonymous item it declares is always the root dict.</p>
 <p>If the parent container of the current dict is a list rather than a dict, then
 it counts as the root of a separate tree for the purposes of “..” and “/” -
 that is “..” is a no-op and “/” in any descendant dict pops back to the
@@ -394,12 +395,10 @@ slash after a “..”!</p>
 square brackets “[]”.</p>
 <dl>
 <dt><strong>list</strong> item is one of:</dt><dd><p>data</p>
-<p>/ dict_item1 dict_item2 … dict_itemN</p>
-<p>[ list_item1, list_item2, …, list_itemN ]</p>
-<p>number / dict_item1 dict_item2 … dict_itemN</p>
-<p>number [ list_item1, list_item2, …, list_itemN ]</p>
-<p>number<sub>opt</sub> address</p>
-<p>referenced_data1 referenced_data2 …</p>
+<p>number<sub>opt</sub> <strong>/</strong> dict_item1 dict_item2 … dict_itemN</p>
+<p>number<sub>opt</sub> <strong>[</strong> list_item1, list_item2, …, list_itemN <strong>]</strong></p>
+<p>number<sub>opt</sub> placement</p>
+<p><strong>&amp;</strong> referenced_data1 <strong>&amp;</strong> referenced_data2 …</p>
 </dd>
 </dl>
 <p>An optional trailing comma between the final item in a list (<cite>list_itemN</cite>) and
@@ -410,11 +409,11 @@ declaration also terminates a dict item in the list.</p>
 previous list item to be extended.  That item must have been a dict in the “/”
 case, or a list in the “[” case.  Neither form appends a new item to the list,
 instead modifiying an existing item.</p>
-<p>Just an <cite>address</cite> (optionally preceded by a number) is a shortcut for
+<p>Just an <cite>placement</cite> (optionally preceded by a number) is a shortcut for
 duplicating a previously data item declaration
 as the next item of the list.  If number is not present, the previous list item
 is the default thing to duplicate.  In either case, the referenced item must be
-a data array, not a dict or a list.  With an <cite>address</cite> of <cite>%0</cite>, this makes it
+a data array, not a dict or a list.  With an <cite>placement</cite> of <cite>%0</cite>, this makes it
 very easy to build a list consisting of many identically shaped arrays.</p>
 <p>The number can be negative to refer to the current end of the list, as in
 python list indexing, so that <cite>-1</cite> refers to the previous element, <cite>-2</cite> to the
@@ -429,17 +428,18 @@ curly brace form is exactly the same as what may appear after the type_name
 of a named type declaration dict item:</p>
 <dl>
 <dt><strong>datatype</strong> is one of:</dt><dd><p>type_name</p>
-<p>{ member_name1 : data1  member_name2 : data2 … member_nameN : dataN }</p>
-<p>{ : data }</p>
-<p>{}</p>
+<p><strong>{</strong> member_name1 <strong>:</strong> data1 … member_nameN <strong>:</strong> dataN <strong>}</strong></p>
+<p><strong>{</strong> : data <strong>}</strong></p>
+<p><strong>{}</strong></p>
 </dd>
 </dl>
 <p>The second form is a compound datatype like a C struct.  The format of each
 struct member is identical to a data array item in a dict, except that if an
 absolute address <cite>&#64;address</cite> is specified, it is interpreted as a byte address
 relative to the start of any instance of this datatype.  The alignment of the
-new datatype is the greatest alignment of any of its members (possibly as
-overridden by a <cite>%alignment</cite>).</p>
+new datatype is the greatest alignment of any of its members, possibly as
+overridden by a <cite>%alignment</cite>.  (Note that by increasing the alignment of the
+first member, you can increase the alignment of the whole datatype.)</p>
 <p>The third form, in which the type has a single anonymous member, is similar to
 a C typedef, allowing you to give a name to an arbitrary array type and shape.
 This form also permits you to change the alignment of a datatype, which might
@@ -468,11 +468,11 @@ outside that subtree.</p>
 except that a fixed integer value is permitted and a shape or filter is not:</p>
 <dl>
 <dt><strong>param</strong> is one of:</dt><dd><p>integer_value</p>
-<p>integer_type_name address<sub>opt</sub></p>
+<p>integer_type_name placement<sub>opt</sub></p>
 </dd>
 </dl>
 <p>The first declares a fixed parameter, which takes no space in the data stream,
-while the second declares a variable parameter, which takes space in the data
+while the second declares a dynamic parameter, which takes space in the data
 stream exactly as if it were a (scalar) data array with the same declaration.</p>
 <p>The integer type name can be any <cite>u</cite> or <cite>i</cite> format primitive type.  However,
 internally, the parameter value is always a signed 8-bit integer, as are all
@@ -495,15 +495,15 @@ To indicate such a relation, you may define only a single parameter but append
 one (or more) <cite>+</cite> or <cite>-</cite> suffixes to its name when you declare an array
 with one (or a few) more or less element(s).  For example, if you bin a
 population by income, you might describe poll result like this:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">NBINS</span> <span class="o">=</span> <span class="n">i4</span>          <span class="c1"># number of income bins (variable)</span>
-<span class="n">income</span><span class="p">:</span> <span class="n">f4</span><span class="p">[</span><span class="n">NBINS</span><span class="o">+</span><span class="p">]</span>  <span class="c1"># boundaries of income bins</span>
-<span class="n">npeople</span><span class="p">:</span> <span class="n">i4</span><span class="p">[</span><span class="n">NBINS</span><span class="p">]</span>  <span class="c1"># number of people in each income bin</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">NBINS</span> <span class="o">=</span> <span class="n">i4</span>          <span class="c1"># number of income bins (dynamic)</span>
+<span class="n">income</span><span class="p">:</span> <span class="n">f4</span><span class="p">(</span><span class="n">NBINS</span><span class="o">+</span><span class="p">)</span>  <span class="c1"># boundaries of income bins</span>
+<span class="n">npeople</span><span class="p">:</span> <span class="n">i4</span><span class="p">(</span><span class="n">NBINS</span><span class="p">)</span>  <span class="c1"># number of people in each income bin</span>
 </pre></div>
 </div>
 <p>Of course, in this case you might prefer to think of there being one <em>more</em>
 bin than income boundary - with a bin for all those below your smallest income
 value and another for all those above your largest - in which case you would
-declare <cite>income: f4[NBINS-]</cite> instead.  In either case, the relationship
+declare <cite>income: f4(NBINS-)</cite> instead.  In either case, the relationship
 between the dimension lengths gives a human reader of this layout a pretty
 clear idea of which way you are thinking about bins and boundaries.</p>
 </section>
@@ -576,7 +576,7 @@ hardware support across platforms.  (Hardware support for <cite>f2</cite> is als
 even though numpy supports that on all platforms.)  The only way to describe
 such data in a Dudley layout is to leave it as raw bytes, for example by
 defining:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">f16</span> <span class="p">{:</span><span class="n">u1</span><span class="p">[</span><span class="mi">16</span><span class="p">]}</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">f16</span> <span class="p">{:</span><span class="n">u1</span><span class="p">(</span><span class="mi">16</span><span class="p">)}</span>
 </pre></div>
 </div>
 </section>
@@ -618,15 +618,15 @@ generated by the context in which they were declared.</p>
 additional kinds of anonymous items.  These both depend on the content of the
 data being stored, not simply its structure, and so they can only be present
 in programmatically generated Dudley layouts.</p>
-<p>In brief, a compression filter requires an anonymous variable parameter, whose
+<p>In brief, a compression filter requires an anonymous dynamic parameter, whose
 value is the length in bytes of the compressed data.  This parameter goes at
 the stream address of the compressed data array, with the compressed data
 itself immediately following.  Thus:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">data_name</span><span class="p">:</span> <span class="n">datatype</span><span class="p">[</span><span class="n">shape</span><span class="p">]</span> <span class="o">-&gt;</span> <span class="nb">filter</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">data_name</span><span class="p">:</span> <span class="n">datatype</span><span class="p">(</span><span class="n">dimensions</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">filter</span>
 </pre></div>
 </div>
 <p>appears in the stream as if it were described by:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ANONYMOUS_LENGTH</span> <span class="o">=</span> <span class="n">i8</span>  <span class="n">data_name</span><span class="p">:</span> <span class="n">u1</span><span class="p">[</span><span class="n">ANONYMOUS_LENGTH</span><span class="p">]</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ANONYMOUS_LENGTH</span> <span class="o">=</span> <span class="n">i8</span>  <span class="n">data_name</span><span class="p">:</span> <span class="n">u1</span><span class="p">(</span><span class="n">ANONYMOUS_LENGTH</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>The implicit anonymous length parameter appears in the global list of dynamic
@@ -637,18 +637,19 @@ corresponding to every individual instance of the reference declared.  These
 must actually appear in the Dudley layout.  An automatically generated
 referenced array declaration in a Dudley layout looks like this:</p>
 <dl class="simple">
-<dt><strong>referenced_data</strong></dt><dd><p>^ datatype shape<sub>opt</sub> address<sub>opt</sub></p>
+<dt><strong>referenced_data</strong></dt><dd><p>datatype shape<sub>opt</sub> placement<sub>opt</sub></p>
 </dd>
 </dl>
-<p>This looks similar to an ordinary data item declaration but without a
-<cite>data_name</cite>.  However, there are additional restrictions on the <cite>datatype</cite> and
+<p>This looks similar to an ordinary data item declaration.
+However, there are additional restrictions on the <cite>datatype</cite> and
 <cite>shape</cite> of a referenced array.  Namely, it may use only named datatypes
 declared in the root dict, and its shape may include only explicit integer
 dimension lengths - parameter names are not permitted in referenced array
 shapes.</p>
 <p>The other big difference bewteen a referenced data declaration and an ordinary
 declaration for data in a dict or list is that the referenced declaration
-automatically goes in the root dict, without affecting the current working dict.</p>
+automatically has the root dict as its parent, without affecting the current
+working dict or list.</p>
 </section>
 </section>
 
