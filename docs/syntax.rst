@@ -5,7 +5,7 @@ Dudley is designed to be easily parsable.  It has no keywords and requires
 whitespace only where necessary to separate tokens.  Newline characters
 terminate comments (opened by a `#` character), but are otherwise treated like
 any other whitespace.  Each token is a name (possibly in quotes), a number
-(possibly signed), or punctuation.
+(possibly signed or floating point), or punctuation.
 
 Fundamentally, a Dudley layout is a sequence of items.  Each item can be one of
 five different things:
@@ -26,14 +26,14 @@ five different things:
   * compound, a sequence of named data arrays (C struct or numpy record dtype)
   * typedef, a single anonymous data array
 
-**parameter**
+**param**
   a named integer value that can be used as a data array dimension length,
   may be:
 
   * fixed value, set in the layout
-  * variable value, stored as a scalar integer value in the binary stream
+  * dynamic value, stored as a scalar integer value in the binary stream
 
-Only data and variable parameters occupy space in the binary stream the
+Only data and dynamic parameters occupy space in the binary stream the
 layout describes.
 
 The first item (item 0) of every layout is its implicitly defined root dict.
@@ -45,53 +45,54 @@ Data item
 ---------
 
 A data array is the most complicated item.  It may consist of as little as
-a datatype to declare a simple scalar value, but optionally a shape, an
-address, and a filter (in that order) may follow the datatype:
+a datatype to declare a simple scalar value, but optionally a shape, a
+filter, and a placement (in that order) may follow the datatype:
 
 .. https://stackoverflow.com/questions/11984652/bold-italic-in-restructuredtext
 
 **data**:
   datatype shape\ :subscript:`opt` filter\ :subscript:`opt`
-  address\ :subscript:`opt`
+  placement\ :subscript:`opt`
 
-A **shape** is a comma delimited list of dimensions enclosed in square
-brackets `[dim1, ..., dimN]`.  Each dimension in the shape may be either an
-integer value or a parameter name.  (The parameter name may optionally have
-`+` or `-` suffixes as will be descibed later.)
+A **shape** is a comma delimited list of dimensions enclosed in parentheses
+`(dim1, ..., dimN)`.  Each dimension in the shape may be either an
+integer value or a parameter name.  The parameter name may optionally have
+`+` or `-` suffixes, as explained later.
 
 In Dudley, the first dimension varies slowest,
 the last dimension varies fastest, and there is intentionally no way to
 specify reversed array index order.  This is the default ordering in numpy
 (and arguably in C) but opposite to the index ordering in a FORTRAN array.
-To be clear, shape `[3, 2]` in Dudley means three pairs, *not* two triples.
-Each dimension in the shape may be either an integer value or a parameter
-name.  (The parameter name may optionally have `+` or `-` suffixes as will be
-descibed below.)
+To be clear, shape `(3, 2)` in Dudley means three pairs, *not* two triples.
+(This matches the `dtype.shape` tuple in a default order numpy `ndarray`.)
 
 A **filter** begins with either `->` or `<-`, followed by a
 name (e.g.- `gzip`) and an optional comma delimited argument list in
 parentheses `(arg1, ..., argN)`, where each argument is either a number (int
 or float) or a quoted string.  Filters indicate compressed data (`->`) or
-references to other items (`<-`).
+references to other items (`<-`).  The idea is that the arrow points from the
+form of the data in memory to what is stored in the file.  Compression
+filters map a known form in memory to an unknown size object in the file, while
+reference filters map an an arbitrary object in memory to a known form of
+reference (or pointer) in the file.
 
-Any filter prevents a layout from describing more than one binary file
-or stream.  Lossless compression doesn't work very well for most binary data
+Lossless compression doesn't work very well for most binary data
 (since low order bits of floats are already random), while references can and
-should be avoided when you are designing the layout of stored data.  Although
-you should avoid them, filters will be described in detail elsewhere.
+should be avoided when you are designing the layout of stored data.  Dudley
+supports filters primarily for feature compatibility with HDF5 and PDB.
 
-An **address** is either an absolute byte address in the binary stream, or
+A **placement** is either an absolute byte address in the binary stream, or
 an alignment to specify that a few undefined padding bytes will be added to
 bring the absolute address up to some even multiple of two (the value of the
 alignment).  An address is `@number` in the layout, while an alignment is
 `%number`.  As a special case, `%0` is a no-op, that is, the same as no
-explicit address specification, which is useful in peculiar situations.
+explicit placement specification, which is useful in peculiar situations.
 
-If no address field (or `%0`) is specified, the data array is located immediately
-after the previous (data or variable parameter) item in the layout, possibly
+If no placement field (or `%0`) is specified, new data is located immediately
+after the previous (data or dynamic parameter) item in the layout, possibly
 adjusted by the default alignment for its datatype.  An address can be any
 non-negative integer, while an alignment must be a (small) power of two (or 0).
-Either kind of address field overrides the automatic placement after the
+Either kind of placement field overrides the automatic placement after the
 previous item.  The very first item in the layout goes at address 0 in the
 stream, but the entire stream may be offset from byte 0 of the file it is in.
 (For example, the offset is 16 bytes for binary files which begin with a native
@@ -105,23 +106,23 @@ whitespace.  The item name always comes first, followed by a punctuation
 character that determines which of the five kinds of items is being declared:
 
 **dict** item is one of:
-  data_name : data
+  data_name **:** data
 
-  dict_name / item1 ...
+  dict_name **/** item1 ...
 
-  list_name [item1, ..., itemN]
+  list_name **[** item1, ..., itemN **]**
 
-  type_name {member1 ... memberN}
+  type_name **{** member1 ... memberN **}**
 
-  param_name = param
+  param_name **=** param
 
-  `..`
+  **..**
 
-  `/`
+  **/**
 
-  referenced_data
+  **&** referenced_data
 
-The ".." and "/"" are actually not dict items; ".." opens the
+The ".." and "/" are actually not dict items; ".." opens the
 parent dict (a no-op if the current dict is root), while "/" opens the root
 dict.  Subsequent dict item declarations go into that newly opened dict.
 (A "," or a "]" also closes the current dict, but that case is discussed in the
@@ -130,7 +131,7 @@ section on list items below.)
 The final possibility, `referenced_data` is a special case needed for reference
 filters (pointer data), described in the section on anonymous items below.
 Although it may appear syntactically in any **dict** or **list**, the
-anonymous item it declares is always in the root **dict**.
+parent of the anonymous item it declares is always the root dict.
 
 If the parent container of the current dict is a list rather than a dict, then
 it counts as the root of a separate tree for the purposes of ".." and "/" -
@@ -185,17 +186,13 @@ square brackets "[]".
 **list** item is one of:
   data
 
-  / dict_item1 dict_item2 ... dict_itemN
+  number\ :subscript:`opt` **/** dict_item1 dict_item2 ... dict_itemN
 
-  [ list_item1, list_item2, ..., list_itemN ]
+  number\ :subscript:`opt` **[** list_item1, list_item2, ..., list_itemN **]**
 
-  number / dict_item1 dict_item2 ... dict_itemN
+  number\ :subscript:`opt` placement
 
-  number [ list_item1, list_item2, ..., list_itemN ]
-
-  number\ :subscript:`opt` address
-
-  referenced_data1 referenced_data2 ...
+  **&** referenced_data1 **&** referenced_data2 ...
 
 An optional trailing comma between the final item in a list (`list_itemN`) and
 the closing "]" is ignored.
@@ -208,11 +205,11 @@ previous list item to be extended.  That item must have been a dict in the "/"
 case, or a list in the "[" case.  Neither form appends a new item to the list,
 instead modifiying an existing item.
 
-Just an `address` (optionally preceded by a number) is a shortcut for
+Just an `placement` (optionally preceded by a number) is a shortcut for
 duplicating a previously data item declaration
 as the next item of the list.  If number is not present, the previous list item
 is the default thing to duplicate.  In either case, the referenced item must be
-a data array, not a dict or a list.  With an `address` of `%0`, this makes it
+a data array, not a dict or a list.  With an `placement` of `%0`, this makes it
 very easy to build a list consisting of many identically shaped arrays.
 
 The number can be negative to refer to the current end of the list, as in
@@ -231,18 +228,19 @@ of a named type declaration dict item:
 **datatype** is one of:
   type_name
 
-  { member_name1 : data1  member_name2 : data2 ... member_nameN : dataN }
+  **{** member_name1 **:** data1 ... member_nameN **:** dataN **}**
 
-  { : data }
+  **{** : data **}**
 
-  {}
+  **{}**
 
 The second form is a compound datatype like a C struct.  The format of each
 struct member is identical to a data array item in a dict, except that if an
 absolute address `@address` is specified, it is interpreted as a byte address
 relative to the start of any instance of this datatype.  The alignment of the
-new datatype is the greatest alignment of any of its members (possibly as
-overridden by a `%alignment`).
+new datatype is the greatest alignment of any of its members, possibly as
+overridden by a `%alignment`.  (Note that by increasing the alignment of the
+first member, you can increase the alignment of the whole datatype.)
 
 The third form, in which the type has a single anonymous member, is similar to
 a C typedef, allowing you to give a name to an arbitrary array type and shape.
@@ -278,10 +276,10 @@ except that a fixed integer value is permitted and a shape or filter is not:
 **param** is one of:
   integer_value
 
-  integer_type_name address\ :subscript:`opt`
+  integer_type_name placement\ :subscript:`opt`
 
 The first declares a fixed parameter, which takes no space in the data stream,
-while the second declares a variable parameter, which takes space in the data
+while the second declares a dynamic parameter, which takes space in the data
 stream exactly as if it were a (scalar) data array with the same declaration.
 
 The integer type name can be any `u` or `i` format primitive type.  However,
@@ -309,14 +307,14 @@ one (or more) `+` or `-` suffixes to its name when you declare an array
 with one (or a few) more or less element(s).  For example, if you bin a
 population by income, you might describe poll result like this::
 
-    NBINS = i4          # number of income bins (variable)
-    income: f4[NBINS+]  # boundaries of income bins
-    npeople: i4[NBINS]  # number of people in each income bin
+    NBINS = i4          # number of income bins (dynamic)
+    income: f4(NBINS+)  # boundaries of income bins
+    npeople: i4(NBINS)  # number of people in each income bin
 
 Of course, in this case you might prefer to think of there being one *more*
 bin than income boundary - with a bin for all those below your smallest income
 value and another for all those above your largest - in which case you would
-declare `income: f4[NBINS-]` instead.  In either case, the relationship
+declare `income: f4(NBINS-)` instead.  In either case, the relationship
 between the dimension lengths gives a human reader of this layout a pretty
 clear idea of which way you are thinking about bins and boundaries.
 
@@ -398,7 +396,7 @@ even though numpy supports that on all platforms.)  The only way to describe
 such data in a Dudley layout is to leave it as raw bytes, for example by
 defining::
 
-    f16 {:u1[16]}
+    f16 {:u1(16)}
 
 Quoting and other details
 -------------------------
@@ -446,16 +444,16 @@ additional kinds of anonymous items.  These both depend on the content of the
 data being stored, not simply its structure, and so they can only be present
 in programmatically generated Dudley layouts.
 
-In brief, a compression filter requires an anonymous variable parameter, whose
+In brief, a compression filter requires an anonymous dynamic parameter, whose
 value is the length in bytes of the compressed data.  This parameter goes at
 the stream address of the compressed data array, with the compressed data
 itself immediately following.  Thus::
 
-    data_name: datatype[shape] -> filter
+    data_name: datatype(dimensions) -> filter
 
 appears in the stream as if it were described by::
 
-    ANONYMOUS_LENGTH = i8  data_name: u1[ANONYMOUS_LENGTH]
+    ANONYMOUS_LENGTH = i8  data_name: u1(ANONYMOUS_LENGTH)
 
 The implicit anonymous length parameter appears in the global list of dynamic
 parameters Dudley keeps internally, but there is no way to reference it
@@ -467,10 +465,10 @@ must actually appear in the Dudley layout.  An automatically generated
 referenced array declaration in a Dudley layout looks like this:
 
 **referenced_data**
-  ^ datatype shape\ :subscript:`opt` address\ :subscript:`opt`
+  datatype shape\ :subscript:`opt` placement\ :subscript:`opt`
 
-This looks similar to an ordinary data item declaration but without a
-`data_name`.  However, there are additional restrictions on the `datatype` and
+This looks similar to an ordinary data item declaration.
+However, there are additional restrictions on the `datatype` and
 `shape` of a referenced array.  Namely, it may use only named datatypes
 declared in the root dict, and its shape may include only explicit integer
 dimension lengths - parameter names are not permitted in referenced array
@@ -478,4 +476,5 @@ shapes.
 
 The other big difference bewteen a referenced data declaration and an ordinary
 declaration for data in a dict or list is that the referenced declaration
-automatically goes in the root dict, without affecting the current working dict.
+automatically has the root dict as its parent, without affecting the current
+working dict or list.
