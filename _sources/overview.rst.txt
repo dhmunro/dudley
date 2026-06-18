@@ -24,8 +24,8 @@ among the various arrays in a data set.  The
 `netCDF <https://www.unidata.ucar.edu/software/netcdf>`__ format also has this
 feature, but unlike netCDF, Dudley allows the dimension lengths to be stored
 in the stream as parameter values.  This extension permits a single Dudley
-layout to describe a large number of files or stream instances - potentially
-every restart dump file for even aphysics simulation code, 
+layout to describe arbitrarily many files or stream instances - potentially
+every restart dump file for even a large physics simulation code, for example.
 
 Since physics simulations often require only a few dozen parameters to fix
 the dimensions of every array, a separate catalog file can store copies of all
