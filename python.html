@@ -283,7 +283,7 @@ using the <cite>dudley.openbd</cite> function:</p>
 <p>Except for the “w” modes, if <cite>bdfile</cite> already exists, it must begin with a
 Dudley signature, and have its Dudley layout appended to the end of the file.
 If <cite>openbd</cite> is creating the file, it will have this format.  In other words,
-Dudley acts like HDF5 or ather self-describing binary file format libraries
+Dudley acts like HDF5 or other self-describing binary file format libraries
 for this <cite>openbd</cite> call.</p>
 <p>(More complex scenarios involve optional <cite>dud</cite> and <cite>params</cite> arguments to
 <cite>openbd</cite>, which set the Dudley layout and any dynamic parameter values without
@@ -370,7 +370,7 @@ dict, any <cite>SDict</cite> object may be invoked as a function to do so (anoth
 enhancement to a python dict):</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">mydict</span> <span class="o">=</span> <span class="n">s_root</span><span class="o">.</span><span class="n">mydict</span><span class="p">()</span>  <span class="c1"># reads &quot;mydict&quot; back as a python dict</span>
 <span class="n">everything</span> <span class="o">=</span> <span class="n">s_root</span><span class="p">()</span>  <span class="c1"># reads the entire bdfile into memory</span>
-<span class="c1"># Thus, to copy an entire file (inefficently compared to cp command):</span>
+<span class="c1"># Thus, to copy an entire file (inefficiently compared to cp command):</span>
 <span class="n">openbd</span><span class="p">(</span><span class="s2">&quot;file2.bd&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">openbd</span><span class="p">(</span><span class="s2">&quot;file1.bd&quot;</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)())</span>
 </pre></div>
 </div>
@@ -417,12 +417,6 @@ variable using a length-2 tuple whose first element is a numpy dtype.  In this
 case, the second element is a shape.  This hack enables you to declare an
 array in the file without actually writing any data initially:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">s_root</span><span class="o">.</span><span class="n">var0</span> <span class="o">=</span> <span class="n">dtype</span><span class="p">,</span> <span class="n">shape</span>  <span class="c1"># declare &quot;var0&quot; without writing anything</span>
-</pre></div>
-</div>
-<p>You can then write the data for var0 in chunks.  The trick to do that is to
-pass multiple keys to the <cite>[]</cite> operator:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">s_root</span><span class="p">[</span><span class="s2">&quot;var0&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">part_of_var0</span>  <span class="c1"># partial write of var0[0:2]</span>
-<span class="n">part_of_var0</span> <span class="o">=</span> <span class="n">s_root</span><span class="p">[</span><span class="s2">&quot;var0&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span>  <span class="c1"># partial read of var0[0:2]</span>
 </pre></div>
 </div>
 <p>You use <cite>s_dict[name]</cite> (or <cite>s_dict.name</cite>) or <cite>s_list[index]</cite> to move down the
@@ -504,6 +498,32 @@ above example.  To work as a goto keyword, a variable must have a scalar
 value, but for the iterator <cite>mydict.goto.varname</cite>, the values of <cite>varname</cite> can
 be anything.</p>
 </section>
+<section id="queries">
+<h3>Queries<a class="headerlink" href="#queries" title="Link to this heading">¶</a></h3>
+<p>For complete structural information about a file, you want to use the layout interface described below.  However, the stream interface does include a wrapper to enable you to conveniently query data array dtypes and shapes without reading any data:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">myitem</span> <span class="o">=</span> <span class="n">mydict</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">var0</span>  <span class="c1"># or mydict.query[&quot;var0&quot;]</span>
+<span class="n">myitem</span> <span class="o">=</span> <span class="n">mylist</span><span class="o">.</span><span class="n">query</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+<span class="k">while</span> <span class="n">myitem</span> <span class="ow">in</span> <span class="n">mycontainer</span><span class="o">.</span><span class="n">query</span><span class="p">:</span>  <span class="c1"># also len(mycontainer.query)</span>
+  <span class="n">key</span> <span class="o">=</span> <span class="n">myitem</span><span class="o">.</span><span class="n">key</span>  <span class="c1"># name or index of myitem in its container</span>
+  <span class="o">...</span>
+<span class="n">myitem</span><span class="o">.</span><span class="n">dtype</span>  <span class="c1"># numpy dtype of var0, or dict or list if container</span>
+<span class="n">myitem</span><span class="o">.</span><span class="n">shape</span>  <span class="c1"># numpy shape of var0, or len(var0) if container</span>
+<span class="n">dtype</span><span class="p">,</span> <span class="n">shape</span> <span class="o">=</span> <span class="n">myitem</span>  <span class="c1"># myitem is an iterator returning (dtype, shape)</span>
+<span class="n">myitem</span><span class="o">.</span><span class="n">parent</span>  <span class="c1"># SDict or SList containing myitem</span>
+<span class="n">myitem</span><span class="o">.</span><span class="n">is_data</span>  <span class="c1"># True if data array (not is_data means container)</span>
+<span class="n">myitem</span><span class="o">.</span><span class="n">is_dict</span>  <span class="c1"># True if queried object is dict</span>
+<span class="n">myitem</span><span class="o">.</span><span class="n">is_list</span>  <span class="c1"># True if queried object is list</span>
+<span class="n">myitem</span><span class="o">.</span><span class="n">address</span><span class="p">,</span> <span class="n">myitem</span><span class="o">.</span><span class="n">filter</span>  <span class="c1"># IO utilities</span>
+</pre></div>
+</div>
+<p>You can also use the query object to perform partial reads or writes:</p>
+<p>You can then write the data for var0 in chunks.  The trick to do that is to
+pass multiple keys to the <cite>[]</cite> operator:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">s_root</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">var0</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span> <span class="o">=</span> <span class="n">part_of_var0</span>  <span class="c1"># partial write of var0[0:2]</span>
+<span class="n">part_of_var0</span> <span class="o">=</span> <span class="n">s_root</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">var0</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]</span>  <span class="c1"># partial read of var0[0:2]</span>
+</pre></div>
+</div>
+</section>
 </section>
 <section id="layout-interface">
 <h2>Layout interface<a class="headerlink" href="#layout-interface" title="Link to this heading">¶</a></h2>
@@ -569,7 +589,7 @@ array without writing it in an <cite>SDict</cite> (or <cite>SList</cite>):</p>
 <span class="n">l_list</span> <span class="o">+=</span> <span class="nb">dict</span>  <span class="c1"># trailing comma unnecessary, or l_list.append(dict)</span>
 <span class="n">l_list</span> <span class="o">+=</span> <span class="nb">list</span>  <span class="c1"># trailing comma unnecessary, or l_list.append(list)</span>
 <span class="c1"># LList + operator behaves differently from python list:</span>
-<span class="c1"># item = l_list + something     is shortthand for</span>
+<span class="c1"># item = l_list + something     is shorthand for</span>
 <span class="c1"># l_list += [something]; item = l_list[-1]</span>
 <span class="n">mydict</span> <span class="o">=</span> <span class="n">l_list</span> <span class="o">+</span> <span class="nb">dict</span>
 <span class="n">mylist</span> <span class="o">=</span> <span class="n">l_list</span> <span class="o">+</span> <span class="nb">list</span>
@@ -616,7 +636,7 @@ reference in order to indicate Dudley “+” or “-” suffixes.  For example:
 </pre></div>
 </div>
 <p>When you retrieve a data array with <cite>l_dict[name]</cite> or <cite>l_list[index]</cite>, you get
-a <cite>DData</cite> object, which you can query to determine the datatype, shape, align,
+a <cite>LData</cite> object, which you can query to determine the datatype, shape, align,
 and filt parameters used to create it:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">l_data</span> <span class="o">=</span> <span class="n">l_container</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
 <span class="n">datatype</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">align</span><span class="p">,</span> <span class="n">filt</span> <span class="o">=</span> <span class="n">l_data</span>
@@ -635,6 +655,14 @@ optional):</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">datatype</span> <span class="o">=</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">types</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">datatype</span><span class="p">,</span> <span class="n">shape</span><span class="p">,</span> <span class="n">align</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Alternatively, you can declare a compound datatype using a python dict:</p>
+<blockquote>
+<div><dl class="simple">
+<dt>datatype = l_dict.types(name, {“mname0”: (datatype0, shape0, align0),</dt><dd><p>“mname1”: (datatype1, shape1, align1),
+…})</p>
+</dd>
+</dl>
+</div></blockquote>
 <p>To create a compound datatype, use a python “with” statement:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">l_dict</span><span class="o">.</span><span class="n">types</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="k">as</span> <span class="n">datatype</span><span class="p">:</span>
     <span class="c1"># Inside the block, datatype acts like a dict container.</span>
@@ -644,6 +672,14 @@ optional):</p>
 <span class="c1"># datatype is closed and usable outside its with block</span>
 </pre></div>
 </div>
+<p>Alternatively, you can declare a compound datatype using a python dict:</p>
+<blockquote>
+<div><dl class="simple">
+<dt>datatype = l_dict.types(name, {“mname0”: (datatype0, shape0, align0),</dt><dd><p>“mname1”: (datatype1, shape1, align1),
+…})</p>
+</dd>
+</dl>
+</div></blockquote>
 <p>Besides <cite>LType</cite> objects, a <cite>datatype</cite> argument in an array declaration may be
 a string, which can be either a (prefixed or unprefixed) primitive type name,
 or a previously defined type name (in the current container or an ancestor).</p>
@@ -801,6 +837,7 @@ little or big endian byte order without reading the file.</p>
 <li><a class="reference internal" href="#moving-data">Moving data</a></li>
 <li><a class="reference internal" href="#containers">Containers</a></li>
 <li><a class="reference internal" href="#recording-mode">Recording mode</a></li>
+<li><a class="reference internal" href="#queries">Queries</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#layout-interface">Layout interface</a><ul>
