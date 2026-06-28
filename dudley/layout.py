@@ -18,6 +18,10 @@ else:
 D_PRIM, D_DATA, D_PARAM, D_DICT, D_LIST, D_TYPE = 0, 1, 2, 3, 4, 5
 
 
+class DudleyError(TypeError):
+    pass
+
+
 class _Prim(object):
     """A primitive datatype.  There are exactly 5 + 14*3 = 47 instances:
 
@@ -63,7 +67,7 @@ class _Prim(object):
 
     Dudley also uses type number 0 for the empty compound `{}`, which means
     `None` in python or `null` in javascript/JASON and takes no space in the
-    data stream.  (Note that 0 root dict, never a datatype.)
+    data stream.  (Note that 0 is the root dict, never a datatype.)
 
     All 47 instances are kept in the prim attribute of the Layout class, so
     that Layout.prim[iprim] is primitive number iprim.
@@ -119,7 +123,7 @@ class Layout(list):
         # length as these: a list of addresses the same length as self, and
         # a list of dynamic parameter values the same length as params.
         # Optional lists the same length as items are also created if the
-        # layout contains any attributes or documentatation.
+        # layout contains any attributes or documentation.
         self._atts = None  # atts[id] -> {attributes of item}
         self._docs = None  # docs[id] -> [docstrings for item]
 
@@ -143,16 +147,16 @@ class Layout(list):
         """Encode array dimension as int, including parameter references."""
         if isinstance(d, Integral):
             if d < -1:
-                raise ValueError("array dimension < -1 has no meaning")
+                raise DudleyError("array dimension < -1 has no meaning")
             return d
         offset = 0
         if isinstance(d, ParamRef):
             d, offset = d.l_param, d.offset
         elif not isinstance(d, LParam):
-            raise TypeError("array dimension must be integer or "
-                            "parameter reference")
+            raise DudleyError("array dimension must be integer or "
+                              "parameter reference")
         if d.layout != self:
-            raise TypeError("parameter not in same layout as shape")
+            raise DudleyError("parameter not in same layout as shape")
         return ((-d.itemid) << 6) | (offset + 32)  # less than -64
 
     def decode_dim(self, d):
@@ -185,22 +189,28 @@ class Layout(list):
         pitem = self.l_item(parent)  # LItem for parent
         ptype = pitem.itype
         if ptype == D_DICT and parent.get(name):
-            raise TypeError("LDict item {} previously declared".format(name))
+            raise DudleyError("LDict item {} previously declared".format(name))
         datatype, args = args[0], args[1:]
         if issubclass(datatype, dict):
             if ptype == D_TYPE:
-                raise TypeError("attempt to add LDict as an LType member")
+                raise DudleyError("attempt to add LDict as an LType member")
             item = _Dict(parent, name)
         elif issubclass(datatype, list):
             if ptype == D_TYPE:
-                raise TypeError("attempt to add LList as an LType member")
+                raise DudleyError("attempt to add LList as an LType member")
             item = _List(parent, name)
         elif ptype == D_TYPE and datatype is None:
-            raise TypeError("attempt to add None as an LType member")
+            raise DudleyError("attempt to add None as an LType member")
         else:
             item = _Data(parent, name, pitem.get_typeid(datatype), *args)
         itemid = len(self)  # id for the new item
         self.append(item)
+        if ptype == D_DICT:
+            pitem[name] = itemid
+        elif ptype == D_LIST:
+            pitem.append(itemid)
+        elif ptype == D_TYPE:
+            pass
         return itemid
 
     def add_param(self, parent, name, typeid, align=None):
@@ -208,9 +218,9 @@ class Layout(list):
         itemid = len(self)  # id for the new item
         if typeid is None:
             if not isinstance(align, Integral):
-                raise TypeError("fixed parameter value must be integer")
+                raise DudleyError("fixed parameter value must be integer")
             if align < -1:
-                raise ValueError("fixed parameter value must not be negative")
+                raise DudleyError("fixed parameter value must not be negative")
             pid, align = align, None  # pid is value
         else:
             params = self.params
@@ -227,10 +237,10 @@ class Layout(list):
         """Append a new _Type to this layout."""
         if align:
             if align > 0 and (align & (align-1)):
-                raise ValueError("illegal alignment {}, must be power of two"
-                                 .format(align))
+                raise DudleyError("illegal alignment {}, must be power of two"
+                                  .format(align))
             elif align < 0:
-                raise ValueError("cannot specify @address in typedef")
+                raise DudleyError("cannot specify @address in typedef")
         # parent is guaranteed to be a Dudley dict
         itemid = len(self)  # id for the new _Type item
         if datatype is not Ellipsis:  # this is a typedef
@@ -320,7 +330,7 @@ class LItem(object):
             lines = []
             for a in args:
                 if not isinstance(a, basestring):
-                    raise TypeError("Each documentation line must be text")
+                    raise DudleyError("Each documentation line must be text")
                 lines.extend(a.split("\n"))
             if not docs:
                 layout.docs = docs = [None]*(itemid + 1)
@@ -349,14 +359,14 @@ class LItem(object):
         attributes = []
         for name, value in args:
             if not isinstance(name, basestring):
-                raise TypeError("attribute name must be text")
+                raise DudleyError("attribute name must be text")
             if value is None or isinstance(value, basestring):
                 continue
             value = array(value + 0)
             if value.ndim > 1:
-                raise ValueError("attribute value must be scalar or 1D array")
+                raise DudleyError("attribute value must be scalar or 1D array")
             if value.dtype.kind not in "if":
-                raise ValueError("attribute value must be type int or float")
+                raise DudleyError("attribute value must be type int or float")
             if value.ndim == 0:
                 value = value[()]
             attributes.append((name, value))
@@ -458,8 +468,8 @@ class _Data(object):
 
     def __init__(self, parent, name, typeid, shape=None, align=0, filt=None):
         if align and align > 0 and (align & (align-1)):
-            raise ValueError("illegal alignment {}, must be power of two"
-                             .format(align))
+            raise DudleyError("illegal alignment {}, must be power of two"
+                              .format(align))
         self.parent = parent.itemid  # parent arg is LDict, LList, or LType
         self.name = name
         self.typeid = typeid
@@ -522,32 +532,35 @@ class LDict(LItem):
 
     def __setitem__(self, name, value):
         if not isinstance(name, basestring):
-            raise TypeError("item name must be a text string")
+            raise DudleyError("item name must be a text string")
         if not isinstance(value, tuple):
             value = (value,)
         layout = self.layout
-        layout.add_item(self.itemid, name, *value)
+        items = layout[self.itemid].items
+        items[name] = layout.add_item(self.itemid, name, *value)
 
-    def getdict(self, name):
+    def getdict(self, name, force=False):
         if not isinstance(name, basestring):
-            raise TypeError("dict name must be a text string")
+            raise DudleyError("dict name must be a text string")
         item = self.get(name)
         if not item:
             layout = self.layout
-            item = layout.l_item(layout.add_item(self.itemid, name, dict))
-        elif item.itype != D_DICT:
-            raise TypeError("item exists but is not a dict: {}".format(name))
-        return item
+            return layout.l_item(layout.add_item(self.itemid, name, dict))
+        elif item.itype == D_DICT:
+            return item
+        elif force:
+            pass
+        raise DudleyError("item exists but is not a dict: {}".format(name))
 
-    def getlist(self, name):
+    def getlist(self, name, force=False):
         if not isinstance(name, basestring):
-            raise TypeError("dict name must be a text string")
+            raise DudleyError("dict name must be a text string")
         item = self.get(name)
         if not item:
             layout = self.layout
             item = layout.l_item(layout.add_item(self.itemid, name, list))
         elif item.itype != D_LIST:
-            raise TypeError("item exists but is not a list: {}".format(name))
+            raise DudleyError("item exists but is not a list: {}".format(name))
         return item
 
 
@@ -568,7 +581,7 @@ class DictParams(object):
             while parent and parent.itype != D_DICT:
                 parent = parent.parent
             if not parent:  # recursion always hits this eventually
-                raise KeyError("missing parameter {}".format(name))
+                raise DudleyError("missing parameter {}".format(name))
             paramid = parent.params[name]  # recurse through ancestor dicts
         return paramid
 
@@ -603,7 +616,7 @@ class DictParams(object):
     def __call__(self, name, type_or_value, align=None):
         """assign parameter value"""
         if not isinstance(name, basestring):
-            raise TypeError("parameter name must be a text string")
+            raise DudleyError("parameter name must be a text string")
         l_dict = self.l_dict
         layout = l_dict.layout
         dictid = l_dict.itemid
@@ -617,16 +630,16 @@ class DictParams(object):
                 item = layout[tid]
                 members = None if item.itype != D_TYPE else item.members
                 if not isinstance(members, Integral):
-                    raise TypeError("parameter {} datatype cannot be compound"
-                                    .format(name))
+                    raise DudleyError("parameter {} datatype cannot be compound"
+                                      .format(name))
                 item = layout[members]
                 tid = item.typeid
                 if item.shape or item.filt:
-                    raise TypeError("parameter {} datatype must be scalar"
-                                    .format(name))
+                    raise DudleyError("parameter {} datatype must be scalar"
+                                      .format(name))
             if tid > -1 or tid < -50 or (-1 - tid) % 5 > 1:
-                raise TypeError("parameter {} datatype must be integer"
-                                .format(name))
+                raise DudleyError("parameter {} datatype must be integer"
+                                  .format(name))
             paramid = layout.add_param(dictid, name, typeid, align)
         params = _dict.params
         if params is None:
@@ -652,14 +665,14 @@ class DictTypes(object):
             while parent and parent.itype != D_DICT:
                 parent = parent.parent
             if not parent:  # recursion always hits this eventually
-                raise KeyError("missing type {}".format(name))
+                raise DudleyError("missing type {}".format(name))
             typeid = parent.types[name]  # recurse through ancestor dicts
         return typeid
 
     def get(self, name, default=None):
         try:
             return self[name]
-        except KeyError:
+        except (KeyError, DudleyError):
             return default
 
     def __bool__(self):
@@ -690,10 +703,10 @@ class DictTypes(object):
         types = self.types
         if name is not None:
             if not isinstance(name, basestring):
-                raise TypeError("type name must be a text string or None")
+                raise DudleyError("type name must be a text string or None")
             if types is not None and name in types:
-                raise ValueError("type name previously declared: {}"
-                                 .format(name))
+                raise DudleyError("type name previously declared: {}"
+                                  .format(name))
         typeid = layout.add_type(l_dict.itemid, name, datatype, shape, align)
         return layout.l_item(typeid)
 
@@ -714,8 +727,8 @@ class _Dict(object):
         if not isinstance(datatype, basestring):
             if datatype is None:
                 return 0
-            raise TypeError("expecting type as name, LPrim, or LType, got {}"
-                            .format(datatype))
+            raise DudleyError("expecting type as name, LPrim, or LType, got {}"
+                              .format(datatype))
         _dict, types = self, self.types
         while True:
             if types is not None:
@@ -734,8 +747,8 @@ class _Dict(object):
                         # add unprefixed primitive datatype to layout root dict
                         typeid = layout.add_prim(0, datatype, typeid)
                     return typeid
-                raise KeyError("datatype {} not found in scope"
-                               .format(datatype))
+                raise DudleyError("datatype {} not found in scope"
+                                  .format(datatype))
             _dict = layout[parent]
             while _dict.itype != D_DICT:  # skip over list containers
                 _dict = layout[_dict.parent]
@@ -745,8 +758,8 @@ class _Dict(object):
         if isinstance(param, LParam):
             return param.itemid
         if not isinstance(param, basestring):
-            raise TypeError("expecting parameter as name or LParam, got {}"
-                            .format(param))
+            raise DudleyError("expecting parameter as name or LParam, got {}"
+                              .format(param))
         _dict, params = self, self.params
         while True:
             if params is not None:
@@ -755,7 +768,8 @@ class _Dict(object):
                     return paramid
             parent = _dict.parent
             if parent is None:  # _dict is root dict of layout
-                raise KeyError("parameter {} not found in scope".format(param))
+                raise DudleyError("parameter {} not found in scope"
+                                  .format(param))
             _dict = layout[parent]
             while _dict.itype != D_DICT:  # skip over list containers
                 _dict = layout[_dict.parent]
@@ -794,7 +808,7 @@ class LList(LItem):
             args = (datatype.shape,) + args  # optional args is align
             datatype = datatype.datatype
         layout, selfid = self.layout, self.itemid
-        selfid.items.append(layout.add_item(selfid, None, datatype, *args))
+        self.items.append(layout.add_item(selfid, None, datatype, *args))
 
     def __iadd__(self, rop):
         if not isinstance(rop, tuple):
@@ -805,16 +819,22 @@ class LList(LItem):
         self += rop
         return self[-1]
 
-    def getdict(self, index):
+    def getdict(self, index=None):
+        if index is None:
+            self.append(dict)
+            index = -1
         item = self[index]
         if item.itype != D_DICT:
-            raise TypeError("list item {} is not a dict".format(index))
+            raise DudleyError("list item {} is not a dict".format(index))
         return item
 
-    def getlist(self, index):
+    def getlist(self, index=None):
+        if index is None:
+            self.append(list)
+            index = -1
         item = self[index]
         if item.itype != D_LIST:
-            raise TypeError("list item {} is not a list".format(index))
+            raise DudleyError("list item {} is not a list".format(index))
         return item
 
 
@@ -902,9 +922,9 @@ class LParam(LItem):
 
     def __add__(self, rop):
         if not isinstance(rop, Integral):
-            raise TypeError("parameter reference offset must be an integer")
+            raise DudleyError("parameter reference offset must be an integer")
         if rop < -31 or rop > 31:
-            raise ValueError("parameter reference offset too large (>31)")
+            raise DudleyError("parameter reference offset too large (>31)")
         return ParamRef(self, rop)
 
     def __sub__(self, rop):
@@ -936,8 +956,8 @@ class _Param(object):
 
     def __init__(self, parent, name, pid, typeid=None, align=None):
         if align and align > 0 and (align & (align-1)):
-            raise ValueError("illegal alignment {}, must be power of two"
-                             .format(align))
+            raise DudleyError("illegal alignment {}, must be power of two"
+                              .format(align))
         self.parent = parent
         self.name = name
         self.pid = pid  # value if typeid is None
@@ -954,7 +974,7 @@ class LType(LItem):
         item = layout[self.itemid]
         align = item.align
         if align >= 0:
-            raise TypeError("attempt to close LType that is not open")
+            raise DudleyError("attempt to close LType that is not open")
         item.align = -align  # align >= 0 marks closed compound
 
     @property
@@ -962,7 +982,7 @@ class LType(LItem):
         layout = self.layout
         item = layout[self.itemid]
         if item.align < 0:
-            raise TypeError("__setitem__ is only legal method for open LType")
+            raise DudleyError("__setitem__ only legal method for open LType")
         return layout, item
 
     @property
@@ -978,13 +998,13 @@ class LType(LItem):
             if name == 0:
                 return layout.l_item(members)
             else:
-                raise KeyError("only legal key for typedef is integer 0")
+                raise DudleyError("only legal key for typedef is integer 0")
         return layout.l_item(members[name])
 
     def get(self, name, default=None):
         try:
             return self[name]
-        except KeyError:
+        except (KeyError, DudleyError):
             return default
 
     def __bool__(self):
@@ -1029,12 +1049,12 @@ class LType(LItem):
         item = layout[itemid]
         align = -item.align  # negative of current alignment is open marker
         if item.align <= 0:
-            raise TypeError("__setitem__ is illegal method for closed LType")
+            raise DudleyError("__setitem__ is illegal method for closed LType")
         if not isinstance(name, basestring):
-            raise TypeError("item name must be a text string")
+            raise DudleyError("item name must be a text string")
         if not isinstance(value, tuple):
             value = (value,)
-        layout.add_item(itemid, name, *value)
+        item.members[name] = layout.add_item(itemid, name, *value)
         # remains to compute alignment and size
         # While compound is open, size is byte after end of previous member
         # and align is negative of maximum member alignment so far.
@@ -1082,7 +1102,7 @@ class Address(int):
 
     def __new__(cls, address):
         if address < -1:  # address -1 means "not allocated" or NULL
-            raise ValueError("Address cannot be less than -1")
+            raise DudleyError("Address cannot be less than -1")
         return super(Address, cls).__new__(cls, -2 - address)
 
     @property

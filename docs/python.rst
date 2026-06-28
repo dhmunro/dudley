@@ -48,7 +48,7 @@ In this simple form `bdfile` is a filename, and `mode` is one of:
 Except for the "w" modes, if `bdfile` already exists, it must begin with a
 Dudley signature, and have its Dudley layout appended to the end of the file.
 If `openbd` is creating the file, it will have this format.  In other words,
-Dudley acts like HDF5 or ather self-describing binary file format libraries
+Dudley acts like HDF5 or other self-describing binary file format libraries
 for this `openbd` call.
 
 (More complex scenarios involve optional `dud` and `params` arguments to
@@ -139,7 +139,7 @@ enhancement to a python dict)::
 
     mydict = s_root.mydict()  # reads "mydict" back as a python dict
     everything = s_root()  # reads the entire bdfile into memory
-    # Thus, to copy an entire file (inefficently compared to cp command):
+    # Thus, to copy an entire file (inefficiently compared to cp command):
     openbd("file2.bd", "w").update(openbd("file1.bd", "r")())
 
 Similiarly, reading a Dudley list container does not immediately read all the
@@ -187,12 +187,6 @@ case, the second element is a shape.  This hack enables you to declare an
 array in the file without actually writing any data initially::
 
     s_root.var0 = dtype, shape  # declare "var0" without writing anything
-
-You can then write the data for var0 in chunks.  The trick to do that is to
-pass multiple keys to the `[]` operator::
-
-    s_root["var0", 0:2] = part_of_var0  # partial write of var0[0:2]
-    part_of_var0 = s_root["var0", 0:2]  # partial read of var0[0:2]
 
 You use `s_dict[name]` (or `s_dict.name`) or `s_list[index]` to move down the
 container tree.  To move up the container tree, both `SDict` and `SList`
@@ -274,6 +268,34 @@ above example.  To work as a goto keyword, a variable must have a scalar
 value, but for the iterator `mydict.goto.varname`, the values of `varname` can
 be anything.
 
+Queries
+.......
+
+For complete structural information about a file, you want to use the layout interface described below.  However, the stream interface does include a wrapper to enable you to conveniently query data array dtypes and shapes without reading any data::
+
+    myitem = mydict.query.var0  # or mydict.query["var0"]
+    myitem = mylist.query[index]
+    while myitem in mycontainer.query:  # also len(mycontainer.query)
+      key = myitem.key  # name or index of myitem in its container
+      ...
+    myitem.dtype  # numpy dtype of var0, or dict or list if container
+    myitem.shape  # numpy shape of var0, or len(var0) if container
+    dtype, shape = myitem  # myitem is an iterator returning (dtype, shape)
+    myitem.parent  # SDict or SList containing myitem
+    myitem.is_data  # True if data array (not is_data means container)
+    myitem.is_dict  # True if queried object is dict
+    myitem.is_list  # True if queried object is list
+    myitem.address, myitem.filter  # IO utilities
+
+You can also use the query object to perform partial reads or writes::
+
+You can then write the data for var0 in chunks.  The trick to do that is to
+pass multiple keys to the `[]` operator::
+
+    s_root.query.var0[0:2] = part_of_var0  # partial write of var0[0:2]
+    part_of_var0 = s_root.query.var0[0:2]  # partial read of var0[0:2]
+
+
 Layout interface
 ----------------
 
@@ -342,7 +364,7 @@ To create a dict or list container, you use the python "dict" or "list" class
     l_list += dict  # trailing comma unnecessary, or l_list.append(dict)
     l_list += list  # trailing comma unnecessary, or l_list.append(list)
     # LList + operator behaves differently from python list:
-    # item = l_list + something     is shortthand for
+    # item = l_list + something     is shorthand for
     # l_list += [something]; item = l_list[-1]
     mydict = l_list + dict
     mylist = l_list + list
@@ -388,7 +410,7 @@ reference in order to indicate Dudley "+" or "-" suffixes.  For example::
     l_dict["x"] = "f8", (3, NZONES+1)  # x is 3x(NZONES+1) array of doubles
 
 When you retrieve a data array with `l_dict[name]` or `l_list[index]`, you get
-a `DData` object, which you can query to determine the datatype, shape, align,
+a `LData` object, which you can query to determine the datatype, shape, align,
 and filt parameters used to create it::
 
     l_data = l_container[key]
@@ -408,6 +430,12 @@ optional)::
 
     datatype = l_dict.types(name, datatype, shape, align)
 
+Alternatively, you can declare a compound datatype using a python dict:
+
+    datatype = l_dict.types(name, {"mname0": (datatype0, shape0, align0),
+                                   "mname1": (datatype1, shape1, align1),
+                                   ...})
+
 To create a compound datatype, use a python "with" statement::
 
     with l_dict.types(name) as datatype:
@@ -416,6 +444,12 @@ To create a compound datatype, use a python "with" statement::
         datatype[mname1] = datatype1, shape1, align1
         ...  # datatype is open and unusable as an array type inside block
     # datatype is closed and usable outside its with block
+
+Alternatively, you can declare a compound datatype using a python dict:
+
+    datatype = l_dict.types(name, {"mname0": (datatype0, shape0, align0),
+                                   "mname1": (datatype1, shape1, align1),
+                                   ...})
 
 Besides `LType` objects, a `datatype` argument in an array declaration may be
 a string, which can be either a (prefixed or unprefixed) primitive type name,

@@ -25,7 +25,7 @@ Dudley implements four compression filters by default, but you can define and
 register your own custom filters if you wish.  Unlike an unfiltered array, you
 do not know in advance how many bytes of the stream will be occupied by the
 compressed array, so using any filters at all restricts a Dudley layout to
-a particualr individual byte stream.  The default filters are all
+a particular individual byte stream.  The default filters are all
 simplified versions of popular open source compressors:
 
 **zfp(level)**
@@ -75,7 +75,7 @@ the layout - otherwise there would be no way to read them back.  Therefore,
 Dudley expects to find a sequence of special anonymous declarations of the
 form:
 
-  : datatype shape\ :subscript:`opt` address\ :subscript:`opt`
+  & datatype shape\ :subscript:`opt` address\ :subscript:`opt`
 
 These can appear anywhere a named dict item is expected, but these reference
 declarations are always placed in the root dict.  The datatype and shape have
